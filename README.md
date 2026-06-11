@@ -6,7 +6,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-blue.svg)](docs/roadmap.md)
-[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%203)-orange.svg)](#project-status)
+[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%204)-orange.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -21,6 +21,7 @@ WinTune System Scan
 OS: Windows 11 Pro x64
 Host: DESKTOP-9KD2
 Uptime: 3d 04h
+Power: Balanced (AC)
 
 CPU:
   Usage: 7.7%
@@ -31,11 +32,19 @@ Memory:
 
 Disk:
   C:\ 272.8 GB free / 892.8 GB (30.6% free)
+  Active time: 4%
 
 Top Processes by Memory:
 PID      Process                            Memory      Private
 13136    Cursor.exe                         1.1 GB       1.1 GB
 24628    Discord.exe                      606.7 MB     533.5 MB
+
+Recommendations:
+[WT-POWER-001] Use a higher-performance power plan while plugged in
+  Severity: low | Risk: low | Confidence: 85% | reversible
+  Why: On AC power with the 'Balanced' plan. While plugged in, the High
+       performance plan can improve responsiveness for heavy workloads.
+  Action: wintune power --set performance
 ```
 
 ---
@@ -96,6 +105,8 @@ wintune scan            # full local scan (implemented)
 wintune top             # top processes by memory (implemented)
 wintune top --limit 20  # show more rows
 wintune top --watch     # live refresh in place (q or Ctrl+C to quit)
+wintune recommend       # explainable recommendations, no changes (implemented)
+wintune doctor          # scan + recommendations + summary (implemented)
 ```
 
 Common options for `scan`/`top` today:
@@ -115,14 +126,15 @@ Full command reference: [`docs/cli.md`](docs/cli.md).
 
 ### JSON automation
 
-`scan` and `top` support `--json`, emitting only JSON on stdout so output can
-be piped and parsed safely. Use `--output <path>` to write to a file instead
-(UTF-8, no BOM):
+`scan`, `top`, `recommend`, and `doctor` support `--json`, emitting only JSON on
+stdout so output can be piped and parsed safely. Use `--output <path>` to write
+to a file instead (UTF-8, no BOM):
 
 ```powershell
 wintune scan --json
 wintune scan --json --output report.json
 wintune top  --json --limit 20
+wintune recommend --json
 ```
 
 The scan document has a stable shape:
@@ -134,15 +146,19 @@ The scan document has a stable shape:
   "system":  { "available": true, "os": "Windows 11 Pro", "arch": "x64", "hostname": "...", "uptime_ms": 0 },
   "cpu":     { "available": true, "logical_processors": 32, "total_usage_percent": 14.1 },
   "memory":  { "available": true, "total_bytes": 0, "available_bytes": 0, "used_bytes": 0, "used_percent": 35.3 },
-  "disk":    { "available": true, "volumes": [ { "root": "C:\\", "total_bytes": 0, "free_bytes": 0, "free_percent": 30.5 } ] },
+  "disk":    { "available": true, "volumes": [ { "root": "C:\\", "total_bytes": 0, "free_bytes": 0, "free_percent": 30.5 } ], "active_available": true, "active_percent": 4.0 },
+  "power":   { "available": true, "plan": "Balanced", "plan_name": "Balanced", "on_ac": true, "battery_percent": null },
   "processes": { "available": true, "top": [ { "pid": 0, "name": "...", "working_set_bytes": 0, "private_bytes": 0, "read_bytes": 0, "write_bytes": 0, "cpu_percent": null } ] },
-  "recommendations": []
+  "recommendations": [
+    { "id": "WT-POWER-001", "title": "...", "severity": "low", "risk": "low", "reason": "...", "action": "wintune power --set performance", "requires_admin": false, "rollback_available": true, "confidence_percent": 85 }
+  ]
 }
 ```
 
 Each section carries an `available` flag so partial failures are visible
 rather than fatal. `cpu_percent` is `null` until per-process CPU lands in a
-later phase.
+later phase. Recommendations are deterministic and explainable; pass
+`--no-recommendations` to `scan` to omit them.
 
 ### Over SSH
 
@@ -179,7 +195,7 @@ WinTune is under active, phased development.
 | 1 | Basic metrics: `scan`, `top` (CPU, memory, disk, processes) | Done |
 | 2 | JSON output for `scan` / `top` (`--json`, `--output`) | Done |
 | 3 | `top --watch` live refresh | Done |
-| 4 | Recommendation engine, `recommend`, `doctor` | Planned |
+| 4 | Recommendation engine, `recommend`, `doctor` | Done |
 | 5 | `startup`, `services` | Planned |
 | 6 | `tui` dashboard | Planned |
 | 7 | Safe apply actions (power plan, etc.) | Planned |
@@ -191,14 +207,18 @@ exit non-zero. The full plan is in [`docs/roadmap.md`](docs/roadmap.md).
 
 ### Current limitations
 
-- `--json` and `--output` work for `scan` and `top`; `--output` for text
-  reports arrives with `report` (Phase 8).
+- `--json` and `--output` work for `scan`, `top`, `recommend`, and `doctor`;
+  `--output` for text reports arrives with `report` (Phase 8).
 - `top --watch` is live in an interactive terminal and falls back to a single
   snapshot when the session is non-interactive (e.g. piped or `ssh host "..."`).
 - Per-process CPU and disk-rate columns are not yet computed (later phases);
   `cpu_percent` is reported as `null` in JSON for now.
-- Recommendations, startup/service inspection, power control, and the TUI are
-  not implemented yet.
+- Recommendations cover power, memory, disk free space, disk activity, and CPU.
+  Startup-aware recommendations arrive with startup scanning (Phase 5).
+- Disk active time is a single PDH sample per scan; multi-sample smoothing is
+  planned. Power detection is read-only (applying power plans arrives in
+  Phase 7).
+- Startup/service inspection and the TUI are not implemented yet.
 
 ---
 

@@ -197,29 +197,33 @@ int wt_cli_run(int argc, wchar_t **argv)
         return WT_EXIT_OK;
     }
 
+    int rc;
     if (wcscmp(command, L"scan") == 0) {
-        return wt_cmd_scan(&opts);
-    }
-    if (wcscmp(command, L"top") == 0) {
-        return wt_cmd_top(&opts);
-    }
-    if (wcscmp(command, L"recommend") == 0) {
-        return wt_cmd_recommend(&opts);
-    }
-    if (wcscmp(command, L"doctor") == 0) {
-        return wt_cmd_doctor(&opts);
-    }
-
-    if (wt_command_is_known(command)) {
+        rc = wt_cmd_scan(&opts);
+    } else if (wcscmp(command, L"top") == 0) {
+        rc = wt_cmd_top(&opts);
+    } else if (wcscmp(command, L"recommend") == 0) {
+        rc = wt_cmd_recommend(&opts);
+    } else if (wcscmp(command, L"doctor") == 0) {
+        rc = wt_cmd_doctor(&opts);
+    } else if (wt_command_is_known(command)) {
         fwprintf(stderr,
                  L"wintune: '%ls' is recognized but not implemented yet "
                  L"(planned for a later phase).\n"
                  L"Run 'wintune help' to see available commands.\n",
                  command);
-        return WT_EXIT_NOT_IMPLEMENTED;
+        rc = WT_EXIT_NOT_IMPLEMENTED;
+    } else {
+        fwprintf(stderr, L"wintune: unknown command '%ls'\n", command);
+        fprintf(stderr, "Run 'wintune help' to see available commands.\n");
+        rc = WT_EXIT_USAGE;
     }
 
-    fwprintf(stderr, L"wintune: unknown command '%ls'\n", command);
-    fprintf(stderr, "Run 'wintune help' to see available commands.\n");
-    return WT_EXIT_USAGE;
+    /* Some Windows providers used during collection (notably PDH) can leave the
+     * process exit path from flushing block-buffered stdio (this only shows up
+     * when output is redirected to a file or pipe, e.g. over SSH). Flush
+     * explicitly so output is never silently dropped. */
+    fflush(stdout);
+    fflush(stderr);
+    return rc;
 }
