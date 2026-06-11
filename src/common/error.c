@@ -1,6 +1,7 @@
 #include "common/error.h"
 
 #include <windows.h>
+#include <strsafe.h>
 
 const char *wt_result_to_string(WT_Result result)
 {
@@ -40,8 +41,7 @@ WT_Result wt_format_win32_error(unsigned long error_code,
 
     if (written == 0) {
         /* No system text available; emit a numeric fallback. */
-        _snwprintf_s(buffer, buffer_count, _TRUNCATE,
-                     L"Win32 error %lu", error_code);
+        StringCchPrintfW(buffer, buffer_count, L"Win32 error %lu", error_code);
         return WT_OK;
     }
 

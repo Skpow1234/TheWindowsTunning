@@ -90,7 +90,8 @@ static int wt_command_is_known(const wchar_t *cmd)
         L"scan", L"top", L"tui", L"startup", L"services", L"power",
         L"recommend", L"apply", L"report", L"doctor", L"rollback"
     };
-    for (size_t i = 0; i < ARRAYSIZE(known); ++i) {
+    const size_t known_count = sizeof(known) / sizeof(known[0]);
+    for (size_t i = 0; i < known_count; ++i) {
         if (wcscmp(cmd, known[i]) == 0) {
             return 1;
         }

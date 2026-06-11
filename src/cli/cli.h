@@ -1,6 +1,8 @@
 #ifndef WINTUNE_CLI_H
 #define WINTUNE_CLI_H
 
+#include <wchar.h> /* wchar_t is a typedef in C, not a built-in keyword */
+
 #define WT_VERSION_STRING "0.1.0"
 
 /* Parsed global options shared by every command. */
