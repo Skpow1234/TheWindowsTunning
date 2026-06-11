@@ -6,7 +6,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-blue.svg)](docs/roadmap.md)
-[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%205)-orange.svg)](#project-status)
+[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%206)-orange.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -109,7 +109,24 @@ wintune recommend       # explainable recommendations, no changes (implemented)
 wintune doctor          # scan + recommendations + summary (implemented)
 wintune startup         # startup entries (registry + folders) (implemented)
 wintune services        # service state, start type, PID (implemented)
+wintune tui             # live terminal dashboard (implemented)
 ```
+
+### Live dashboard (`tui`)
+
+```powershell
+wintune tui                    # live CPU/RAM/disk/network + processes
+wintune tui --interval 2000    # refresh every 2 seconds (default 1000 ms)
+wintune tui --no-color         # disable ANSI colors
+wintune tui --no-unicode       # ASCII bars/borders
+wintune tui --safe-terminal    # conservative: ASCII + no color (SSH/unknown)
+```
+
+Keys: `q` quit (also `Esc`/Ctrl+C), `r` refresh, `o` overview, `d` disk,
+`m` memory, `n` network, `p` power, `s` services, `?` help. The dashboard is
+read-only and always restores the terminal (cursor + main screen) on exit. It
+requires an interactive terminal; in a non-interactive session it exits with a
+hint to use `scan` or `top --watch`.
 
 `startup` and `services` are read-only inventories:
 
@@ -209,7 +226,7 @@ WinTune is under active, phased development.
 | 3 | `top --watch` live refresh | Done |
 | 4 | Recommendation engine, `recommend`, `doctor` | Done |
 | 5 | `startup`, `services` | Done |
-| 6 | `tui` dashboard | Planned |
+| 6 | `tui` dashboard | Done |
 | 7 | Safe apply actions (power plan, etc.) | Planned |
 | 8 | `report` (text + JSON) | Planned |
 | 9 | SSH hardening | Planned |
@@ -234,7 +251,9 @@ exit non-zero. The full plan is in [`docs/roadmap.md`](docs/roadmap.md).
   "impact" is a coarse heuristic until boot tracing (Phase 10) provides
   measured costs. Scheduled-task inspection (`--include-tasks`) is not yet
   implemented.
-- The TUI (`tui`) is not implemented yet.
+- The `tui` dashboard is read-only and keyboard-driven (no mouse). Network
+  throughput is computed from interface byte-counter deltas between refreshes.
+  Applying changes from the dashboard is intentionally not supported.
 
 ---
 
