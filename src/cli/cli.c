@@ -1,0 +1,184 @@
+#include "cli/cli.h"
+
+#include "common/error.h"
+#include "common/log.h"
+#include "platform/console.h"
+
+#include <stdio.h>
+#include <wchar.h>
+
+/* Exit codes kept small and stable for scripting. */
+#define WT_EXIT_OK              0
+#define WT_EXIT_NOT_IMPLEMENTED 1
+#define WT_EXIT_USAGE           2
+
+static void wt_print_usage(void)
+{
+    printf(
+        "WinTune %s - native Windows performance diagnostics\n"
+        "\n"
+        "Usage:\n"
+        "  wintune <command> [options]\n"
+        "\n"
+        "Commands:\n"
+        "  scan        Run a full local performance scan\n"
+        "  top         Show process usage (use --watch to refresh)\n"
+        "  tui         Live terminal dashboard\n"
+        "  startup     Show startup entries and estimated impact\n"
+        "  services    Show service status and startup type\n"
+        "  power       Show current power plan and recommendations\n"
+        "  recommend   Generate recommendations without applying them\n"
+        "  apply       Apply a specific recommendation\n"
+        "  report      Write a local performance report\n"
+        "  doctor      scan + recommend + summary (best for normal users)\n"
+        "  rollback    List or apply rollback records\n"
+        "  version     Show version information\n"
+        "  help        Show this help\n"
+        "\n"
+        "Global options:\n"
+        "  --help            Show help\n"
+        "  --version         Show version\n"
+        "  --verbose         Verbose (INFO) logging\n"
+        "  --debug           Debug logging\n"
+        "  --json            Machine-readable JSON output\n"
+        "  --no-color        Disable ANSI colors\n"
+        "  --no-unicode      ASCII fallback rendering\n"
+        "  --safe-terminal   Conservative rendering for SSH/unknown terminals\n"
+        "  --output <path>   Write output to a file\n"
+        "  --yes             Confirm mutating actions (dangerous actions stay blocked)\n",
+        WT_VERSION_STRING);
+}
+
+static void wt_print_version(void)
+{
+#if defined(NDEBUG)
+    const char *build = "Release";
+#else
+    const char *build = "Debug";
+#endif
+
+#if defined(_MSC_VER)
+    const char *compiler = "MSVC";
+#elif defined(__clang__)
+    const char *compiler = "clang";
+#elif defined(__GNUC__)
+    const char *compiler = "GCC/MinGW";
+#else
+    const char *compiler = "unknown";
+#endif
+
+#if defined(_M_X64) || defined(__x86_64__)
+    const char *arch = "x64";
+#elif defined(_M_ARM64) || defined(__aarch64__)
+    const char *arch = "arm64";
+#elif defined(_M_IX86) || defined(__i386__)
+    const char *arch = "x86";
+#else
+    const char *arch = "unknown";
+#endif
+
+    printf("WinTune %s\n", WT_VERSION_STRING);
+    printf("Build: %s\n", build);
+    printf("Compiler: %s\n", compiler);
+    printf("Arch: %s\n", arch);
+}
+
+/* Recognized commands that are defined but not yet implemented in this phase. */
+static int wt_command_is_known(const wchar_t *cmd)
+{
+    static const wchar_t *known[] = {
+        L"scan", L"top", L"tui", L"startup", L"services", L"power",
+        L"recommend", L"apply", L"report", L"doctor", L"rollback"
+    };
+    for (size_t i = 0; i < ARRAYSIZE(known); ++i) {
+        if (wcscmp(cmd, known[i]) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void wt_apply_log_level(const WT_CliOptions *opts)
+{
+    if (opts->debug) {
+        wt_log_set_level(WT_LOG_DEBUG);
+    } else if (opts->verbose) {
+        wt_log_set_level(WT_LOG_INFO);
+    } else {
+        wt_log_set_level(WT_LOG_WARN);
+    }
+}
+
+int wt_cli_run(int argc, wchar_t **argv)
+{
+    WT_CliOptions opts = {0};
+    const wchar_t *command = NULL;
+    const wchar_t *command_arg = NULL;
+
+    for (int i = 1; i < argc; ++i) {
+        const wchar_t *t = argv[i];
+
+        if (wcscmp(t, L"--help") == 0)              opts.help = 1;
+        else if (wcscmp(t, L"--version") == 0)      opts.version = 1;
+        else if (wcscmp(t, L"--verbose") == 0)      opts.verbose = 1;
+        else if (wcscmp(t, L"--debug") == 0)        opts.debug = 1;
+        else if (wcscmp(t, L"--json") == 0)         opts.json = 1;
+        else if (wcscmp(t, L"--no-color") == 0)     opts.no_color = 1;
+        else if (wcscmp(t, L"--no-unicode") == 0)   opts.no_unicode = 1;
+        else if (wcscmp(t, L"--safe-terminal") == 0) opts.safe_terminal = 1;
+        else if (wcscmp(t, L"--yes") == 0)          opts.yes = 1;
+        else if (wcscmp(t, L"--output") == 0) {
+            if (i + 1 < argc) {
+                opts.output_path = argv[++i];
+            } else {
+                fprintf(stderr, "wintune: --output requires a path argument\n");
+                return WT_EXIT_USAGE;
+            }
+        } else if (t[0] == L'-') {
+            fwprintf(stderr, L"wintune: unknown option '%ls'\n", t);
+            return WT_EXIT_USAGE;
+        } else if (command == NULL) {
+            command = t;
+        } else if (command_arg == NULL) {
+            command_arg = t;
+        }
+        /* Extra positional args are ignored for now. */
+    }
+
+    wt_apply_log_level(&opts);
+    WT_LOGD("parsed command=%ls json=%d", command ? command : L"(none)", opts.json);
+
+    /* Enable VT early for interactive, color-capable sessions so later phases
+     * can rely on it. Failure is non-fatal (e.g. redirected output). */
+    if (!opts.no_color && wt_console_is_interactive()) {
+        (void)wt_console_enable_vt();
+    }
+
+    /* Global flags take precedence over a command name. */
+    if (opts.help || (command && wcscmp(command, L"help") == 0)) {
+        wt_print_usage();
+        return WT_EXIT_OK;
+    }
+    if (opts.version || (command && wcscmp(command, L"version") == 0)) {
+        wt_print_version();
+        return WT_EXIT_OK;
+    }
+
+    if (command == NULL) {
+        wt_print_usage();
+        return WT_EXIT_OK;
+    }
+
+    if (wt_command_is_known(command)) {
+        fwprintf(stderr,
+                 L"wintune: '%ls' is recognized but not implemented yet "
+                 L"(planned for a later phase).\n"
+                 L"Run 'wintune help' to see available commands.\n",
+                 command);
+        return WT_EXIT_NOT_IMPLEMENTED;
+    }
+
+    fwprintf(stderr, L"wintune: unknown command '%ls'\n", command);
+    fprintf(stderr, "Run 'wintune help' to see available commands.\n");
+    return WT_EXIT_USAGE;
+}
