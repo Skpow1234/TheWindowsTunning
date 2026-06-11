@@ -6,7 +6,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-blue.svg)](docs/roadmap.md)
-[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%201)-orange.svg)](#project-status)
+[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%202)-orange.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -106,14 +106,36 @@ wintune top --limit 15         # number of rows
 
 Full command reference: [`docs/cli.md`](docs/cli.md).
 
-### JSON automation (planned)
+### JSON automation
 
-JSON output (`--json`) is part of Phase 2. When enabled, WinTune emits only
-JSON on stdout so it can be piped and parsed safely:
+`scan` and `top` support `--json`, emitting only JSON on stdout so output can
+be piped and parsed safely. Use `--output <path>` to write to a file instead
+(UTF-8, no BOM):
 
 ```powershell
 wintune scan --json
+wintune scan --json --output report.json
+wintune top  --json --limit 20
 ```
+
+The scan document has a stable shape:
+
+```json
+{
+  "version": "0.1.0",
+  "timestamp_utc": "2026-06-11T08:00:13Z",
+  "system":  { "available": true, "os": "Windows 11 Pro", "arch": "x64", "hostname": "...", "uptime_ms": 0 },
+  "cpu":     { "available": true, "logical_processors": 32, "total_usage_percent": 14.1 },
+  "memory":  { "available": true, "total_bytes": 0, "available_bytes": 0, "used_bytes": 0, "used_percent": 35.3 },
+  "disk":    { "available": true, "volumes": [ { "root": "C:\\", "total_bytes": 0, "free_bytes": 0, "free_percent": 30.5 } ] },
+  "processes": { "available": true, "top": [ { "pid": 0, "name": "...", "working_set_bytes": 0, "private_bytes": 0, "read_bytes": 0, "write_bytes": 0, "cpu_percent": null } ] },
+  "recommendations": []
+}
+```
+
+Each section carries an `available` flag so partial failures are visible
+rather than fatal. `cpu_percent` is `null` until per-process CPU lands in a
+later phase.
 
 ### Over SSH
 
@@ -148,7 +170,7 @@ WinTune is under active, phased development.
 | ----- | ----- | ------ |
 | 0 | Skeleton: build, `help`, `version`, logging, errors | Done |
 | 1 | Basic metrics: `scan`, `top` (CPU, memory, disk, processes) | Done |
-| 2 | JSON output for `scan` / `top` | Planned |
+| 2 | JSON output for `scan` / `top` (`--json`, `--output`) | Done |
 | 3 | `top --watch` live refresh | Planned |
 | 4 | Recommendation engine, `recommend`, `doctor` | Planned |
 | 5 | `startup`, `services` | Planned |
@@ -162,9 +184,11 @@ exit non-zero. The full plan is in [`docs/roadmap.md`](docs/roadmap.md).
 
 ### Current limitations
 
-- `--json` and `--output` are accepted but not yet implemented (Phase 2/8).
+- `--json` and `--output` work for `scan` and `top`; `--output` for text
+  reports arrives with `report` (Phase 8).
 - `top --watch` currently prints a single snapshot (Phase 3).
-- Per-process CPU and disk-rate columns are not yet computed (later phases).
+- Per-process CPU and disk-rate columns are not yet computed (later phases);
+  `cpu_percent` is reported as `null` in JSON for now.
 - Recommendations, startup/service inspection, power control, and the TUI are
   not implemented yet.
 
