@@ -6,7 +6,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-blue.svg)](docs/roadmap.md)
-[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%204)-orange.svg)](#project-status)
+[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%205)-orange.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -107,6 +107,18 @@ wintune top --limit 20  # show more rows
 wintune top --watch     # live refresh in place (q or Ctrl+C to quit)
 wintune recommend       # explainable recommendations, no changes (implemented)
 wintune doctor          # scan + recommendations + summary (implemented)
+wintune startup         # startup entries (registry + folders) (implemented)
+wintune services        # service state, start type, PID (implemented)
+```
+
+`startup` and `services` are read-only inventories:
+
+```powershell
+wintune startup --include-services   # also list auto-start services
+wintune startup --json
+wintune services --auto              # filters: --auto --running --stopped --failed
+wintune services --failed            # auto-start services that are stopped
+wintune services --json
 ```
 
 Common options for `scan`/`top` today:
@@ -196,7 +208,7 @@ WinTune is under active, phased development.
 | 2 | JSON output for `scan` / `top` (`--json`, `--output`) | Done |
 | 3 | `top --watch` live refresh | Done |
 | 4 | Recommendation engine, `recommend`, `doctor` | Done |
-| 5 | `startup`, `services` | Planned |
+| 5 | `startup`, `services` | Done |
 | 6 | `tui` dashboard | Planned |
 | 7 | Safe apply actions (power plan, etc.) | Planned |
 | 8 | `report` (text + JSON) | Planned |
@@ -214,11 +226,15 @@ exit non-zero. The full plan is in [`docs/roadmap.md`](docs/roadmap.md).
 - Per-process CPU and disk-rate columns are not yet computed (later phases);
   `cpu_percent` is reported as `null` in JSON for now.
 - Recommendations cover power, memory, disk free space, disk activity, and CPU.
-  Startup-aware recommendations arrive with startup scanning (Phase 5).
 - Disk active time is a single PDH sample per scan; multi-sample smoothing is
   planned. Power detection is read-only (applying power plans arrives in
   Phase 7).
-- Startup/service inspection and the TUI are not implemented yet.
+- `startup` and `services` are read-only inventories. Disabling startup items
+  and restarting services (with confirmation) arrive in Phase 7. Startup
+  "impact" is a coarse heuristic until boot tracing (Phase 10) provides
+  measured costs. Scheduled-task inspection (`--include-tasks`) is not yet
+  implemented.
+- The TUI (`tui`) is not implemented yet.
 
 ---
 
