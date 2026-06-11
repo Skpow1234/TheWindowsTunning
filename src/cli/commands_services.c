@@ -1,9 +1,11 @@
 #include "cli/commands_services.h"
 #include "system/services.h"
+#include "actions/safe_actions.h"
 #include "output/json.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <wchar.h>
 
 static int wt_service_matches(const WT_ServiceInfo *s, const WT_CliOptions *o)
 {
@@ -86,8 +88,35 @@ static void wt_print_services_text(const WT_ServiceInfo *svcs, size_t count,
            running, stopped, autostart);
 }
 
+static int wt_services_restart(const WT_CliOptions *opts)
+{
+    if (opts->arg2 == NULL) {
+        fprintf(stderr,
+                "wintune: services restart requires a service name\n"
+                "Usage: wintune services restart <name>\n");
+        return 2;
+    }
+    char msg[512] = {0};
+    WT_Result r = wt_action_restart_service(opts->arg2, opts->yes,
+                                            msg, sizeof(msg));
+    if (msg[0] != '\0') {
+        printf("%s\n", msg);
+    }
+    return (r == WT_OK) ? 0 : 1;
+}
+
 int wt_cmd_services(const WT_CliOptions *opts)
 {
+    if (opts != NULL && opts->arg1 != NULL) {
+        if (wcscmp(opts->arg1, L"restart") == 0) {
+            return wt_services_restart(opts);
+        }
+        fwprintf(stderr,
+                 L"wintune: unknown services subcommand '%ls'. "
+                 L"Use 'restart <name>'.\n", opts->arg1);
+        return 2;
+    }
+
     WT_ServiceInfo *svcs =
         (WT_ServiceInfo *)malloc(sizeof(WT_ServiceInfo) * WT_MAX_SERVICES);
     if (svcs == NULL) {

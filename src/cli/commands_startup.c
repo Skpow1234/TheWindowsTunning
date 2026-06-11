@@ -1,10 +1,12 @@
 #include "cli/commands_startup.h"
 #include "system/startup.h"
 #include "system/services.h"
+#include "actions/safe_actions.h"
 #include "output/json.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <wchar.h>
 
 static FILE *wt_open_output(const WT_CliOptions *opts, FILE **opened)
 {
@@ -30,15 +32,13 @@ static void wt_print_startup_text(const WT_StartupEntry *entries, size_t count)
         return;
     }
 
-    printf("%-24s %-22.22ls %-8s %ls\n", "Source", L"Name", "Impact", L"Command");
+    printf("%-8s %ls\n", "Impact", L"Id / Command");
     for (size_t i = 0; i < count; ++i) {
         const WT_StartupEntry *e = &entries[i];
-        printf("%-24s %-22.22ls %-8s %.80ls\n",
-               wt_startup_source_name(e->source),
-               e->name,
-               wt_startup_impact_name(e->impact),
-               e->command);
+        printf("%-8s %ls\n", wt_startup_impact_name(e->impact), e->id);
+        printf("%-8s   %.88ls\n", "", e->command);
     }
+    printf("\nDisable one with: wintune startup disable \"<id>\"\n");
 }
 
 static void wt_print_auto_services_text(void)
@@ -65,8 +65,41 @@ static void wt_print_auto_services_text(void)
     free(svcs);
 }
 
+static int wt_startup_set_enabled(const WT_CliOptions *opts, int enable)
+{
+    if (opts->arg2 == NULL) {
+        fprintf(stderr,
+                "wintune: startup %s requires an entry id\n"
+                "Usage: wintune startup %s <id>\n"
+                "List ids with 'wintune startup'.\n",
+                enable ? "enable" : "disable",
+                enable ? "enable" : "disable");
+        return 2;
+    }
+    char msg[512] = {0};
+    WT_Result r = wt_action_set_startup_enabled(opts->arg2, enable, opts->yes,
+                                                msg, sizeof(msg));
+    if (msg[0] != '\0') {
+        printf("%s\n", msg);
+    }
+    return (r == WT_OK) ? 0 : 1;
+}
+
 int wt_cmd_startup(const WT_CliOptions *opts)
 {
+    if (opts != NULL && opts->arg1 != NULL) {
+        if (wcscmp(opts->arg1, L"disable") == 0) {
+            return wt_startup_set_enabled(opts, 0);
+        }
+        if (wcscmp(opts->arg1, L"enable") == 0) {
+            return wt_startup_set_enabled(opts, 1);
+        }
+        fwprintf(stderr,
+                 L"wintune: unknown startup subcommand '%ls'. "
+                 L"Use 'disable <id>' or 'enable <id>'.\n", opts->arg1);
+        return 2;
+    }
+
     WT_StartupEntry *entries =
         (WT_StartupEntry *)malloc(sizeof(WT_StartupEntry) * WT_MAX_STARTUP_ENTRIES);
     if (entries == NULL) {
