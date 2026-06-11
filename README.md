@@ -1,5 +1,13 @@
 # WinTune
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Platform: Windows 10 | 11](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?logo=windows&logoColor=white)](#supported-platforms)
+[![Language: C17](https://img.shields.io/badge/Language-C17-00599C?logo=c&logoColor=white)](#build)
+[![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
+[![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
+[![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-blue.svg)](docs/roadmap.md)
+[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%201)-orange.svg)](#project-status)
+
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
 WinTune is a native, terminal-first Windows performance doctor written in C. It
