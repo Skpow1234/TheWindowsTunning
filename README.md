@@ -6,7 +6,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-blue.svg)](docs/roadmap.md)
-[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%207)-orange.svg)](#project-status)
+[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%208)-orange.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -127,7 +127,22 @@ wintune startup enable  "<id>"
 wintune services restart <name>     # stop+start a service (admin; critical services refused)
 wintune rollback list               # list saved rollback records
 wintune rollback apply <id>         # undo a recorded change
+wintune report                      # write a performance report (text or JSON)
 ```
+
+### Performance report
+
+```powershell
+wintune report                           # text report to stdout
+wintune report --format json             # JSON report to stdout
+wintune report --json                    # same as --format json
+wintune report --output report.txt       # write text report to a file
+wintune report --format json --output report.json
+```
+
+The text report adds bottlenecks, risk notes, and pointers to `startup` /
+`services` beyond the basic scan summary. JSON uses the same schema as
+`wintune scan --json`.
 
 Rollback records are stored under `%LOCALAPPDATA%\WinTune\rollback`. Power-plan
 switches and startup toggles are fully reversible via `rollback apply`.
@@ -248,7 +263,7 @@ WinTune is under active, phased development.
 | 5 | `startup`, `services` | Done |
 | 6 | `tui` dashboard | Done |
 | 7 | Safe apply actions: `power --set`, `apply`, startup toggle, service restart, `rollback` | Done |
-| 8 | `report` (text + JSON) | Planned |
+| 8 | `report` (text + JSON, `--output`) | Done |
 | 9 | SSH hardening | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
@@ -256,10 +271,12 @@ exit non-zero. The full plan is in [`docs/roadmap.md`](docs/roadmap.md).
 
 ### Current limitations
 
-- `--json` and `--output` work for `scan`, `top`, `recommend`, and `doctor`;
-  `--output` for text reports arrives with `report` (Phase 8).
+- `--json` and `--output` work for `scan`, `top`, `recommend`, `doctor`, `power`,
+  `rollback list`, and `report`.
 - `top --watch` is live in an interactive terminal and falls back to a single
   snapshot when the session is non-interactive (e.g. piped or `ssh host "..."`).
+- Process enumeration uses a top-K collector (no full-process buffer) for
+  `scan`, `top`, and `tui`.
 - Per-process CPU and disk-rate columns are not yet computed (later phases);
   `cpu_percent` is reported as `null` in JSON for now.
 - Recommendations cover power, memory, disk free space, disk activity, and CPU.
