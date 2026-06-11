@@ -6,7 +6,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-blue.svg)](docs/roadmap.md)
-[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%202)-orange.svg)](#project-status)
+[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%203)-orange.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -95,6 +95,7 @@ wintune version         # version info
 wintune scan            # full local scan (implemented)
 wintune top             # top processes by memory (implemented)
 wintune top --limit 20  # show more rows
+wintune top --watch     # live refresh in place (q or Ctrl+C to quit)
 ```
 
 Common options for `scan`/`top` today:
@@ -102,7 +103,13 @@ Common options for `scan`/`top` today:
 ```powershell
 wintune scan --interval 1000   # CPU sampling interval (ms)
 wintune top --limit 15         # number of rows
+wintune top --watch            # live monitor (default 1000 ms)
+wintune top --watch --interval 2000   # refresh every 2 seconds
 ```
+
+`top --watch` refreshes the table in place without entering the full TUI. It
+requires an interactive terminal; in a non-interactive/piped session it prints
+a single snapshot instead. The cursor is always restored on exit.
 
 Full command reference: [`docs/cli.md`](docs/cli.md).
 
@@ -171,7 +178,7 @@ WinTune is under active, phased development.
 | 0 | Skeleton: build, `help`, `version`, logging, errors | Done |
 | 1 | Basic metrics: `scan`, `top` (CPU, memory, disk, processes) | Done |
 | 2 | JSON output for `scan` / `top` (`--json`, `--output`) | Done |
-| 3 | `top --watch` live refresh | Planned |
+| 3 | `top --watch` live refresh | Done |
 | 4 | Recommendation engine, `recommend`, `doctor` | Planned |
 | 5 | `startup`, `services` | Planned |
 | 6 | `tui` dashboard | Planned |
@@ -186,7 +193,8 @@ exit non-zero. The full plan is in [`docs/roadmap.md`](docs/roadmap.md).
 
 - `--json` and `--output` work for `scan` and `top`; `--output` for text
   reports arrives with `report` (Phase 8).
-- `top --watch` currently prints a single snapshot (Phase 3).
+- `top --watch` is live in an interactive terminal and falls back to a single
+  snapshot when the session is non-interactive (e.g. piped or `ssh host "..."`).
 - Per-process CPU and disk-rate columns are not yet computed (later phases);
   `cpu_percent` is reported as `null` in JSON for now.
 - Recommendations, startup/service inspection, power control, and the TUI are
