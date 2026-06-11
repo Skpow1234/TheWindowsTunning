@@ -2,6 +2,7 @@
 
 #include "cli/cli.h"        /* WT_VERSION_STRING */
 #include "platform/time.h"
+#include "system/power.h"
 
 #include <windows.h>
 
@@ -211,7 +212,37 @@ static void wt_json_emit_envelope_head(WT_JsonWriter *w)
     wt_json_key(w, "timestamp_utc"); wt_json_string(w, ts);
 }
 
-void wt_print_scan_report_json(const WT_ScanReport *report, FILE *out)
+static void wt_json_emit_recommendation(WT_JsonWriter *w,
+                                        const WT_Recommendation *r)
+{
+    wt_json_begin_object(w);
+    wt_json_key(w, "id");                 wt_json_string(w, r->id);
+    wt_json_key(w, "title");              wt_json_string(w, r->title);
+    wt_json_key(w, "severity");           wt_json_string(w, wt_severity_to_string(r->severity));
+    wt_json_key(w, "risk");               wt_json_string(w, wt_risk_to_string(r->risk));
+    wt_json_key(w, "reason");             wt_json_string(w, r->reason);
+    wt_json_key(w, "action");             wt_json_string(w, r->action);
+    wt_json_key(w, "requires_admin");     wt_json_bool(w, r->requires_admin);
+    wt_json_key(w, "rollback_available"); wt_json_bool(w, r->rollback_available);
+    wt_json_key(w, "confidence_percent"); wt_json_uint64(w, (unsigned long long)r->confidence_percent);
+    wt_json_end_object(w);
+}
+
+static void wt_json_emit_recommendations_array(WT_JsonWriter *w,
+                                               const WT_RecommendationList *recs)
+{
+    wt_json_key(w, "recommendations");
+    wt_json_begin_array(w);
+    if (recs != NULL) {
+        for (size_t i = 0; i < recs->count; ++i) {
+            wt_json_emit_recommendation(w, &recs->items[i]);
+        }
+    }
+    wt_json_end_array(w);
+}
+
+void wt_print_scan_report_json(const WT_ScanReport *report,
+                               const WT_RecommendationList *recs, FILE *out)
 {
     WT_JsonWriter w;
     wt_json_init(&w, out);
@@ -276,6 +307,36 @@ void wt_print_scan_report_json(const WT_ScanReport *report, FILE *out)
         }
     }
     wt_json_end_array(&w);
+    wt_json_key(&w, "active_available"); wt_json_bool(&w, report->disk_active_ok);
+    wt_json_key(&w, "active_percent");
+    if (report->disk_active_ok) {
+        wt_json_double(&w, report->disk_active_percent);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_end_object(&w);
+
+    /* power */
+    wt_json_key(&w, "power");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "available"); wt_json_bool(&w, report->power_ok);
+    if (report->power_ok) {
+        wt_json_key(&w, "plan");
+        wt_json_string(&w, wt_power_scheme_name(report->power.scheme));
+        wt_json_key(&w, "plan_name"); wt_json_wstring(&w, report->power.active_name);
+        wt_json_key(&w, "on_ac");
+        if (report->power.on_ac < 0) {
+            wt_json_null(&w);
+        } else {
+            wt_json_bool(&w, report->power.on_ac);
+        }
+        wt_json_key(&w, "battery_percent");
+        if (report->power.battery_percent < 0) {
+            wt_json_null(&w);
+        } else {
+            wt_json_uint64(&w, (unsigned long long)report->power.battery_percent);
+        }
+    }
     wt_json_end_object(&w);
 
     /* processes */

@@ -1,10 +1,37 @@
 #include "output/text.h"
 #include "output/table.h"
 #include "common/units.h"
+#include "system/power.h"
 
 #include <stdio.h>
 
-void wt_print_scan_report_text(const WT_ScanReport *report)
+void wt_print_recommendations_text(const WT_RecommendationList *recs)
+{
+    printf("Recommendations:\n");
+    if (recs == NULL || recs->count == 0) {
+        printf("  None. No performance issues detected from the current samples.\n");
+        return;
+    }
+
+    for (size_t i = 0; i < recs->count; ++i) {
+        const WT_Recommendation *r = &recs->items[i];
+        printf("[%s] %s\n", r->id, r->title);
+        printf("  Severity: %s | Risk: %s | Confidence: %d%%%s%s\n",
+               wt_severity_to_string(r->severity),
+               wt_risk_to_string(r->risk),
+               r->confidence_percent,
+               r->requires_admin ? " | requires admin" : "",
+               r->rollback_available ? " | reversible" : "");
+        printf("  Why: %s\n", r->reason);
+        printf("  Action: %s\n", r->action);
+        if (i + 1 < recs->count) {
+            printf("\n");
+        }
+    }
+}
+
+void wt_print_scan_report_text(const WT_ScanReport *report,
+                               const WT_RecommendationList *recs)
 {
     if (report == NULL) {
         return;
@@ -21,6 +48,24 @@ void wt_print_scan_report_text(const WT_ScanReport *report)
         printf("Uptime: %ls\n", uptime);
     } else {
         printf("OS: (unavailable)\n");
+    }
+
+    /* Power */
+    if (report->power_ok) {
+        printf("Power: %s", wt_power_scheme_name(report->power.scheme));
+        if (report->power.on_ac == 1) {
+            printf(" (AC");
+        } else if (report->power.on_ac == 0) {
+            printf(" (battery");
+        } else {
+            printf(" (");
+        }
+        if (report->power.battery_percent >= 0) {
+            printf(" %d%%)", report->power.battery_percent);
+        } else {
+            printf(")");
+        }
+        printf("\n");
     }
     printf("\n");
 
@@ -63,6 +108,9 @@ void wt_print_scan_report_text(const WT_ScanReport *report)
     } else {
         printf("  (unavailable)\n");
     }
+    if (report->disk_active_ok) {
+        printf("  Active time: %.0f%%\n", report->disk_active_percent);
+    }
     printf("\n");
 
     /* Top processes */
@@ -71,5 +119,11 @@ void wt_print_scan_report_text(const WT_ScanReport *report)
         wt_print_process_table(report->top_processes, report->top_process_count);
     } else {
         printf("  (unavailable)\n");
+    }
+
+    /* Recommendations */
+    if (recs != NULL) {
+        printf("\n");
+        wt_print_recommendations_text(recs);
     }
 }

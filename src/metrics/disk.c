@@ -1,7 +1,10 @@
 #include "metrics/disk.h"
+#include "metrics/pdh_utils.h"
 
 #include <windows.h>
 #include <strsafe.h>
+
+#define WT_DISK_DEFAULT_SAMPLE_MS 500
 
 WT_Result wt_collect_disk_volumes(WT_DiskVolumeMetrics *out,
                                   size_t capacity,
@@ -49,5 +52,27 @@ WT_Result wt_collect_disk_volumes(WT_DiskVolumeMetrics *out,
         (*out_count)++;
     }
 
+    return WT_OK;
+}
+
+WT_Result wt_collect_disk_activity(unsigned int sample_ms, double *out_percent)
+{
+    if (out_percent == NULL) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+    *out_percent = 0.0;
+
+    double value = 0.0;
+    WT_Result r = wt_pdh_sample_single(L"\\PhysicalDisk(_Total)\\% Disk Time",
+                                       sample_ms ? sample_ms : WT_DISK_DEFAULT_SAMPLE_MS,
+                                       &value);
+    if (r != WT_OK) {
+        return r;
+    }
+
+    if (value < 0.0) {
+        value = 0.0;
+    }
+    *out_percent = value;
     return WT_OK;
 }

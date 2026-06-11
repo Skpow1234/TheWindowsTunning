@@ -5,6 +5,7 @@
 #include "metrics/disk.h"
 #include "metrics/process.h"
 #include "system/os_info.h"
+#include "system/power.h"
 #include "common/log.h"
 
 #include <stdlib.h>
@@ -60,6 +61,9 @@ WT_Result wt_run_scan(const WT_ScanOptions *opts, WT_ScanReport *report)
     report->disk_ok =
         (wt_collect_disk_volumes(report->volumes, WT_MAX_VOLUMES,
                                  &report->volume_count) == WT_OK);
+    report->disk_active_ok =
+        (wt_collect_disk_activity(sample_ms, &report->disk_active_percent) == WT_OK);
+    report->power_ok = (wt_collect_power_info(&report->power) == WT_OK);
 
     wt_collect_top_processes(report, top_limit);
 

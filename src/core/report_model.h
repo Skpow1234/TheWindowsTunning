@@ -9,6 +9,7 @@
 #include "metrics/disk.h"
 #include "metrics/process.h"
 #include "system/os_info.h"
+#include "system/power.h"
 
 #define WT_MAX_VOLUMES 32
 #define WT_MAX_TOP_PROCESSES 64
@@ -24,15 +25,20 @@ typedef struct WT_ScanReport {
 
     WT_DiskVolumeMetrics volumes[WT_MAX_VOLUMES];
     size_t volume_count;
+    double disk_active_percent;
 
     WT_ProcessInfo top_processes[WT_MAX_TOP_PROCESSES];
     size_t top_process_count;
+
+    WT_PowerInfo power;
 
     int os_ok;
     int cpu_ok;
     int memory_ok;
     int disk_ok;
+    int disk_active_ok;
     int processes_ok;
+    int power_ok;
 } WT_ScanReport;
 
 /* Zero-initializes a report and clears all availability flags. */

@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include "core/report_model.h"
+#include "core/recommendations.h"
 #include "metrics/process.h"
 
 /* Minimal, dependency-free JSON writer that emits pretty-printed UTF-8 JSON to
@@ -33,8 +34,11 @@ void wt_json_bool(WT_JsonWriter *w, int value);
 void wt_json_null(WT_JsonWriter *w);
 void wt_json_finish(WT_JsonWriter *w); /* trailing newline */
 
-/* High-level document emitters (the stable WinTune JSON schema). */
-void wt_print_scan_report_json(const WT_ScanReport *report, FILE *out);
+/* High-level document emitters (the stable WinTune JSON schema). `recs` may be
+ * NULL, in which case the recommendations array is emitted empty. */
+void wt_print_scan_report_json(const WT_ScanReport *report,
+                               const WT_RecommendationList *recs, FILE *out);
 void wt_print_processes_json(const WT_ProcessInfo *items, size_t count, FILE *out);
+void wt_print_recommendations_json(const WT_RecommendationList *recs, FILE *out);
 
 #endif /* WINTUNE_JSON_H */
