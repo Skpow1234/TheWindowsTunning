@@ -1,6 +1,7 @@
 #include "cli/commands_top.h"
 #include "metrics/process.h"
 #include "output/table.h"
+#include "output/json.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,11 +12,6 @@
 
 int wt_cmd_top(const WT_CliOptions *opts)
 {
-    if (opts != NULL && opts->json) {
-        fprintf(stderr, "wintune: --json output is implemented in Phase 2.\n");
-        return 1;
-    }
-
     if (opts != NULL && opts->watch) {
         fprintf(stderr,
                 "wintune: 'top --watch' is implemented in Phase 3; "
@@ -52,6 +48,28 @@ int wt_cmd_top(const WT_CliOptions *opts)
     wt_sort_processes_by_memory(all, count);
     if (limit > count) {
         limit = count;
+    }
+
+    if (opts != NULL && opts->json) {
+        FILE *out = stdout;
+        FILE *opened = NULL;
+        if (opts->output_path != NULL) {
+            if (_wfopen_s(&opened, opts->output_path, L"wb") != 0 || opened == NULL) {
+                fwprintf(stderr, L"wintune: could not open output file '%ls'\n",
+                         opts->output_path);
+                free(all);
+                return 1;
+            }
+            out = opened;
+        }
+
+        wt_print_processes_json(all, limit, out);
+
+        if (opened != NULL) {
+            fclose(opened);
+        }
+        free(all);
+        return 0;
     }
 
     wt_print_process_table(all, limit);

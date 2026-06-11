@@ -15,6 +15,7 @@ add_executable(wintune
 
     # platform
     src/platform/console.c
+    src/platform/time.c
 
     # metrics
     src/metrics/pdh_utils.c
@@ -33,6 +34,7 @@ add_executable(wintune
     # output
     src/output/table.c
     src/output/text.c
+    src/output/json.c
 
     # cli
     src/cli/cli.c
