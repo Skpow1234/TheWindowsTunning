@@ -270,9 +270,23 @@ WinTune is under active, phased development.
 | 7 | Safe apply actions: `power --set`, `apply`, startup toggle, service restart, `rollback` | Done |
 | 8 | `report` (text + JSON, `--output`) | Done |
 | 9 | SSH hardening (session detection, safe-terminal, JSON session metadata) | Done |
+| 10 | ETW boot/login analysis | Planned |
+| 11 | Background agent / Windows Service | Planned |
+| 12 | Scheduled tasks + startup depth | Planned |
+| 13 | Windows Update & reboot readiness | Planned |
+| 14 | Restart Manager integration | Planned |
+| 15 | Metrics depth (per-process CPU, multi-sample) | Planned |
+| 16 | Apply actions v2 + rollback completeness | Planned |
+| 17 | Fleet / automation hardening | Planned |
+| 18 | Packaging + ARM64 | Planned |
+| 19 | Optional tray / native GUI (never Electron) | Planned |
+
+**v1 (Phases 0–9) is complete.** Phases 10–19 are documented in
+[`docs/roadmap.md`](docs/roadmap.md) with deliverables, example commands,
+dependencies, and explicit non-goals.
 
 Commands that are recognized but not yet implemented print a clear notice and
-exit non-zero. The full plan is in [`docs/roadmap.md`](docs/roadmap.md).
+exit non-zero.
 
 ### Current limitations
 

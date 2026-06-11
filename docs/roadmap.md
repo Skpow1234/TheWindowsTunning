@@ -1,14 +1,50 @@
 # WinTune Roadmap
 
-WinTune ships in phases. Each phase builds on a stable core scanner. v1 is
-CLI-first and native; later phases add the TUI, safe apply actions, reports,
-SSH hardening, and (eventually) ETW tracing and a background service.
+WinTune ships in phases. Each phase builds on a stable core scanner. **v1**
+(Phases 0–9) is CLI-first, native, safe-by-default, and SSH-friendly. Later
+phases add measured boot diagnostics, a background service, deeper metrics,
+update/reboot helpers, fleet automation, and optional local UI — without
+Electron, cloud telemetry, or “PC cleaner” behavior.
 
 Initial version: **0.1.0** (semantic versioning).
 
+For the full feature catalog see [`DESIGN.md`](DESIGN.md).
+
 ---
 
-## Phase 0 — Skeleton
+## Status Overview
+
+| Phase | Scope | Status |
+| ----- | ----- | ------ |
+| 0 | Skeleton | Done |
+| 1 | Basic metrics | Done |
+| 2 | JSON and automation | Done |
+| 3 | Watch mode | Done |
+| 4 | Recommendations | Done |
+| 5 | Startup and services | Done |
+| 6 | TUI dashboard | Done |
+| 7 | Safe apply actions | Done |
+| 8 | Reports | Done |
+| 9 | SSH hardening | Done |
+| 10 | ETW boot/login analysis | Planned |
+| 11 | Background agent / Windows Service | Planned |
+| 12 | Scheduled tasks + startup depth | Planned |
+| 13 | Windows Update & reboot readiness | Planned |
+| 14 | Restart Manager integration | Planned |
+| 15 | Metrics depth (per-process CPU, multi-sample) | Planned |
+| 16 | Apply actions v2 + rollback completeness | Planned |
+| 17 | Fleet / automation hardening | Planned |
+| 18 | Packaging + ARM64 | Planned |
+| 19 | Optional tray / native GUI (never Electron) | Planned |
+
+---
+
+## v1 (Phases 0–9) — Complete
+
+v1 delivers a native terminal-first performance doctor: measure, explain,
+recommend, apply safe fixes, report, and work over SSH.
+
+### Phase 0 — Skeleton
 
 - CMake project and `wintune.exe`.
 - `wintune help`, `wintune version`.
@@ -20,9 +56,7 @@ wintune help
 wintune version
 ```
 
----
-
-## Phase 1 — Basic Metrics
+### Phase 1 — Basic Metrics
 
 - CPU total usage.
 - Memory usage.
@@ -35,9 +69,7 @@ wintune scan
 wintune top
 ```
 
----
-
-## Phase 2 — JSON and Automation
+### Phase 2 — JSON and Automation
 
 - Small, safe JSON emitter.
 - `--json` for scan/top.
@@ -48,9 +80,7 @@ wintune scan --json
 wintune top --json
 ```
 
----
-
-## Phase 3 — Watch Mode
+### Phase 3 — Watch Mode
 
 - Refreshing process table without the full TUI.
 - Configurable interval.
@@ -59,9 +89,7 @@ wintune top --json
 wintune top --watch
 ```
 
----
-
-## Phase 4 — Recommendations
+### Phase 4 — Recommendations
 
 - Recommendation engine.
 - Power plan, memory pressure, disk pressure, and startup review
@@ -72,9 +100,7 @@ wintune recommend
 wintune doctor
 ```
 
----
-
-## Phase 5 — Startup and Services
+### Phase 5 — Startup and Services
 
 - Registry startup scanner.
 - Startup folder scanner.
@@ -86,9 +112,7 @@ wintune startup
 wintune services
 ```
 
----
-
-## Phase 6 — Terminal Dashboard / TUI
+### Phase 6 — Terminal Dashboard / TUI
 
 - `wintune tui` with an ANSI/VT renderer.
 - Unicode mode, ASCII fallback, no-color, safe-terminal.
@@ -100,71 +124,50 @@ wintune tui --safe-terminal
 wintune tui --no-unicode
 ```
 
----
-
-## Phase 7 — Safe Apply Actions
+### Phase 7 — Safe Apply Actions
 
 - Switch power plan.
-- Restart a selected service.
-- Disable a user-approved startup entry.
+- Restart a selected service (with denylist).
+- Disable/enable startup entries (StartupApproved flag).
 - Rollback metadata.
 
 ```bash
 wintune apply <id>
 wintune power --set performance
+wintune startup disable "<id>"
+wintune services restart <name>
+wintune rollback list
+wintune rollback apply <id>
 ```
 
----
+### Phase 8 — Reports
 
-## Phase 8 — Reports
-
-- Text report.
-- JSON report.
+- Text performance report (extended beyond scan summary).
+- JSON report (same schema as scan).
 - Output to file.
 
 ```bash
-wintune report --format text
+wintune report
 wintune report --format json
+wintune report --output report.txt
 ```
 
----
+### Phase 9 — SSH Hardening
 
-## Phase 9 — SSH Hardening
-
-- Better non-interactive detection.
-- Better safe-terminal rendering.
-- Better JSON remote behavior.
+- Session detection (interactive, remote, elevated in JSON).
+- Conservative rendering on piped/remote sessions.
+- JSON stdout stays clean; hints suppressed in JSON mode.
 - Clear admin-required messages over SSH.
+- `--yes` for mutating commands over one-shot SSH.
 
 ```bash
 ssh user@host "wintune scan"
 ssh user@host "wintune scan --json"
 ssh user@host "wintune top --watch"
+ssh -t user@host "wintune tui --safe-terminal"
 ```
 
----
-
-## Phase 10 — ETW Boot Analysis (later)
-
-- Boot trace collection.
-- Login trace collection.
-- Slow startup attribution.
-- Disk-heavy startup detection.
-
-Not started until the core scanner is stable.
-
----
-
-## Phase 11 — Background Agent / Windows Service (later)
-
-- Windows Service.
-- Periodic scans.
-- Local named-pipe interface.
-- Privileged local actions.
-- Scheduled recommendations.
-
-The service must never become hidden persistence: clearly installed, clearly
-removable, and documented.
+See [`ssh.md`](ssh.md).
 
 ---
 
@@ -187,9 +190,308 @@ WinTune v1 is complete when it can:
 13. Never perform dangerous changes automatically.
 14. Never require Electron or any browser runtime.
 
+**All v1 criteria are met (Phases 0–9).**
+
+---
+
+## v2+ (Phases 10–19) — Planned
+
+These phases extend WinTune from “on-demand doctor” to “measured boot analysis,
+background monitoring, and richer automation” while keeping the same safety
+model.
+
+### Phase 10 — ETW Boot / Login Analysis
+
+**Goal:** Replace startup heuristics with measured boot and login attribution.
+
+**Deliver:**
+
+- Boot trace collection (ETW / `.etl` or in-memory session).
+- Login trace collection.
+- Slow startup attribution (services, apps, drivers).
+- Disk-heavy startup detection.
+- Summarized output for `scan`, `doctor`, `report`, and `startup` — not raw
+  event dumps.
+
+**APIs:** `evntrace.h`, `tdh.h` (`advapi32.lib`, `tdh.lib`).
+
+**Example commands (target):**
+
+```bash
+wintune boot trace --duration 60
+wintune boot analyze
+wintune startup --measured
+```
+
+**Depends on:** Stable core scanner (v1). Admin may be required for some
+trace sessions.
+
+**Prerequisite:** Phase 10 should not start until PDH/process/service scanning
+is stable in the field.
+
+---
+
+### Phase 11 — Background Agent / Windows Service
+
+**Goal:** Optional background monitoring and privileged local actions without
+UAC prompts over SSH.
+
+**Deliver:**
+
+- WinTune Windows Service (clearly installed, clearly removable).
+- Periodic health scans.
+- Local named-pipe control channel (CLI talks to service).
+- Privileged apply actions via service (power, services, HKLM startup).
+- Scheduled recommendations.
+
+**Safety rules:**
+
+- Never hidden persistence.
+- Documented install/uninstall.
+- Service identity and permissions explicit in docs.
+
+**Example commands (target):**
+
+```bash
+wintune service install
+wintune service status
+wintune scan --via-service
+```
+
+---
+
+### Phase 12 — Scheduled Tasks + Startup Depth
+
+**Goal:** Complete startup impact picture beyond registry and folders.
+
+**Deliver:**
+
+- Scheduled task inspection (`startup --include-tasks` implemented).
+- Logon-triggered and startup-heavy task detection.
+- Safe disable/delay for user-approved third-party tasks (with rollback).
+- Startup delay support (not just enable/disable).
+- Measured startup impact when Phase 10 ETW data is available.
+
+**APIs:** Task Scheduler COM APIs.
+
+**Example commands (target):**
+
+```bash
+wintune startup --include-tasks
+wintune tasks list --logon
+wintune tasks delay "<id>" --seconds 30
+```
+
+**Never:** Disable Microsoft security or system tasks automatically.
+
+---
+
+### Phase 13 — Windows Update & Reboot Readiness
+
+**Goal:** Explain update and reboot state without becoming an installer.
+
+**Deliver:**
+
+- Report available / pending update state.
+- Reboot-required detection.
+- Last check / install metadata where available.
+- Recommendations (e.g. schedule reboot, free disk space for updates).
+
+**APIs:** Windows Update Agent (`wuapi.h`).
+
+**Example commands (target):**
+
+```bash
+wintune updates
+wintune updates --json
+wintune recommend   # includes WT-UPDATE-* ids
+```
+
+**Never:** Auto-install updates or disable Windows Update.
+
+---
+
+### Phase 14 — Restart Manager Integration
+
+**Goal:** Help users understand what blocks updates and restarts.
+
+**Deliver:**
+
+- Detect applications blocking restart/update.
+- Detect files locked by processes.
+- Suggest graceful close with explicit user confirmation.
+
+**APIs:** Restart Manager (`restartmanager.h`, `rstrtmgr.lib`).
+
+**Example commands (target):**
+
+```bash
+wintune blockers
+wintune blockers --json
+```
+
+**Never:** Force-close applications without explicit confirmation.
+
+---
+
+### Phase 15 — Metrics Depth
+
+**Goal:** Stronger bottleneck detection with richer per-process data.
+
+**Deliver:**
+
+- Per-process CPU via PDH (replace `cpu_percent: null` in JSON).
+- Disk and network rates per process where practical.
+- Multi-sample scans (`scan --samples N --interval MS`) with smoothed
+  recommendations.
+- Improved `top --sort cpu|disk` and TUI process columns.
+
+**Example commands (target):**
+
+```bash
+wintune scan --samples 5 --interval 1000
+wintune top --sort cpu
+```
+
+---
+
+### Phase 16 — Apply Actions v2 + Rollback Completeness
+
+**Goal:** One coherent apply/rollback story for all mutating features.
+
+**Deliver:**
+
+- Full `rollback list` / `rollback apply` for every mutating action.
+- Central recommendation → action map (single source of truth).
+- More safe applies tied to recommendations (startup delay, selected tasks).
+- Service-based apply when Phase 11 is installed.
+
+**Example commands (target):**
+
+```bash
+wintune rollback list
+wintune rollback apply <id>
+wintune apply WT-STARTUP-001 --yes
+```
+
+---
+
+### Phase 17 — Fleet / Automation Hardening
+
+**Goal:** Scriptable remote diagnostics at small scale (homelab, IT teams) —
+local-first, no required cloud.
+
+**Deliver:**
+
+- JSON schema versioning and changelog.
+- Stable exit codes per failure class.
+- Machine-readable error JSON on fatal failures (optional `--json-errors`).
+- Batch-friendly output (compact JSON mode, NDJSON option).
+- Documented SSH/Ansible patterns for many hosts.
+
+**Example usage (target):**
+
+```bash
+for h in host1 host2; do
+  ssh "admin@$h" "wintune scan --json" > "reports/$h.json"
+done
+```
+
+**Never:** Default cloud upload, accounts, or telemetry.
+
+---
+
+### Phase 18 — Packaging + Platform Expansion
+
+**Goal:** Make WinTune easy to deploy beyond “build from source.”
+
+**Deliver:**
+
+- `cmake --install` / release packaging (`scripts/package.ps1`).
+- ARM64 build and test matrix.
+- Optional code signing guidance.
+- Optional log file support (`--log-file`) for service/daemon mode.
+- Release channels (stable/beta) documented.
+
+**Example:**
+
+```powershell
+.\scripts\package.ps1
+wintune version   # Arch: arm64
+```
+
+---
+
+### Phase 19 — Optional Local UI (Never Electron)
+
+**Goal:** Convenience for non-terminal users without compromising CLI-first
+identity.
+
+**Deliver:**
+
+- Tray application (status, “run doctor”, open last report).
+- Lightweight native GUI shell (Win32 or equivalent — **not** WebView/Electron).
+- Communicates with CLI or Phase 11 service via named pipe.
+- Read-only by default; mutating actions still require confirmation.
+
+**Never:** Electron, Chromium embedded UI, localhost web dashboard as primary
+interface.
+
+---
+
+## Recommended Implementation Order (Post-v1)
+
+```text
+10  ETW boot/login analysis
+11  Windows Service + named-pipe IPC
+12  Scheduled tasks + startup depth
+13  Windows Update / reboot state
+14  Restart Manager
+15  Per-process CPU + multi-sample metrics
+16  Rollback + apply v2
+17  Fleet/automation hardening
+18  Packaging + ARM64
+19  Tray / optional native GUI
+```
+
+Phases 12–16 can be partially reordered, but **10 before 12** (measured
+startup) and **11 before 16** (service-based remote apply) are strong
+dependencies.
+
+---
+
+## Explicit Non-Goals (All Phases)
+
+WinTune will **not** become:
+
+| Category | Examples |
+| -------- | -------- |
+| PC cleaner / scamware | Registry cleaner, RAM cleaner, “boost FPS” |
+| Security bypass | UAC bypass, disable Defender/Update/firewall |
+| Heavy runtime | Electron, Node.js, .NET/Python in core |
+| Cloud platform | Mandatory telemetry, accounts, upload-by-default |
+| Kernel hacks | Undocumented APIs, drivers, injection |
+| Debloater | Blind service/startup removal |
+
+Some ideas may become **separate products**; they are not WinTune phases.
+
+---
+
+## What Is ETW? (Phase 10 Primer)
+
+**ETW (Event Tracing for Windows)** is Microsoft’s low-overhead tracing system.
+Providers (kernel, services, apps) emit structured events; sessions collect
+them for live view or `.etl` analysis.
+
+WinTune uses ETW to answer: *what happened during boot/login, and which
+component caused the delay?* Output is **summarized** for users (like Task
+Manager or WPT), not raw event log dumps.
+
 ---
 
 ## Implementation Order (from an empty repo)
+
+Historical bootstrap sequence for v1:
 
 1. `CMakeLists.txt`
 2. `src/main.c`
@@ -208,3 +510,19 @@ WinTune v1 is complete when it can:
 15. `wintune top --watch`
 
 First useful milestone: `wintune scan`.
+
+---
+
+## Guiding Principle (Every Phase)
+
+Every feature must answer:
+
+```text
+What did we measure?
+Why does it matter?
+What action is safe?
+What can go wrong?
+How do we undo it?
+```
+
+If a feature cannot answer those questions clearly, it does not ship.
