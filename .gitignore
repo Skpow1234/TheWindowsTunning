@@ -50,5 +50,17 @@ docs/baselines/current*.json
 .DS_Store
 Thumbs.db
 
+# Local run / scratch output (reports, captured stdout, debugging dumps)
+# Note: avoid blanket *.txt so CMakeLists.txt stays tracked.
+scan.txt
+rec.txt
+ver.txt
+*.scratch
+*.tmp
+wintune-report.*
+scan.json
+rec.json
+report.json
+wt_out.json
 
 docs/DESIGN.md
