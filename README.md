@@ -6,7 +6,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-blue.svg)](docs/roadmap.md)
-[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%206)-orange.svg)](#project-status)
+[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%207)-orange.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -109,8 +109,28 @@ wintune recommend       # explainable recommendations, no changes (implemented)
 wintune doctor          # scan + recommendations + summary (implemented)
 wintune startup         # startup entries (registry + folders) (implemented)
 wintune services        # service state, start type, PID (implemented)
+wintune power           # current plan + recommendation (implemented)
 wintune tui             # live terminal dashboard (implemented)
 ```
+
+### Safe apply actions
+
+Mutating commands always confirm first (or take `--yes`), require admin only
+when the change does, and write rollback metadata where practical:
+
+```powershell
+wintune power                       # show current plan, source, recommendation
+wintune power --set performance     # switch to an existing scheme (balanced|performance|saver|ultimate)
+wintune apply WT-POWER-001          # apply a recommendation by id
+wintune startup disable "<id>"      # toggle a startup entry (StartupApproved flag; reversible)
+wintune startup enable  "<id>"
+wintune services restart <name>     # stop+start a service (admin; critical services refused)
+wintune rollback list               # list saved rollback records
+wintune rollback apply <id>         # undo a recorded change
+```
+
+Rollback records are stored under `%LOCALAPPDATA%\WinTune\rollback`. Power-plan
+switches and startup toggles are fully reversible via `rollback apply`.
 
 ### Live dashboard (`tui`)
 
@@ -155,9 +175,9 @@ Full command reference: [`docs/cli.md`](docs/cli.md).
 
 ### JSON automation
 
-`scan`, `top`, `recommend`, and `doctor` support `--json`, emitting only JSON on
-stdout so output can be piped and parsed safely. Use `--output <path>` to write
-to a file instead (UTF-8, no BOM):
+`scan`, `top`, `recommend`, `doctor`, `power`, and `rollback list` support
+`--json`, emitting only JSON on stdout so output can be piped and parsed safely.
+Use `--output <path>` to write to a file instead (UTF-8, no BOM):
 
 ```powershell
 wintune scan --json
@@ -227,7 +247,7 @@ WinTune is under active, phased development.
 | 4 | Recommendation engine, `recommend`, `doctor` | Done |
 | 5 | `startup`, `services` | Done |
 | 6 | `tui` dashboard | Done |
-| 7 | Safe apply actions (power plan, etc.) | Planned |
+| 7 | Safe apply actions: `power --set`, `apply`, startup toggle, service restart, `rollback` | Done |
 | 8 | `report` (text + JSON) | Planned |
 | 9 | SSH hardening | Planned |
 
@@ -244,13 +264,21 @@ exit non-zero. The full plan is in [`docs/roadmap.md`](docs/roadmap.md).
   `cpu_percent` is reported as `null` in JSON for now.
 - Recommendations cover power, memory, disk free space, disk activity, and CPU.
 - Disk active time is a single PDH sample per scan; multi-sample smoothing is
-  planned. Power detection is read-only (applying power plans arrives in
-  Phase 7).
-- `startup` and `services` are read-only inventories. Disabling startup items
-  and restarting services (with confirmation) arrive in Phase 7. Startup
-  "impact" is a coarse heuristic until boot tracing (Phase 10) provides
+  planned.
+- `power --set` switches only to power schemes that already exist on the
+  machine (it never creates custom plans); the previous scheme is captured for
+  rollback, including custom plans.
+- `apply` only auto-applies actionable recommendations (currently the power
+  ones). Memory/disk/CPU recommendations are advisory and report that no
+  automatic action is taken.
+- `startup enable/disable` toggles the Windows StartupApproved flag (the same
+  one Task Manager uses) and never deletes the underlying Run value or startup
+  file. HKLM-scoped entries (`HKLM\Run`, common Startup folder) require admin.
+  Startup "impact" is a coarse heuristic until boot tracing (Phase 10) provides
   measured costs. Scheduled-task inspection (`--include-tasks`) is not yet
   implemented.
+- `services restart` requires elevation and refuses a denylist of
+  critical/security services to avoid destabilizing Windows.
 - The `tui` dashboard is read-only and keyboard-driven (no mouse). Network
   throughput is computed from interface byte-counter deltas between refreshes.
   Applying changes from the dashboard is intentionally not supported.
