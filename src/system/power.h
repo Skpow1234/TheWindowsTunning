@@ -28,4 +28,22 @@ WT_Result wt_collect_power_info(WT_PowerInfo *out);
  * recommendations. Never NULL. */
 const char *wt_power_scheme_name(WT_PowerScheme scheme);
 
+/* Maps a CLI token ("balanced", "performance"/"high", "saver", "ultimate") to
+ * a scheme enum. Returns WT_POWER_UNKNOWN for unrecognized tokens. */
+WT_PowerScheme wt_power_scheme_from_token(const wchar_t *token);
+
+/* Writes the active scheme's GUID as a canonical "{8-4-4-4-12}" string.
+ * Read-only. */
+WT_Result wt_power_get_active_guid_string(wchar_t *out, size_t count);
+
+/* Switches the active power scheme to one of the standard schemes. This is a
+ * mutating action: it changes the system's active power plan via the official
+ * Power Management API. Returns WT_ERR_NOT_FOUND if the requested scheme does
+ * not exist on this machine (e.g. High performance hidden by OEM policy). */
+WT_Result wt_power_set_active_scheme(WT_PowerScheme scheme);
+
+/* Switches the active power scheme by canonical GUID string. Used by rollback
+ * to restore a previously active scheme exactly (including custom plans). */
+WT_Result wt_power_set_active_guid_string(const wchar_t *guid_str);
+
 #endif /* WINTUNE_POWER_H */
