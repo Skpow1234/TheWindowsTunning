@@ -2,6 +2,8 @@
 
 #include "cli/commands_scan.h"
 #include "cli/commands_top.h"
+#include "cli/commands_recommend.h"
+#include "cli/commands_doctor.h"
 #include "common/error.h"
 #include "common/log.h"
 #include "platform/console.h"
@@ -200,6 +202,12 @@ int wt_cli_run(int argc, wchar_t **argv)
     }
     if (wcscmp(command, L"top") == 0) {
         return wt_cmd_top(&opts);
+    }
+    if (wcscmp(command, L"recommend") == 0) {
+        return wt_cmd_recommend(&opts);
+    }
+    if (wcscmp(command, L"doctor") == 0) {
+        return wt_cmd_doctor(&opts);
     }
 
     if (wt_command_is_known(command)) {

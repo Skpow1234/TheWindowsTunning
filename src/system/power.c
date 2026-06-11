@@ -58,13 +58,13 @@ WT_Result wt_collect_power_info(WT_PowerInfo *out)
 
     GUID *active = NULL;
     if (PowerGetActiveScheme(NULL, &active) == ERROR_SUCCESS && active != NULL) {
-        if (IsEqualGUID(*active, WT_GUID_BALANCED)) {
+        if (IsEqualGUID(active, &WT_GUID_BALANCED)) {
             out->scheme = WT_POWER_BALANCED;
-        } else if (IsEqualGUID(*active, WT_GUID_HIGH_PERF)) {
+        } else if (IsEqualGUID(active, &WT_GUID_HIGH_PERF)) {
             out->scheme = WT_POWER_HIGH_PERF;
-        } else if (IsEqualGUID(*active, WT_GUID_POWER_SAVER)) {
+        } else if (IsEqualGUID(active, &WT_GUID_POWER_SAVER)) {
             out->scheme = WT_POWER_POWER_SAVER;
-        } else if (IsEqualGUID(*active, WT_GUID_ULTIMATE)) {
+        } else if (IsEqualGUID(active, &WT_GUID_ULTIMATE)) {
             out->scheme = WT_POWER_ULTIMATE;
         }
 

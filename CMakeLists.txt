@@ -26,10 +26,12 @@ add_executable(wintune
 
     # system
     src/system/os_info.c
+    src/system/power.c
 
     # core
     src/core/report_model.c
     src/core/scan.c
+    src/core/recommendations.c
 
     # output
     src/output/table.c
@@ -40,6 +42,8 @@ add_executable(wintune
     src/cli/cli.c
     src/cli/commands_scan.c
     src/cli/commands_top.c
+    src/cli/commands_recommend.c
+    src/cli/commands_doctor.c
 )
 
 target_include_directories(wintune PRIVATE src)
@@ -55,12 +59,14 @@ if(MSVC)
 endif()
 
 # Windows libraries linked as modules require them:
-#   pdh      -> PDH performance counters (cpu)
+#   pdh      -> PDH performance counters (cpu, disk activity)
 #   psapi    -> process memory/IO counters (process)
 #   advapi32 -> registry (os_info), services later
-# Additional libs (powrprof, iphlpapi) are added in later phases.
+#   powrprof -> power scheme detection (power)
+# Additional libs (iphlpapi) are added in later phases.
 target_link_libraries(wintune PRIVATE
     pdh
     psapi
     advapi32
+    powrprof
 )

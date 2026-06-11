@@ -353,11 +353,21 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     wt_json_end_array(&w);
     wt_json_end_object(&w);
 
-    /* recommendations (populated in Phase 4) */
-    wt_json_key(&w, "recommendations");
-    wt_json_begin_array(&w);
-    wt_json_end_array(&w);
+    /* recommendations */
+    wt_json_emit_recommendations_array(&w, recs);
 
+    wt_json_end_object(&w);
+    wt_json_finish(&w);
+}
+
+void wt_print_recommendations_json(const WT_RecommendationList *recs, FILE *out)
+{
+    WT_JsonWriter w;
+    wt_json_init(&w, out);
+
+    wt_json_begin_object(&w);
+    wt_json_emit_envelope_head(&w);
+    wt_json_emit_recommendations_array(&w, recs);
     wt_json_end_object(&w);
     wt_json_finish(&w);
 }

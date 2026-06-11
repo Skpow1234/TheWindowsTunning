@@ -1,4 +1,4 @@
-#include "cli/commands_scan.h"
+#include "cli/commands_recommend.h"
 #include "core/scan.h"
 #include "core/recommendations.h"
 #include "output/text.h"
@@ -6,12 +6,12 @@
 
 #include <stdio.h>
 
-int wt_cmd_scan(const WT_CliOptions *opts)
+int wt_cmd_recommend(const WT_CliOptions *opts)
 {
     WT_ScanOptions scan_opts;
     scan_opts.cpu_sample_ms = (opts != NULL && opts->interval_ms > 0)
                                   ? (unsigned int)opts->interval_ms
-                                  : 0; /* 0 -> scan default */
+                                  : 0;
     scan_opts.top_limit = 10;
 
     WT_ScanReport report;
@@ -22,11 +22,7 @@ int wt_cmd_scan(const WT_CliOptions *opts)
     }
 
     WT_RecommendationList recs;
-    int want_recs = (opts == NULL || !opts->no_recommendations);
-    if (want_recs) {
-        wt_generate_recommendations(&report, &recs);
-    }
-    const WT_RecommendationList *recs_ptr = want_recs ? &recs : NULL;
+    wt_generate_recommendations(&report, &recs);
 
     if (opts != NULL && opts->json) {
         FILE *out = stdout;
@@ -41,7 +37,7 @@ int wt_cmd_scan(const WT_CliOptions *opts)
             out = opened;
         }
 
-        wt_print_scan_report_json(&report, recs_ptr, out);
+        wt_print_recommendations_json(&recs, out);
 
         if (opened != NULL) {
             fclose(opened);
@@ -49,6 +45,6 @@ int wt_cmd_scan(const WT_CliOptions *opts)
         return 0;
     }
 
-    wt_print_scan_report_text(&report, recs_ptr);
+    wt_print_recommendations_text(&recs);
     return 0;
 }
