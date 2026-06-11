@@ -4,6 +4,8 @@
 #include "cli/commands_top.h"
 #include "cli/commands_recommend.h"
 #include "cli/commands_doctor.h"
+#include "cli/commands_startup.h"
+#include "cli/commands_services.h"
 #include "common/error.h"
 #include "common/log.h"
 #include "platform/console.h"
@@ -138,6 +140,12 @@ int wt_cli_run(int argc, wchar_t **argv)
         else if (wcscmp(t, L"--yes") == 0)          opts.yes = 1;
         else if (wcscmp(t, L"--watch") == 0)        opts.watch = 1;
         else if (wcscmp(t, L"--no-recommendations") == 0) opts.no_recommendations = 1;
+        else if (wcscmp(t, L"--include-services") == 0) opts.include_services = 1;
+        else if (wcscmp(t, L"--include-tasks") == 0) opts.include_tasks = 1;
+        else if (wcscmp(t, L"--auto") == 0)         opts.svc_auto = 1;
+        else if (wcscmp(t, L"--running") == 0)      opts.svc_running = 1;
+        else if (wcscmp(t, L"--stopped") == 0)      opts.svc_stopped = 1;
+        else if (wcscmp(t, L"--failed") == 0)       opts.svc_failed = 1;
         else if (wcscmp(t, L"--output") == 0) {
             if (i + 1 < argc) {
                 opts.output_path = argv[++i];
@@ -206,6 +214,10 @@ int wt_cli_run(int argc, wchar_t **argv)
         rc = wt_cmd_recommend(&opts);
     } else if (wcscmp(command, L"doctor") == 0) {
         rc = wt_cmd_doctor(&opts);
+    } else if (wcscmp(command, L"startup") == 0) {
+        rc = wt_cmd_startup(&opts);
+    } else if (wcscmp(command, L"services") == 0) {
+        rc = wt_cmd_services(&opts);
     } else if (wt_command_is_known(command)) {
         fwprintf(stderr,
                  L"wintune: '%ls' is recognized but not implemented yet "

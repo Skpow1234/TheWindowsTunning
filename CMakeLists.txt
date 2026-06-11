@@ -27,6 +27,8 @@ add_executable(wintune
     # system
     src/system/os_info.c
     src/system/power.c
+    src/system/startup.c
+    src/system/services.c
 
     # core
     src/core/report_model.c
@@ -44,6 +46,8 @@ add_executable(wintune
     src/cli/commands_top.c
     src/cli/commands_recommend.c
     src/cli/commands_doctor.c
+    src/cli/commands_startup.c
+    src/cli/commands_services.c
 )
 
 target_include_directories(wintune PRIVATE src)

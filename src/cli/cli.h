@@ -27,6 +27,16 @@ typedef struct WT_CliOptions {
     long interval_ms;           /* --interval N      (-1 = default) */
     long samples;               /* --samples N       (-1 = default) */
     const wchar_t *sort;        /* --sort <key>      (NULL = default) */
+
+    /* startup */
+    int include_services;       /* --include-services */
+    int include_tasks;          /* --include-tasks */
+
+    /* services filters (OR-combined; none == show all) */
+    int svc_auto;               /* --auto */
+    int svc_running;            /* --running */
+    int svc_stopped;            /* --stopped */
+    int svc_failed;             /* --failed */
 } WT_CliOptions;
 
 /* Parses arguments, applies global options, and dispatches to a command.

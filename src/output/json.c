@@ -372,6 +372,60 @@ void wt_print_recommendations_json(const WT_RecommendationList *recs, FILE *out)
     wt_json_finish(&w);
 }
 
+void wt_print_startup_json(const WT_StartupEntry *items, size_t count, FILE *out)
+{
+    WT_JsonWriter w;
+    wt_json_init(&w, out);
+
+    wt_json_begin_object(&w);
+    wt_json_emit_envelope_head(&w);
+    wt_json_key(&w, "startup");
+    wt_json_begin_array(&w);
+    for (size_t i = 0; i < count; ++i) {
+        const WT_StartupEntry *e = &items[i];
+        wt_json_begin_object(&w);
+        wt_json_key(&w, "id");      wt_json_wstring(&w, e->id);
+        wt_json_key(&w, "name");    wt_json_wstring(&w, e->name);
+        wt_json_key(&w, "source");  wt_json_string(&w, wt_startup_source_name(e->source));
+        wt_json_key(&w, "command"); wt_json_wstring(&w, e->command);
+        wt_json_key(&w, "enabled"); wt_json_bool(&w, e->enabled);
+        wt_json_key(&w, "impact");  wt_json_string(&w, wt_startup_impact_name(e->impact));
+        wt_json_end_object(&w);
+    }
+    wt_json_end_array(&w);
+    wt_json_end_object(&w);
+    wt_json_finish(&w);
+}
+
+void wt_print_services_json(const WT_ServiceInfo *items, size_t count, FILE *out)
+{
+    WT_JsonWriter w;
+    wt_json_init(&w, out);
+
+    wt_json_begin_object(&w);
+    wt_json_emit_envelope_head(&w);
+    wt_json_key(&w, "services");
+    wt_json_begin_array(&w);
+    for (size_t i = 0; i < count; ++i) {
+        const WT_ServiceInfo *s = &items[i];
+        wt_json_begin_object(&w);
+        wt_json_key(&w, "name");         wt_json_wstring(&w, s->name);
+        wt_json_key(&w, "display_name"); wt_json_wstring(&w, s->display_name);
+        wt_json_key(&w, "state");        wt_json_string(&w, wt_service_state_name(s->state));
+        wt_json_key(&w, "start_type");   wt_json_string(&w, wt_service_start_type_name(s->start_type));
+        wt_json_key(&w, "pid");
+        if (s->pid == 0) {
+            wt_json_null(&w);
+        } else {
+            wt_json_uint64(&w, s->pid);
+        }
+        wt_json_end_object(&w);
+    }
+    wt_json_end_array(&w);
+    wt_json_end_object(&w);
+    wt_json_finish(&w);
+}
+
 void wt_print_processes_json(const WT_ProcessInfo *items, size_t count, FILE *out)
 {
     WT_JsonWriter w;
