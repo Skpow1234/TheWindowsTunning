@@ -1,10 +1,13 @@
 #include "cli/cli.h"
 
+#include "cli/commands_scan.h"
+#include "cli/commands_top.h"
 #include "common/error.h"
 #include "common/log.h"
 #include "platform/console.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <wchar.h>
 
 /* Exit codes kept small and stable for scripting. */
@@ -113,6 +116,9 @@ static void wt_apply_log_level(const WT_CliOptions *opts)
 int wt_cli_run(int argc, wchar_t **argv)
 {
     WT_CliOptions opts = {0};
+    opts.limit = -1;
+    opts.interval_ms = -1;
+    opts.samples = -1;
     const wchar_t *command = NULL;
     const wchar_t *command_arg = NULL;
 
@@ -128,6 +134,8 @@ int wt_cli_run(int argc, wchar_t **argv)
         else if (wcscmp(t, L"--no-unicode") == 0)   opts.no_unicode = 1;
         else if (wcscmp(t, L"--safe-terminal") == 0) opts.safe_terminal = 1;
         else if (wcscmp(t, L"--yes") == 0)          opts.yes = 1;
+        else if (wcscmp(t, L"--watch") == 0)        opts.watch = 1;
+        else if (wcscmp(t, L"--no-recommendations") == 0) opts.no_recommendations = 1;
         else if (wcscmp(t, L"--output") == 0) {
             if (i + 1 < argc) {
                 opts.output_path = argv[++i];
@@ -135,7 +143,24 @@ int wt_cli_run(int argc, wchar_t **argv)
                 fprintf(stderr, "wintune: --output requires a path argument\n");
                 return WT_EXIT_USAGE;
             }
-        } else if (t[0] == L'-') {
+        }
+        else if (wcscmp(t, L"--limit") == 0) {
+            if (i + 1 < argc) opts.limit = wcstol(argv[++i], NULL, 10);
+            else { fprintf(stderr, "wintune: --limit requires a number\n"); return WT_EXIT_USAGE; }
+        }
+        else if (wcscmp(t, L"--interval") == 0) {
+            if (i + 1 < argc) opts.interval_ms = wcstol(argv[++i], NULL, 10);
+            else { fprintf(stderr, "wintune: --interval requires a number\n"); return WT_EXIT_USAGE; }
+        }
+        else if (wcscmp(t, L"--samples") == 0) {
+            if (i + 1 < argc) opts.samples = wcstol(argv[++i], NULL, 10);
+            else { fprintf(stderr, "wintune: --samples requires a number\n"); return WT_EXIT_USAGE; }
+        }
+        else if (wcscmp(t, L"--sort") == 0) {
+            if (i + 1 < argc) opts.sort = argv[++i];
+            else { fprintf(stderr, "wintune: --sort requires a key\n"); return WT_EXIT_USAGE; }
+        }
+        else if (t[0] == L'-') {
             fwprintf(stderr, L"wintune: unknown option '%ls'\n", t);
             return WT_EXIT_USAGE;
         } else if (command == NULL) {
@@ -168,6 +193,13 @@ int wt_cli_run(int argc, wchar_t **argv)
     if (command == NULL) {
         wt_print_usage();
         return WT_EXIT_OK;
+    }
+
+    if (wcscmp(command, L"scan") == 0) {
+        return wt_cmd_scan(&opts);
+    }
+    if (wcscmp(command, L"top") == 0) {
+        return wt_cmd_top(&opts);
     }
 
     if (wt_command_is_known(command)) {
