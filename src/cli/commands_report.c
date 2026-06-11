@@ -1,4 +1,5 @@
 #include "cli/commands_report.h"
+#include "cli/cli.h"
 #include "core/scan.h"
 #include "core/recommendations.h"
 #include "output/text_report.h"
@@ -24,7 +25,7 @@ static int wt_report_use_json(const WT_CliOptions *opts)
                  opts->format);
         return -1;
     }
-    return opts->json ? 1 : 0;
+    return wt_cli_is_json_mode(opts);
 }
 
 static FILE *wt_report_open_output(const WT_CliOptions *opts, FILE **opened)
@@ -77,11 +78,12 @@ int wt_cmd_report(const WT_CliOptions *opts)
         wt_print_performance_report_text(out, &report, &recs);
     }
 
+    if (opened != NULL && opts->output_path != NULL &&
+            !wt_cli_is_json_mode(opts)) {
+        fwprintf(stderr, L"wintune: report written to '%ls'\n", opts->output_path);
+    }
     if (opened != NULL) {
         fclose(opened);
-        if (opts->output_path != NULL) {
-            fwprintf(stderr, L"wintune: report written to '%ls'\n", opts->output_path);
-        }
     }
 
     return 0;

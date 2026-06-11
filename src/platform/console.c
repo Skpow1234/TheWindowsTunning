@@ -2,10 +2,31 @@
 
 #include <windows.h>
 #include <strsafe.h>
+#include <io.h>
 
 static HANDLE wt_stdout_handle(void)
 {
     return GetStdHandle(STD_OUTPUT_HANDLE);
+}
+
+static HANDLE wt_stdin_handle(void)
+{
+    return GetStdHandle(STD_INPUT_HANDLE);
+}
+
+static int wt_handle_is_console(HANDLE h)
+{
+    if (h == NULL || h == INVALID_HANDLE_VALUE) {
+        return 0;
+    }
+    DWORD mode = 0;
+    return GetConsoleMode(h, &mode) ? 1 : 0;
+}
+
+static int wt_env_is_set(const wchar_t *name)
+{
+    wchar_t buf[8];
+    return GetEnvironmentVariableW(name, buf, ARRAYSIZE(buf)) > 0;
 }
 
 static WT_Result wt_console_write(const wchar_t *seq)
@@ -96,19 +117,27 @@ WT_Result wt_console_show_cursor(void)
 
 int wt_console_is_interactive(void)
 {
-    HANDLE out = wt_stdout_handle();
-    if (out == NULL || out == INVALID_HANDLE_VALUE) {
-        return 0;
-    }
+    return wt_handle_is_console(wt_stdout_handle());
+}
 
-    /* GetConsoleMode succeeds only for real console handles, not files/pipes. */
-    DWORD mode = 0;
-    return GetConsoleMode(out, &mode) ? 1 : 0;
+int wt_console_stdin_is_interactive(void)
+{
+    /* _isatty covers console and some TTY-like handles on Windows. */
+    return _isatty(_fileno(stdin)) ? 1 : 0;
+}
+
+int wt_session_is_interactive(void)
+{
+    return wt_console_is_interactive() && wt_console_stdin_is_interactive();
+}
+
+int wt_session_is_remote(void)
+{
+    /* Windows OpenSSH Server exports these for remote sessions. */
+    return wt_env_is_set(L"SSH_CONNECTION") || wt_env_is_set(L"SSH_CLIENT");
 }
 
 int wt_console_supports_color(void)
 {
-    /* Color requires an interactive console; VT enablement is attempted
-     * separately by the caller. */
     return wt_console_is_interactive();
 }

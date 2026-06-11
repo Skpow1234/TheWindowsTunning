@@ -1,4 +1,5 @@
 #include "cli/commands_top.h"
+#include "cli/cli.h"
 #include "metrics/process.h"
 #include "output/table.h"
 #include "output/json.h"
@@ -126,32 +127,30 @@ static int wt_top_watch(size_t limit, unsigned int interval_ms)
 
 int wt_cmd_top(const WT_CliOptions *opts)
 {
-    const int json = (opts != NULL && opts->json);
+    const int json = wt_cli_is_json_mode(opts);
     const int watch = (opts != NULL && opts->watch);
 
     if (opts != NULL && opts->sort != NULL && wcscmp(opts->sort, L"memory") != 0) {
-        fprintf(stderr,
-                "wintune: only --sort memory is available in Phase 1; "
-                "sorting by memory.\n");
+        wt_cli_user_note(opts,
+                         "wintune: only --sort memory is available; "
+                         "sorting by memory.\n");
     }
 
     size_t limit = wt_top_clamp_limit(opts != NULL ? opts->limit : -1);
 
     if (watch && !json) {
-        if (wt_console_is_interactive()) {
+        if (wt_session_is_interactive()) {
             unsigned int interval = WT_TOP_DEFAULT_INTERVAL_MS;
             if (opts->interval_ms > 0) {
                 interval = (unsigned int)opts->interval_ms;
             }
             return wt_top_watch(limit, interval);
         }
-        fprintf(stderr,
-                "wintune: 'top --watch' needs an interactive terminal; "
-                "showing a single snapshot.\n");
+        wt_cli_user_note(opts,
+                         "wintune: 'top --watch' needs an interactive terminal; "
+                         "showing a single snapshot.\n");
     } else if (watch && json) {
-        fprintf(stderr,
-                "wintune: 'top --watch' is ignored with --json; "
-                "emitting a single snapshot.\n");
+        /* Silent fallback in JSON mode: emit one snapshot, no stderr noise. */
     }
 
     WT_ProcessInfo *buffer = (WT_ProcessInfo *)malloc(limit * sizeof(WT_ProcessInfo));

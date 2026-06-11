@@ -24,6 +24,17 @@ WT_Result wt_console_show_cursor(void);
  * (e.g. `wintune scan > file` or an SSH non-interactive session). */
 int wt_console_is_interactive(void);
 
+/* Returns 1 when stdin is an interactive console (needed for prompts). */
+int wt_console_stdin_is_interactive(void);
+
+/* Returns 1 when both stdin and stdout are interactive consoles. Use this for
+ * features that need a full terminal (TUI, --watch, confirmation prompts). */
+int wt_session_is_interactive(void);
+
+/* Returns 1 when the process appears to be running under SSH (OpenSSH sets
+ * SSH_CONNECTION and/or SSH_CLIENT). Informational only. */
+int wt_session_is_remote(void);
+
 /* Returns 1 when the console can reasonably display ANSI color. Callers should
  * still honor a user-supplied --no-color override. */
 int wt_console_supports_color(void);

@@ -4,6 +4,7 @@
 #include "tui/tui_widgets.h"
 #include "tui/tui_input.h"
 
+#include "cli/cli.h"
 #include "platform/console.h"
 #include "common/units.h"
 #include "metrics/memory.h"
@@ -385,14 +386,15 @@ static const char *wt_tui_view_title(WT_TuiView view)
 
 WT_Result wt_tui_run(const WT_CliOptions *opts)
 {
-    if (!wt_console_is_interactive()) {
+    if (!wt_session_is_interactive()) {
         fprintf(stderr,
-                "wintune: 'tui' needs an interactive terminal. "
-                "Use 'wintune scan' or 'wintune top --watch' instead.\n");
+                "wintune: 'tui' needs an interactive terminal (stdin and stdout).\n"
+                "For remote one-shot use: wintune scan --json\n"
+                "For a live view over SSH: ssh -t user@host \"wintune tui --safe-terminal\"\n");
         return WT_ERR_NOT_SUPPORTED;
     }
 
-    const int safe = (opts != NULL && opts->safe_terminal);
+    const int safe = (opts != NULL && opts->safe_terminal) || wt_session_is_remote();
     const int color = (opts == NULL || !opts->no_color) && !safe;
     const int unicode = (opts == NULL || !opts->no_unicode) && !safe;
     unsigned int interval = WT_TUI_DEFAULT_INTERVAL_MS;

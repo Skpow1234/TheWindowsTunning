@@ -3,6 +3,7 @@
 #include "system/power.h"
 #include "system/privilege.h"
 #include "system/startup.h"
+#include "platform/console.h"
 #include "common/log.h"
 
 #include <windows.h>
@@ -11,7 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <io.h>
 
 /* ---- confirmation -------------------------------------------------------- */
 
@@ -20,11 +20,18 @@ int wt_action_confirm(const char *prompt, int assume_yes)
     if (assume_yes) {
         return 1;
     }
-    if (!_isatty(_fileno(stdin))) {
+    if (!wt_session_is_interactive()) {
         fprintf(stderr,
                 "%s\nRefusing to proceed without confirmation in a "
-                "non-interactive session. Re-run with --yes to confirm.\n",
+                "non-interactive session. Re-run with --yes to confirm.",
                 prompt);
+        if (wt_session_is_remote()) {
+            fputs("\nOver SSH one-shot commands, pass --yes explicitly "
+                  "(e.g. ssh user@host \"wintune apply WT-POWER-001 --yes\").\n",
+                  stderr);
+        } else {
+            fputc('\n', stderr);
+        }
         return 0;
     }
 
@@ -183,9 +190,9 @@ WT_Result wt_action_restart_service(const wchar_t *name,
     }
 
     if (!wt_is_process_elevated()) {
+        wt_print_admin_required_message(stderr);
         StringCchPrintfA(msg, msg_cap,
-                         "Restarting a service requires administrator "
-                         "privileges. Run from an elevated shell and try again.");
+                         "Restarting a service requires administrator privileges.");
         return WT_ERR_ACCESS_DENIED;
     }
 
@@ -387,9 +394,10 @@ WT_Result wt_action_set_startup_enabled(const wchar_t *id,
     StringCchCopyW(value_name, ARRAYSIZE(value_name), entry->name);
 
     if (_wcsicmp(hive_tag, L"HKLM") == 0 && !wt_is_process_elevated()) {
+        wt_print_admin_required_message(stderr);
         StringCchPrintfA(msg, msg_cap,
                          "Changing this machine-wide startup entry requires "
-                         "administrator privileges. Run from an elevated shell.");
+                         "administrator privileges.");
         free(entries);
         return WT_ERR_ACCESS_DENIED;
     }

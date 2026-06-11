@@ -6,7 +6,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-blue.svg)](docs/roadmap.md)
-[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%208)-orange.svg)](#project-status)
+[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%209)-orange.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -226,12 +226,17 @@ later phase. Recommendations are deterministic and explainable; pass
 
 ### Over SSH
 
-WinTune works through the Windows OpenSSH Server as a normal terminal program:
+WinTune works through the Windows OpenSSH Server as a normal terminal program.
+One-shot commands (`ssh host "wintune scan --json"`) are non-interactive: no
+ANSI on stdout, no confirmation prompts (use `--yes` for mutating commands).
+JSON output includes a `session` object (`interactive`, `remote`, `elevated`).
 
 ```bash
 ssh user@windows-host "wintune scan"
 ssh user@windows-host "wintune scan --json"
-ssh user@windows-host "wintune top --watch"
+ssh user@windows-host "wintune doctor --json"
+ssh user@windows-host "wintune top --watch"    # single snapshot over one-shot SSH
+ssh -t user@windows-host "wintune tui --safe-terminal"
 ```
 
 See [`docs/ssh.md`](docs/ssh.md).
@@ -264,7 +269,7 @@ WinTune is under active, phased development.
 | 6 | `tui` dashboard | Done |
 | 7 | Safe apply actions: `power --set`, `apply`, startup toggle, service restart, `rollback` | Done |
 | 8 | `report` (text + JSON, `--output`) | Done |
-| 9 | SSH hardening | Planned |
+| 9 | SSH hardening (session detection, safe-terminal, JSON session metadata) | Done |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero. The full plan is in [`docs/roadmap.md`](docs/roadmap.md).
@@ -273,8 +278,11 @@ exit non-zero. The full plan is in [`docs/roadmap.md`](docs/roadmap.md).
 
 - `--json` and `--output` work for `scan`, `top`, `recommend`, `doctor`, `power`,
   `rollback list`, and `report`.
-- `top --watch` is live in an interactive terminal and falls back to a single
-  snapshot when the session is non-interactive (e.g. piped or `ssh host "..."`).
+- `top --watch` is live when stdin and stdout are both interactive; it falls
+  back to a single snapshot over piped/one-shot SSH (silent fallback with
+  `--json`).
+- Remote SSH sessions auto-enable conservative rendering (`--safe-terminal`
+  semantics) for interactive PTY sessions.
 - Process enumeration uses a top-K collector (no full-process buffer) for
   `scan`, `top`, and `tui`.
 - Per-process CPU and disk-rate columns are not yet computed (later phases);

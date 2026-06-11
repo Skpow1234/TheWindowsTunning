@@ -2,7 +2,9 @@
 
 #include "cli/cli.h"        /* WT_VERSION_STRING */
 #include "platform/time.h"
+#include "platform/console.h"
 #include "system/power.h"
+#include "system/privilege.h"
 
 #include <windows.h>
 
@@ -210,6 +212,13 @@ static void wt_json_emit_envelope_head(WT_JsonWriter *w)
     }
     wt_json_key(w, "version");       wt_json_string(w, WT_VERSION_STRING);
     wt_json_key(w, "timestamp_utc"); wt_json_string(w, ts);
+
+    wt_json_key(w, "session");
+    wt_json_begin_object(w);
+    wt_json_key(w, "interactive"); wt_json_bool(w, wt_session_is_interactive());
+    wt_json_key(w, "remote");      wt_json_bool(w, wt_session_is_remote());
+    wt_json_key(w, "elevated");    wt_json_bool(w, wt_is_process_elevated());
+    wt_json_end_object(w);
 }
 
 static void wt_json_emit_recommendation(WT_JsonWriter *w,

@@ -57,4 +57,16 @@ typedef struct WT_CliOptions {
  * Returns a process exit code (0 == success). */
 int wt_cli_run(int argc, wchar_t **argv);
 
+/* Returns 1 when the active command should emit JSON on stdout (--json or
+ * report --format json). */
+int wt_cli_is_json_mode(const WT_CliOptions *opts);
+
+/* Applies conservative defaults after parsing: no color on piped stdout, JSON
+ * mode, and --safe-terminal. Call once before dispatching a command. */
+void wt_cli_apply_session_defaults(WT_CliOptions *opts);
+
+/* User-facing hint on stderr. Suppressed in JSON mode so stdout stays clean
+ * for automation (errors still use stderr directly). */
+void wt_cli_user_note(const WT_CliOptions *opts, const char *fmt, ...);
+
 #endif /* WINTUNE_CLI_H */

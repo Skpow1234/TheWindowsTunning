@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <wchar.h>
+#include <stdarg.h>
 
 /* Exit codes kept small and stable for scripting. */
 #define WT_EXIT_OK              0
@@ -122,6 +123,63 @@ static void wt_apply_log_level(const WT_CliOptions *opts)
     }
 }
 
+int wt_cli_is_json_mode(const WT_CliOptions *opts)
+{
+    if (opts == NULL) {
+        return 0;
+    }
+    if (opts->json) {
+        return 1;
+    }
+    if (opts->format != NULL && _wcsicmp(opts->format, L"json") == 0) {
+        return 1;
+    }
+    return 0;
+}
+
+void wt_cli_apply_session_defaults(WT_CliOptions *opts)
+{
+    if (opts == NULL) {
+        return;
+    }
+
+    if (wt_cli_is_json_mode(opts)) {
+        opts->no_color = 1;
+    }
+
+    if (opts->safe_terminal) {
+        opts->no_color = 1;
+        opts->no_unicode = 1;
+    }
+
+    /* Piped/SSH one-shot sessions must not emit ANSI escape sequences on stdout. */
+    if (!wt_console_is_interactive()) {
+        opts->no_color = 1;
+    }
+
+    /* Remote interactive SSH (PTY) still benefits from conservative rendering
+     * unless the user explicitly disabled safe-terminal semantics by forcing
+     * unicode/color — only auto-enable when nothing was specified. */
+    if (wt_session_is_remote() && wt_session_is_interactive() &&
+            !opts->safe_terminal && !opts->no_unicode && !opts->no_color) {
+        opts->safe_terminal = 1;
+        opts->no_color = 1;
+        opts->no_unicode = 1;
+    }
+}
+
+void wt_cli_user_note(const WT_CliOptions *opts, const char *fmt, ...)
+{
+    if (fmt == NULL || wt_cli_is_json_mode(opts)) {
+        return;
+    }
+
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+}
+
 int wt_cli_run(int argc, wchar_t **argv)
 {
     WT_CliOptions opts = {0};
@@ -196,10 +254,12 @@ int wt_cli_run(int argc, wchar_t **argv)
     }
 
     wt_apply_log_level(&opts);
-    WT_LOGD("parsed command=%ls json=%d", command ? command : L"(none)", opts.json);
+    wt_cli_apply_session_defaults(&opts);
+    WT_LOGD("parsed command=%ls json=%d interactive=%d remote=%d",
+            command ? command : L"(none)", opts.json,
+            wt_session_is_interactive(), wt_session_is_remote());
 
-    /* Enable VT early for interactive, color-capable sessions so later phases
-     * can rely on it. Failure is non-fatal (e.g. redirected output). */
+    /* Enable VT only for local/interactive color sessions. */
     if (!opts.no_color && wt_console_is_interactive()) {
         (void)wt_console_enable_vt();
     }

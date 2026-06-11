@@ -1,5 +1,6 @@
 #include "cli/commands_services.h"
 #include "system/services.h"
+#include "system/privilege.h"
 #include "actions/safe_actions.h"
 #include "output/json.h"
 
@@ -128,8 +129,9 @@ int wt_cmd_services(const WT_CliOptions *opts)
     WT_Result r = wt_collect_services(svcs, WT_MAX_SERVICES, &total);
     if (r != WT_OK) {
         if (r == WT_ERR_ACCESS_DENIED) {
-            fprintf(stderr, "wintune: could not open the Service Control "
-                            "Manager (access denied).\n");
+            wt_print_admin_required_message(stderr);
+            fprintf(stderr,
+                    "wintune: could not open the Service Control Manager.\n");
         } else {
             fprintf(stderr, "wintune: service scan failed (%s)\n",
                     wt_result_to_string(r));
