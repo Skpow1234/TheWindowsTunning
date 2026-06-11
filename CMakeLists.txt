@@ -16,6 +16,7 @@ add_executable(wintune
     # platform
     src/platform/console.c
     src/platform/time.c
+    src/platform/paths.c
 
     # metrics
     src/metrics/pdh_utils.c
@@ -30,6 +31,12 @@ add_executable(wintune
     src/system/power.c
     src/system/startup.c
     src/system/services.c
+    src/system/privilege.c
+
+    # actions
+    src/actions/rollback.c
+    src/actions/safe_actions.c
+    src/actions/apply.c
 
     # core
     src/core/report_model.c
@@ -56,6 +63,9 @@ add_executable(wintune
     src/cli/commands_doctor.c
     src/cli/commands_startup.c
     src/cli/commands_services.c
+    src/cli/commands_power.c
+    src/cli/commands_apply.c
+    src/cli/commands_rollback.c
 )
 
 target_include_directories(wintune PRIVATE src)
