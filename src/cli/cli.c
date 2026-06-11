@@ -6,6 +6,7 @@
 #include "cli/commands_doctor.h"
 #include "cli/commands_startup.h"
 #include "cli/commands_services.h"
+#include "tui/tui.h"
 #include "common/error.h"
 #include "common/log.h"
 #include "platform/console.h"
@@ -218,6 +219,8 @@ int wt_cli_run(int argc, wchar_t **argv)
         rc = wt_cmd_startup(&opts);
     } else if (wcscmp(command, L"services") == 0) {
         rc = wt_cmd_services(&opts);
+    } else if (wcscmp(command, L"tui") == 0) {
+        rc = (wt_tui_run(&opts) == WT_OK) ? WT_EXIT_OK : WT_EXIT_NOT_IMPLEMENTED;
     } else if (wt_command_is_known(command)) {
         fwprintf(stderr,
                  L"wintune: '%ls' is recognized but not implemented yet "

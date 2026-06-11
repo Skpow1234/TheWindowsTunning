@@ -23,6 +23,7 @@ add_executable(wintune
     src/metrics/memory.c
     src/metrics/disk.c
     src/metrics/process.c
+    src/metrics/network.c
 
     # system
     src/system/os_info.c
@@ -40,6 +41,13 @@ add_executable(wintune
     src/output/text.c
     src/output/json.c
 
+    # tui
+    src/tui/tui.c
+    src/tui/tui_screen.c
+    src/tui/tui_theme.c
+    src/tui/tui_widgets.c
+    src/tui/tui_input.c
+
     # cli
     src/cli/cli.c
     src/cli/commands_scan.c
@@ -56,6 +64,9 @@ target_compile_definitions(wintune PRIVATE
     WIN32_LEAN_AND_MEAN
     UNICODE
     _UNICODE
+    # Target Windows 10+ so version-gated APIs (e.g. GetIfTable2) are visible.
+    _WIN32_WINNT=0x0A00
+    WINVER=0x0A00
 )
 
 if(MSVC)
@@ -65,12 +76,13 @@ endif()
 # Windows libraries linked as modules require them:
 #   pdh      -> PDH performance counters (cpu, disk activity)
 #   psapi    -> process memory/IO counters (process)
-#   advapi32 -> registry (os_info), services later
+#   advapi32 -> registry (os_info), services
 #   powrprof -> power scheme detection (power)
-# Additional libs (iphlpapi) are added in later phases.
+#   iphlpapi -> network interface counters (network/tui)
 target_link_libraries(wintune PRIVATE
     pdh
     psapi
     advapi32
     powrprof
+    iphlpapi
 )
