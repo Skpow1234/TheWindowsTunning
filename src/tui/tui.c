@@ -23,7 +23,7 @@
 
 #define WT_TUI_DEFAULT_INTERVAL_MS 1000
 #define WT_TUI_POLL_STEP_MS 40
-#define WT_TUI_PROC_CAP 2048
+#define WT_TUI_TOP_PROC 32
 #define WT_TUI_GAUGE_WIDTH 30
 
 typedef enum WT_TuiView {
@@ -409,7 +409,7 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
     }
 
     WT_ProcessInfo *procs =
-        (WT_ProcessInfo *)malloc(WT_TUI_PROC_CAP * sizeof(WT_ProcessInfo));
+        (WT_ProcessInfo *)malloc(WT_TUI_TOP_PROC * sizeof(WT_ProcessInfo));
     WT_ServiceInfo *svcs =
         (WT_ServiceInfo *)malloc(WT_MAX_SERVICES * sizeof(WT_ServiceInfo));
     if (procs == NULL || svcs == NULL) {
@@ -479,8 +479,9 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
         /* Processes are needed by the overview and memory views. */
         size_t proc_count = 0;
         if (view == WT_VIEW_OVERVIEW || view == WT_VIEW_MEMORY) {
-            if (wt_collect_processes(procs, WT_TUI_PROC_CAP, &proc_count) == WT_OK) {
-                wt_sort_processes_by_memory(procs, proc_count);
+            if (wt_collect_top_processes_by_memory(procs, WT_TUI_TOP_PROC,
+                                                   &proc_count) == WT_OK) {
+                /* already sorted descending */
             } else {
                 proc_count = 0;
             }

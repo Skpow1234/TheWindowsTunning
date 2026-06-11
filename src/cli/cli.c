@@ -9,6 +9,7 @@
 #include "cli/commands_power.h"
 #include "cli/commands_apply.h"
 #include "cli/commands_rollback.h"
+#include "cli/commands_report.h"
 #include "tui/tui.h"
 #include "common/error.h"
 #include "common/log.h"
@@ -177,6 +178,10 @@ int wt_cli_run(int argc, wchar_t **argv)
             if (i + 1 < argc) opts.set_value = argv[++i];
             else { fprintf(stderr, "wintune: --set requires a plan name\n"); return WT_EXIT_USAGE; }
         }
+        else if (wcscmp(t, L"--format") == 0) {
+            if (i + 1 < argc) opts.format = argv[++i];
+            else { fprintf(stderr, "wintune: --format requires text or json\n"); return WT_EXIT_USAGE; }
+        }
         else if (t[0] == L'-') {
             fwprintf(stderr, L"wintune: unknown option '%ls'\n", t);
             return WT_EXIT_USAGE;
@@ -233,6 +238,8 @@ int wt_cli_run(int argc, wchar_t **argv)
         rc = wt_cmd_apply(&opts);
     } else if (wcscmp(command, L"rollback") == 0) {
         rc = wt_cmd_rollback(&opts);
+    } else if (wcscmp(command, L"report") == 0) {
+        rc = wt_cmd_report(&opts);
     } else if (wcscmp(command, L"tui") == 0) {
         rc = (wt_tui_run(&opts) == WT_OK) ? WT_EXIT_OK : WT_EXIT_NOT_IMPLEMENTED;
     } else if (wt_command_is_known(command)) {

@@ -12,7 +12,7 @@
 #include "system/power.h"
 
 #define WT_MAX_VOLUMES 32
-#define WT_MAX_TOP_PROCESSES 64
+#define WT_MAX_TOP_PROCESSES 32
 
 /* The stable in-memory model produced by a scan and consumed by every output
  * format (text now; JSON/TUI later). Per-section `*_ok` flags allow partial

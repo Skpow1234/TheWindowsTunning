@@ -28,4 +28,12 @@ WT_Result wt_collect_processes(WT_ProcessInfo *out,
 /* Sorts an array of processes by working set, descending. */
 void wt_sort_processes_by_memory(WT_ProcessInfo *items, size_t count);
 
+/* Enumerates processes and returns the top `limit` by working set without
+ * allocating a full process list. Writes up to `limit` entries into `out` and
+ * sets `out_count` to the number stored (may be less than `limit` when fewer
+ * processes exist). */
+WT_Result wt_collect_top_processes_by_memory(WT_ProcessInfo *out,
+                                             size_t limit,
+                                             size_t *out_count);
+
 #endif /* WINTUNE_PROCESS_H */

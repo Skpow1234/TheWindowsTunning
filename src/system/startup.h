@@ -25,7 +25,7 @@ typedef enum WT_StartupImpact {
 typedef struct WT_StartupEntry {
     wchar_t id[160];        /* synthetic, stable id: "<source>:<name>" */
     wchar_t name[128];      /* value name or file name */
-    wchar_t command[1024];  /* command line / target path (env-expanded) */
+    wchar_t command[512];   /* command line / target path (env-expanded) */
     WT_StartupSource source;
     int enabled;            /* read-only: present entries are treated as enabled */
     WT_StartupImpact impact;

@@ -85,7 +85,7 @@ static void wt_scan_run_key(HKEY root, const wchar_t *subkey,
     for (;;) {
         wchar_t name[256];
         DWORD name_len = ARRAYSIZE(name);
-        BYTE data[2048];
+        BYTE data[1024];
         DWORD data_len = sizeof(data);
         DWORD type = 0;
 
@@ -103,7 +103,7 @@ static void wt_scan_run_key(HKEY root, const wchar_t *subkey,
         }
 
         const wchar_t *raw = (const wchar_t *)data;
-        wchar_t expanded[1024];
+        wchar_t expanded[512];
         if (type == REG_EXPAND_SZ) {
             if (ExpandEnvironmentStringsW(raw, expanded, ARRAYSIZE(expanded)) > 0) {
                 raw = expanded;

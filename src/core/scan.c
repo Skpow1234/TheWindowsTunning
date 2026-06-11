@@ -8,37 +8,21 @@
 #include "system/power.h"
 #include "common/log.h"
 
-#include <stdlib.h>
-
 #define WT_SCAN_DEFAULT_SAMPLE_MS 500
 #define WT_SCAN_DEFAULT_TOP_LIMIT 10
-#define WT_SCAN_PROCESS_SCAN_CAP 2048
 
 static void wt_collect_top_processes(WT_ScanReport *report, size_t top_limit)
 {
-    WT_ProcessInfo *all =
-        (WT_ProcessInfo *)malloc(WT_SCAN_PROCESS_SCAN_CAP * sizeof(WT_ProcessInfo));
-    if (all == NULL) {
-        WT_LOGW("process scan: out of memory");
-        return;
+    if (top_limit > WT_MAX_TOP_PROCESSES) {
+        top_limit = WT_MAX_TOP_PROCESSES;
     }
 
     size_t count = 0;
-    if (wt_collect_processes(all, WT_SCAN_PROCESS_SCAN_CAP, &count) == WT_OK) {
-        wt_sort_processes_by_memory(all, count);
-
-        size_t limit = top_limit;
-        if (limit > WT_MAX_TOP_PROCESSES) limit = WT_MAX_TOP_PROCESSES;
-        if (limit > count) limit = count;
-
-        for (size_t i = 0; i < limit; ++i) {
-            report->top_processes[i] = all[i];
-        }
-        report->top_process_count = limit;
+    if (wt_collect_top_processes_by_memory(report->top_processes, top_limit,
+                                           &count) == WT_OK) {
+        report->top_process_count = count;
         report->processes_ok = 1;
     }
-
-    free(all);
 }
 
 WT_Result wt_run_scan(const WT_ScanOptions *opts, WT_ScanReport *report)

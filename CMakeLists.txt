@@ -46,6 +46,7 @@ add_executable(wintune
     # output
     src/output/table.c
     src/output/text.c
+    src/output/text_report.c
     src/output/json.c
 
     # tui
@@ -66,6 +67,7 @@ add_executable(wintune
     src/cli/commands_power.c
     src/cli/commands_apply.c
     src/cli/commands_rollback.c
+    src/cli/commands_report.c
 )
 
 target_include_directories(wintune PRIVATE src)
