@@ -309,5 +309,36 @@ WT_Result wt_rollback_apply(const wchar_t *id, int assume_yes)
         return sr;
     }
 
+    if (strcmp(type, "startup_approved") == 0) {
+        char prompt[384];
+        StringCchPrintfA(prompt, sizeof(prompt),
+                         "Revert startup change (undo: %s)?",
+                         desc[0] ? desc : "startup change");
+        if (!wt_action_confirm(prompt, assume_yes)) {
+            return WT_ERR_CANCELLED;
+        }
+
+        /* previous_value is "hive|subkey|value_name|byte". */
+        wchar_t wprev[512];
+        MultiByteToWideChar(CP_UTF8, 0, prev, -1, wprev, ARRAYSIZE(wprev));
+        wchar_t *parts[4] = {0};
+        int n = 0;
+        wchar_t *ctx = NULL;
+        for (wchar_t *tok = wcstok_s(wprev, L"|", &ctx);
+             tok != NULL && n < 4;
+             tok = wcstok_s(NULL, L"|", &ctx)) {
+            parts[n++] = tok;
+        }
+        if (n != 4) {
+            return WT_ERR_INVALID_ARGUMENT;
+        }
+        int enabled = (wcscmp(parts[3], L"02") == 0);
+        WT_Result sr = wt_startup_write_approved(parts[0], parts[1], parts[2], enabled);
+        if (sr == WT_OK) {
+            wt_log(WT_LOG_INFO, "rollback applied: %ls", id);
+        }
+        return sr;
+    }
+
     return WT_ERR_NOT_SUPPORTED;
 }

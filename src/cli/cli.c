@@ -6,6 +6,9 @@
 #include "cli/commands_doctor.h"
 #include "cli/commands_startup.h"
 #include "cli/commands_services.h"
+#include "cli/commands_power.h"
+#include "cli/commands_apply.h"
+#include "cli/commands_rollback.h"
 #include "tui/tui.h"
 #include "common/error.h"
 #include "common/log.h"
@@ -125,7 +128,6 @@ int wt_cli_run(int argc, wchar_t **argv)
     opts.interval_ms = -1;
     opts.samples = -1;
     const wchar_t *command = NULL;
-    const wchar_t *command_arg = NULL;
 
     for (int i = 1; i < argc; ++i) {
         const wchar_t *t = argv[i];
@@ -171,15 +173,21 @@ int wt_cli_run(int argc, wchar_t **argv)
             if (i + 1 < argc) opts.sort = argv[++i];
             else { fprintf(stderr, "wintune: --sort requires a key\n"); return WT_EXIT_USAGE; }
         }
+        else if (wcscmp(t, L"--set") == 0) {
+            if (i + 1 < argc) opts.set_value = argv[++i];
+            else { fprintf(stderr, "wintune: --set requires a plan name\n"); return WT_EXIT_USAGE; }
+        }
         else if (t[0] == L'-') {
             fwprintf(stderr, L"wintune: unknown option '%ls'\n", t);
             return WT_EXIT_USAGE;
         } else if (command == NULL) {
             command = t;
-        } else if (command_arg == NULL) {
-            command_arg = t;
+        } else if (opts.arg1 == NULL) {
+            opts.arg1 = t;
+        } else if (opts.arg2 == NULL) {
+            opts.arg2 = t;
         }
-        /* Extra positional args are ignored for now. */
+        /* Extra positional args beyond two are ignored. */
     }
 
     wt_apply_log_level(&opts);
@@ -219,6 +227,12 @@ int wt_cli_run(int argc, wchar_t **argv)
         rc = wt_cmd_startup(&opts);
     } else if (wcscmp(command, L"services") == 0) {
         rc = wt_cmd_services(&opts);
+    } else if (wcscmp(command, L"power") == 0) {
+        rc = wt_cmd_power(&opts);
+    } else if (wcscmp(command, L"apply") == 0) {
+        rc = wt_cmd_apply(&opts);
+    } else if (wcscmp(command, L"rollback") == 0) {
+        rc = wt_cmd_rollback(&opts);
     } else if (wcscmp(command, L"tui") == 0) {
         rc = (wt_tui_run(&opts) == WT_OK) ? WT_EXIT_OK : WT_EXIT_NOT_IMPLEMENTED;
     } else if (wt_command_is_known(command)) {

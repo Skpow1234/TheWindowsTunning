@@ -37,6 +37,17 @@ typedef struct WT_CliOptions {
     int svc_running;            /* --running */
     int svc_stopped;            /* --stopped */
     int svc_failed;             /* --failed */
+
+    /* power */
+    const wchar_t *set_value;   /* --set <plan>  (NULL = not given) */
+
+    /* Positional arguments following the command, e.g.
+     *   wintune apply WT-POWER-001       -> arg1 = "WT-POWER-001"
+     *   wintune services restart <name>  -> arg1 = "restart", arg2 = "<name>"
+     *   wintune startup disable <id>     -> arg1 = "disable",  arg2 = "<id>"
+     *   wintune rollback apply <id>      -> arg1 = "apply",    arg2 = "<id>" */
+    const wchar_t *arg1;
+    const wchar_t *arg2;
 } WT_CliOptions;
 
 /* Parses arguments, applies global options, and dispatches to a command.
