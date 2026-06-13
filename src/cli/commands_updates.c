@@ -85,6 +85,7 @@ static void wt_print_updates_text(const WT_UpdateStatus *s)
     printf("\nWinTune reports update state only; it never installs updates.\n");
     if (s->reboot_required) {
         printf("Recommendation: schedule a reboot when convenient.\n");
+        printf("If reboot keeps failing, run: wintune blockers\n");
     }
 }
 

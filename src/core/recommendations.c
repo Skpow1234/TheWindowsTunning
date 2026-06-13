@@ -2,6 +2,7 @@
 #include "system/power.h"
 #include "system/boot.h"
 #include "system/updates.h"
+#include "system/blockers.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -374,6 +375,42 @@ static void wt_check_updates(const WT_ScanReport *rep, WT_RecommendationList *ou
     }
 }
 
+static void wt_check_blockers(const WT_ScanReport *rep, WT_RecommendationList *out)
+{
+    if (!rep->updates_ok || !rep->updates.reboot_required) {
+        return;
+    }
+
+    WT_BlockerReport blockers;
+    wt_blocker_report_init(&blockers);
+    if (wt_collect_blockers(&blockers) != WT_OK) {
+        return;
+    }
+    if (blockers.process_blocker_count == 0 &&
+        blockers.locked_file_count == 0) {
+        return;
+    }
+
+    WT_Recommendation *r = wt_rec_add(out);
+    if (r == NULL) {
+        return;
+    }
+    wt_str_set(r->id, sizeof(r->id), "WT-BLOCKER-001");
+    wt_str_set(r->title, sizeof(r->title),
+               "Applications or file locks may block restart");
+    snprintf(r->reason, sizeof(r->reason),
+             "WinTune detected %lu application(s) with shutdown blocks and "
+             "%lu locked file path(s). These can prevent Windows Update or "
+             "servicing from completing until they are closed.",
+             blockers.process_blocker_count, blockers.locked_file_count);
+    wt_str_set(r->action, sizeof(r->action), "wintune blockers");
+    r->severity = WT_SEVERITY_MEDIUM;
+    r->risk = WT_RISK_NONE;
+    r->requires_admin = 0;
+    r->rollback_available = 0;
+    r->confidence_percent = 85;
+}
+
 WT_Result wt_generate_recommendations(const WT_ScanReport *report,
                                       WT_RecommendationList *out)
 {
@@ -388,6 +425,7 @@ WT_Result wt_generate_recommendations(const WT_ScanReport *report,
     wt_check_cpu(report, out);
     wt_check_boot(report, out);
     wt_check_updates(report, out);
+    wt_check_blockers(report, out);
 
     return WT_OK;
 }

@@ -650,6 +650,86 @@ void wt_print_updates_json(const WT_UpdateStatus *status, FILE *out)
     wt_json_finish(&w);
 }
 
+static const char *wt_json_blocker_kind(WT_BlockerKind kind)
+{
+    switch (kind) {
+    case WT_BLOCKER_SHUTDOWN:  return "shutdown";
+    case WT_BLOCKER_FILE_LOCK: return "file_lock";
+    default:                   return "unknown";
+    }
+}
+
+static void wt_json_emit_blockers_object(WT_JsonWriter *w,
+                                         const WT_BlockerReport *r)
+{
+    wt_json_begin_object(w);
+    wt_json_key(w, "available");
+    wt_json_bool(w, r != NULL);
+    if (r == NULL) {
+        wt_json_end_object(w);
+        return;
+    }
+
+    wt_json_key(w, "reboot_pending"); wt_json_bool(w, r->reboot_pending);
+    wt_json_key(w, "reboot_wu"); wt_json_bool(w, r->reboot_wu);
+    wt_json_key(w, "reboot_cbs"); wt_json_bool(w, r->reboot_cbs);
+    wt_json_key(w, "reboot_pending_file_rename");
+    wt_json_bool(w, r->reboot_pending_file_rename);
+    wt_json_key(w, "pending_rename_file_count");
+    wt_json_uint64(w, r->pending_rename_file_count);
+
+    wt_json_key(w, "process_blockers");
+    wt_json_begin_array(w);
+    for (unsigned long i = 0; i < r->process_blocker_count; ++i) {
+        const WT_BlockerProcess *b = &r->process_blockers[i];
+        wt_json_begin_object(w);
+        wt_json_key(w, "pid"); wt_json_uint64(w, b->pid);
+        wt_json_key(w, "name"); wt_json_wstring(w, b->name);
+        wt_json_key(w, "app_name"); wt_json_wstring(w, b->app_name);
+        wt_json_key(w, "kind"); wt_json_string(w, wt_json_blocker_kind(b->kind));
+        wt_json_key(w, "reason"); wt_json_wstring(w, b->reason);
+        wt_json_end_object(w);
+    }
+    wt_json_end_array(w);
+
+    wt_json_key(w, "locked_files");
+    wt_json_begin_array(w);
+    for (unsigned long i = 0; i < r->locked_file_count; ++i) {
+        const WT_LockedFile *lf = &r->locked_files[i];
+        wt_json_begin_object(w);
+        wt_json_key(w, "path"); wt_json_wstring(w, lf->path);
+        wt_json_key(w, "processes");
+        wt_json_begin_array(w);
+        for (unsigned long p = 0; p < lf->process_count; ++p) {
+            wt_json_begin_object(w);
+            wt_json_key(w, "pid"); wt_json_uint64(w, lf->pids[p]);
+            wt_json_key(w, "name"); wt_json_wstring(w, lf->process_names[p]);
+            wt_json_end_object(w);
+        }
+        wt_json_end_array(w);
+        wt_json_end_object(w);
+    }
+    wt_json_end_array(w);
+
+    if (r->note[0] != L'\0') {
+        wt_json_key(w, "note"); wt_json_wstring(w, r->note);
+    }
+    wt_json_end_object(w);
+}
+
+void wt_print_blockers_json(const WT_BlockerReport *report, FILE *out)
+{
+    WT_JsonWriter w;
+    wt_json_init(&w, out);
+
+    wt_json_begin_object(&w);
+    wt_json_emit_envelope_head(&w);
+    wt_json_key(&w, "blockers");
+    wt_json_emit_blockers_object(&w, report);
+    wt_json_end_object(&w);
+    wt_json_finish(&w);
+}
+
 void wt_print_processes_json(const WT_ProcessInfo *items, size_t count, FILE *out)
 {
     WT_JsonWriter w;
