@@ -35,26 +35,10 @@ function Invoke-CMake {
 
 if (-not $SkipBuild) {
     Write-Host "Configuring WinTune release build ($Version) ..."
-    if (Test-Path $BuildDir) {
-        Remove-Item -LiteralPath $BuildDir -Recurse -Force
-    }
-    New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
-
-    try {
-        Invoke-CMake @(
-            "-S", ".", "-B", "build",
-            "-G", "Visual Studio 17 2022", "-A", "x64",
-            "-DWINTUNE_VERSION=$Version",
-            "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
-        )
-    } catch {
-        Write-Warning "Visual Studio 17 2022 generator failed; trying CMake default."
-        Invoke-CMake @(
-            "-S", ".", "-B", "build",
-            "-DWINTUNE_VERSION=$Version",
-            "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
-        )
-    }
+    & (Join-Path $PSScriptRoot "cmake-configure.ps1") -BuildDir "build" -Clean `
+        -DefineArg "-DWINTUNE_VERSION=$Version" `
+        -DefineArg "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     Write-Host "Building wintune ($Config) ..."
     Invoke-CMake @("--build", "build", "--config", $Config)

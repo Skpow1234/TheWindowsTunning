@@ -21,6 +21,10 @@ On every push and pull request to `main`:
 This is the primary lint gate for v1. The project does not require clang-format
 or third-party static analyzers yet.
 
+**Generator:** CI uses `scripts/cmake-configure.ps1`, which tries **Visual Studio
+18 2026** (GitHub `windows-latest` since June 2026), then **Visual Studio 17
+2022** (local dev), then CMake’s default generator.
+
 **Run locally:**
 
 ```powershell

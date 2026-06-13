@@ -22,24 +22,9 @@ function Invoke-CMake {
 }
 
 Write-Host "Configuring WinTune lint build (warnings as errors) ..."
-if (Test-Path $BuildDir) {
-    Remove-Item -LiteralPath $BuildDir -Recurse -Force
-}
-New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
-
-try {
-    Invoke-CMake @(
-        "-S", ".", "-B", $BuildDir,
-        "-G", "Visual Studio 17 2022", "-A", "x64",
-        "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
-    )
-} catch {
-    Write-Warning "Visual Studio 17 2022 generator failed; trying CMake default."
-    Invoke-CMake @(
-        "-S", ".", "-B", $BuildDir,
-        "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
-    )
-}
+& (Join-Path $PSScriptRoot "cmake-configure.ps1") -BuildDir "build-lint" -Clean `
+    -DefineArg "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "Building wintune ($Config) with /WX ..."
 Invoke-CMake @("--build", $BuildDir, "--config", $Config)

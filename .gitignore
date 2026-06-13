@@ -2,9 +2,9 @@
 .cursorrules
 .cursor/
 
-# CMake build output
+# CMake build output (build/, build-lint/, build-ci-test/, etc.)
 build/
-build-lint/
+build-*/
 dist/
 out/
 cmake-build-*/

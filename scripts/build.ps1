@@ -36,14 +36,9 @@ $CacheFile = Join-Path $BuildDir "CMakeCache.txt"
 
 if (-not (Test-Path $CacheFile)) {
     Write-Host "Configuring WinTune (first-time or after clean) ..."
-    New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
-
-    try {
-        Invoke-CMake @("-S", ".", "-B", "build", "-G", "Visual Studio 17 2022", "-A", "x64")
-    } catch {
-        Write-Warning "Visual Studio 17 2022 generator failed; trying CMake default."
-        Invoke-CMake @("-S", ".", "-B", "build")
-    }
+    & (Join-Path $PSScriptRoot "cmake-configure.ps1") -BuildDir "build" `
+        -DefineArg @()
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
 Write-Host "Building wintune ($Config) ..."
