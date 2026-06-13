@@ -202,6 +202,18 @@ static void wt_json_emit_process(WT_JsonWriter *w, const WT_ProcessInfo *p)
     } else {
         wt_json_double(w, p->cpu_percent);
     }
+    wt_json_key(w, "disk_read_bytes_per_sec");
+    if (p->disk_read_bytes_per_sec < 0.0) {
+        wt_json_null(w);
+    } else {
+        wt_json_double(w, p->disk_read_bytes_per_sec);
+    }
+    wt_json_key(w, "disk_write_bytes_per_sec");
+    if (p->disk_write_bytes_per_sec < 0.0) {
+        wt_json_null(w);
+    } else {
+        wt_json_double(w, p->disk_write_bytes_per_sec);
+    }
     wt_json_end_object(w);
 }
 
@@ -384,6 +396,14 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
 
     wt_json_begin_object(&w);
     wt_json_emit_envelope_head(&w);
+
+    wt_json_key(&w, "scan");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "sample_count");
+    wt_json_uint64(&w, report->scan_sample_count);
+    wt_json_key(&w, "sample_interval_ms");
+    wt_json_uint64(&w, report->scan_sample_interval_ms);
+    wt_json_end_object(&w);
 
     /* system */
     wt_json_key(&w, "system");

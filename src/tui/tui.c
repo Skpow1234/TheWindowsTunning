@@ -205,9 +205,24 @@ static void wt_tui_render_processes(WT_TuiScreen *s, const WT_TuiTheme *t,
                                     const WT_ProcessInfo *procs, size_t count,
                                     int max_rows)
 {
-    wt_tui_screen_line(s, "%s%-6s %-26s %12s %12s%s",
-                       wt_tui_dim(t), "PID", "Process", "Memory", "Private",
-                       wt_tui_reset(t));
+    int show_cpu = 0;
+    for (size_t i = 0; i < count; ++i) {
+        if (procs[i].cpu_percent >= 0.0) {
+            show_cpu = 1;
+            break;
+        }
+    }
+
+    if (show_cpu) {
+        wt_tui_screen_line(s, "%s%-6s %-20s %6s %10s %10s%s",
+                           wt_tui_dim(t), "PID", "Process", "CPU%", "Memory",
+                           "Disk", wt_tui_reset(t));
+    } else {
+        wt_tui_screen_line(s, "%s%-6s %-26s %12s %12s%s",
+                           wt_tui_dim(t), "PID", "Process", "Memory", "Private",
+                           wt_tui_reset(t));
+    }
+
     int shown = 0;
     for (size_t i = 0; i < count && shown < max_rows; ++i, ++shown) {
         char name[64];
@@ -216,8 +231,29 @@ static void wt_tui_render_processes(WT_TuiScreen *s, const WT_TuiTheme *t,
         char ws[32], pv[32];
         wt_tui_human(procs[i].working_set_bytes, ws, sizeof(ws));
         wt_tui_human(procs[i].private_bytes, pv, sizeof(pv));
-        wt_tui_screen_line(s, "%-6lu %-26.26s %12s %12s",
-                           procs[i].pid, name, ws, pv);
+
+        if (show_cpu) {
+            double disk_rate = 0.0;
+            if (procs[i].disk_read_bytes_per_sec >= 0.0) {
+                disk_rate += procs[i].disk_read_bytes_per_sec;
+            }
+            if (procs[i].disk_write_bytes_per_sec >= 0.0) {
+                disk_rate += procs[i].disk_write_bytes_per_sec;
+            }
+            char disk[32];
+            wt_tui_rate(disk_rate, disk, sizeof(disk));
+            if (procs[i].cpu_percent >= 0.0) {
+                wt_tui_screen_line(s, "%-6lu %-20.20s %5.1f%% %10s %10s",
+                                   procs[i].pid, name, procs[i].cpu_percent, ws,
+                                   disk);
+            } else {
+                wt_tui_screen_line(s, "%-6lu %-20.20s %6s %10s %10s",
+                                   procs[i].pid, name, "-", ws, disk);
+            }
+        } else {
+            wt_tui_screen_line(s, "%-6lu %-26.26s %12s %12s",
+                               procs[i].pid, name, ws, pv);
+        }
     }
 }
 
@@ -481,9 +517,14 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
         /* Processes are needed by the overview and memory views. */
         size_t proc_count = 0;
         if (view == WT_VIEW_OVERVIEW || view == WT_VIEW_MEMORY) {
-            if (wt_collect_top_processes_by_memory(procs, WT_TUI_TOP_PROC,
-                                                   &proc_count) == WT_OK) {
-                /* already sorted descending */
+            unsigned int sample_ms = WT_TUI_DEFAULT_INTERVAL_MS;
+            if (opts != NULL && opts->interval_ms > 0) {
+                sample_ms = (unsigned int)opts->interval_ms;
+            }
+            if (wt_collect_top_processes(procs, WT_TUI_TOP_PROC,
+                                         WT_PROCESS_SORT_MEMORY, sample_ms,
+                                         &proc_count) == WT_OK) {
+                /* sorted descending */
             } else {
                 proc_count = 0;
             }
