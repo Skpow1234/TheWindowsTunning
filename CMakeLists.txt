@@ -95,6 +95,11 @@ add_executable(wintune
     src/cli/commands_report.c
     src/cli/commands_boot.c
     src/cli/commands_service.c
+
+    # tray (Phase 19)
+    src/tray/tray.c
+    src/tray/tray_status.c
+    src/cli/commands_tray.c
 )
 
 target_include_directories(wintune PRIVATE src)
@@ -147,6 +152,7 @@ target_link_libraries(wintune PRIVATE
     oleaut32
     wuguid
     rstrtmgr
+    shell32
 )
 
 enable_testing()
