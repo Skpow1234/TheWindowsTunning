@@ -8,6 +8,7 @@
 #include "output/json.h"
 #include "output/text.h"
 #include "system/power.h"
+#include "system/tasks.h"
 #include "platform/paths.h"
 #include "platform/time.h"
 #include "system/privilege.h"
@@ -418,6 +419,69 @@ WT_Result wt_service_handle_request(const char *request_json,
         WT_Result r = wt_action_set_startup_enabled(wid, enable != 0, (int)yes,
                                                     msg, sizeof(msg));
         return wt_service_make_action_response("startup_set", r, msg, resp_out,
+                                               resp_len);
+    }
+
+    if (strcmp(cmd, "startup_delay") == 0) {
+        char *id = wt_json_extract_string_field(request_json, "id");
+        if (id == NULL) {
+            return wt_service_make_error("startup_delay requires id", resp_out,
+                                         resp_len);
+        }
+        long yes = 0;
+        long delay = 0;
+        (void)wt_json_extract_int(request_json, "yes", &yes);
+        if (!wt_json_extract_int(request_json, "delay_seconds", &delay) ||
+            delay <= 0) {
+            free(id);
+            return wt_service_make_error("startup_delay requires delay_seconds",
+                                         resp_out, resp_len);
+        }
+
+        wchar_t wid[256];
+        if (!wt_json_utf8_to_wchar(id, wid, ARRAYSIZE(wid))) {
+            free(id);
+            return wt_service_make_error("invalid id", resp_out, resp_len);
+        }
+        free(id);
+
+        char msg[512] = {0};
+        WT_Result r = wt_action_set_startup_delay(wid, (unsigned long)delay,
+                                                  (int)yes, msg, sizeof(msg));
+        return wt_service_make_action_response("startup_delay", r, msg,
+                                               resp_out, resp_len);
+    }
+
+    if (strcmp(cmd, "task_set") == 0) {
+        char *id = wt_json_extract_string_field(request_json, "id");
+        if (id == NULL) {
+            return wt_service_make_error("task_set requires id", resp_out,
+                                         resp_len);
+        }
+        long yes = 0;
+        long enable = 1;
+        long delay = 0;
+        (void)wt_json_extract_int(request_json, "yes", &yes);
+        (void)wt_json_extract_int(request_json, "enable", &enable);
+        int has_delay = wt_json_extract_int(request_json, "delay_seconds", &delay);
+
+        wchar_t wid[256];
+        if (!wt_json_utf8_to_wchar(id, wid, ARRAYSIZE(wid))) {
+            free(id);
+            return wt_service_make_error("invalid id", resp_out, resp_len);
+        }
+        free(id);
+
+        char msg[512] = {0};
+        WT_Result r;
+        if (has_delay && delay > 0) {
+            r = wt_action_set_task_delay(wid, (unsigned long)delay, (int)yes,
+                                         msg, sizeof(msg));
+        } else {
+            r = wt_action_set_task_enabled(wid, enable != 0, (int)yes, msg,
+                                           sizeof(msg));
+        }
+        return wt_service_make_action_response("task_set", r, msg, resp_out,
                                                resp_len);
     }
 

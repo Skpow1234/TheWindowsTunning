@@ -5,10 +5,6 @@
 #include <taskschd.h>
 #include <strsafe.h>
 
-#pragma comment(lib, "taskschd.lib")
-#pragma comment(lib, "ole32.lib")
-#pragma comment(lib, "oleaut32.lib")
-
 typedef struct WT_ComScope {
     int initialized;
 } WT_ComScope;
@@ -200,7 +196,8 @@ static void wt_task_read_exec_action(IAction *action, wchar_t *command,
     }
 
     IExecAction *exec = NULL;
-    if (FAILED(action->QueryInterface(&IID_IExecAction, (void **)&exec))) {
+    if (FAILED(action->lpVtbl->QueryInterface(action, &IID_IExecAction,
+                                              (void **)&exec))) {
         return;
     }
 
@@ -264,8 +261,8 @@ static void wt_task_read_triggers(ITaskDefinition *def,
 
         if (type == TASK_TRIGGER_LOGON) {
             ILogonTrigger *logon = NULL;
-            if (SUCCEEDED(trigger->QueryInterface(
-                    &IID_ILogonTrigger, (void **)&logon)) &&
+            if (SUCCEEDED(trigger->lpVtbl->QueryInterface(
+                    trigger, &IID_ILogonTrigger, (void **)&logon)) &&
                 logon != NULL) {
                 BSTR delay = NULL;
                 if (SUCCEEDED(logon->lpVtbl->get_Delay(logon, &delay))) {
@@ -516,6 +513,325 @@ WT_Result wt_collect_scheduled_tasks(WT_ScheduledTask *out,
     service->lpVtbl->Release(service);
     wt_com_end(&com);
     return WT_OK;
+}
+
+/* Split a full Task Scheduler path into folder + task name. */
+static void wt_task_split_path(const wchar_t *full_path, wchar_t *folder,
+                               size_t folder_cap, wchar_t *name, size_t name_cap)
+{
+    if (full_path == NULL || full_path[0] == L'\0') {
+        if (folder != NULL && folder_cap > 0) {
+            folder[0] = L'\0';
+        }
+        if (name != NULL && name_cap > 0) {
+            name[0] = L'\0';
+        }
+        return;
+    }
+
+    const wchar_t *last = wcsrchr(full_path, L'\\');
+    if (last == NULL) {
+        StringCchCopyW(folder, folder_cap, L"\\");
+        StringCchCopyW(name, name_cap, full_path);
+        return;
+    }
+    if (last == full_path) {
+        StringCchCopyW(folder, folder_cap, L"\\");
+        StringCchCopyW(name, name_cap, last + 1);
+        return;
+    }
+
+    size_t flen = (size_t)(last - full_path);
+    if (folder != NULL && folder_cap > 0) {
+        wmemcpy(folder, full_path, flen);
+        folder[flen] = L'\0';
+    }
+    StringCchCopyW(name, name_cap, last + 1);
+}
+
+static WT_Result wt_task_connect(ITaskService **out_service,
+                                 ITaskFolder **out_folder,
+                                 const wchar_t *folder_path,
+                                 IRegisteredTask **out_task,
+                                 const wchar_t *task_name)
+{
+    if (out_service == NULL || out_folder == NULL || out_task == NULL ||
+        folder_path == NULL || task_name == NULL) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+    *out_service = NULL;
+    *out_folder = NULL;
+    *out_task = NULL;
+
+    ITaskService *service = NULL;
+    HRESULT hr = CoCreateInstance(&CLSID_TaskScheduler, NULL, CLSCTX_INPROC_SERVER,
+                                  &IID_ITaskService, (void **)&service);
+    if (FAILED(hr) || service == NULL) {
+        return WT_ERR_WIN32;
+    }
+
+    VARIANT empty;
+    VariantInit(&empty);
+    empty.vt = VT_EMPTY;
+    hr = service->lpVtbl->Connect(service, empty, empty, empty, empty);
+    if (FAILED(hr)) {
+        service->lpVtbl->Release(service);
+        return WT_ERR_ACCESS_DENIED;
+    }
+
+    ITaskFolder *folder = NULL;
+    BSTR bstr_folder = SysAllocString(folder_path);
+    if (bstr_folder == NULL) {
+        service->lpVtbl->Release(service);
+        return WT_ERR_OUT_OF_MEMORY;
+    }
+    hr = service->lpVtbl->GetFolder(service, bstr_folder, &folder);
+    SysFreeString(bstr_folder);
+    if (FAILED(hr) || folder == NULL) {
+        service->lpVtbl->Release(service);
+        return WT_ERR_NOT_FOUND;
+    }
+
+    IRegisteredTask *task = NULL;
+    BSTR bstr_name = SysAllocString(task_name);
+    if (bstr_name == NULL) {
+        folder->lpVtbl->Release(folder);
+        service->lpVtbl->Release(service);
+        return WT_ERR_OUT_OF_MEMORY;
+    }
+    hr = folder->lpVtbl->GetTask(folder, bstr_name, &task);
+    SysFreeString(bstr_name);
+    if (FAILED(hr) || task == NULL) {
+        folder->lpVtbl->Release(folder);
+        service->lpVtbl->Release(service);
+        return WT_ERR_NOT_FOUND;
+    }
+
+    *out_service = service;
+    *out_folder = folder;
+    *out_task = task;
+    return WT_OK;
+}
+
+static WT_Result wt_task_register_definition(ITaskFolder *folder,
+                                             const wchar_t *task_name,
+                                             ITaskDefinition *def)
+{
+    if (folder == NULL || task_name == NULL || def == NULL) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    VARIANT vNull;
+    VariantInit(&vNull);
+    vNull.vt = VT_NULL;
+
+    IRegisteredTask *updated = NULL;
+    BSTR bstr_name = SysAllocString(task_name);
+    if (bstr_name == NULL) {
+        return WT_ERR_OUT_OF_MEMORY;
+    }
+    HRESULT hr = folder->lpVtbl->RegisterTaskDefinition(
+        folder, bstr_name, def, TASK_CREATE_OR_UPDATE, vNull, vNull,
+        TASK_LOGON_NONE, vNull, &updated);
+    SysFreeString(bstr_name);
+    if (updated != NULL) {
+        updated->lpVtbl->Release(updated);
+    }
+    if (FAILED(hr)) {
+        if (hr == E_ACCESSDENIED || hr == HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED)) {
+            return WT_ERR_ACCESS_DENIED;
+        }
+        return WT_ERR_WIN32;
+    }
+    return WT_OK;
+}
+
+WT_Result wt_task_path_from_id(const wchar_t *id, wchar_t *path, size_t path_count)
+{
+    if (id == NULL || path == NULL || path_count == 0) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+    const wchar_t *p = id;
+    if (wcsncmp(id, L"task:", 5) == 0) {
+        p = id + 5;
+    }
+    if (p[0] != L'\\') {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+    StringCchCopyW(path, path_count, p);
+    return WT_OK;
+}
+
+WT_Result wt_task_set_enabled(const wchar_t *task_path, int enable)
+{
+    if (task_path == NULL || task_path[0] == L'\0') {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    WT_ComScope com;
+    WT_Result r = wt_com_begin(&com);
+    if (r != WT_OK) {
+        return r;
+    }
+
+    wchar_t folder_path[256];
+    wchar_t task_name[128];
+    wt_task_split_path(task_path, folder_path, ARRAYSIZE(folder_path),
+                       task_name, ARRAYSIZE(task_name));
+
+    ITaskService *service = NULL;
+    ITaskFolder *folder = NULL;
+    IRegisteredTask *task = NULL;
+    r = wt_task_connect(&service, &folder, folder_path, &task, task_name);
+    if (r != WT_OK) {
+        wt_com_end(&com);
+        return r;
+    }
+
+    ITaskDefinition *def = NULL;
+    HRESULT hr = task->lpVtbl->get_Definition(task, &def);
+    if (FAILED(hr) || def == NULL) {
+        task->lpVtbl->Release(task);
+        folder->lpVtbl->Release(folder);
+        service->lpVtbl->Release(service);
+        wt_com_end(&com);
+        return WT_ERR_WIN32;
+    }
+
+    ITaskSettings *settings = NULL;
+    hr = def->lpVtbl->get_Settings(def, &settings);
+    if (FAILED(hr) || settings == NULL) {
+        def->lpVtbl->Release(def);
+        task->lpVtbl->Release(task);
+        folder->lpVtbl->Release(folder);
+        service->lpVtbl->Release(service);
+        wt_com_end(&com);
+        return WT_ERR_WIN32;
+    }
+
+    hr = settings->lpVtbl->put_Enabled(settings, enable ? VARIANT_TRUE : VARIANT_FALSE);
+    settings->lpVtbl->Release(settings);
+    if (FAILED(hr)) {
+        def->lpVtbl->Release(def);
+        task->lpVtbl->Release(task);
+        folder->lpVtbl->Release(folder);
+        service->lpVtbl->Release(service);
+        wt_com_end(&com);
+        return WT_ERR_WIN32;
+    }
+
+    r = wt_task_register_definition(folder, task_name, def);
+    def->lpVtbl->Release(def);
+    task->lpVtbl->Release(task);
+    folder->lpVtbl->Release(folder);
+    service->lpVtbl->Release(service);
+    wt_com_end(&com);
+    return r;
+}
+
+static BSTR wt_task_format_delay(unsigned long seconds)
+{
+    wchar_t buf[32];
+    StringCchPrintfW(buf, ARRAYSIZE(buf), L"PT%luS", seconds);
+    return SysAllocString(buf);
+}
+
+WT_Result wt_task_set_logon_delay(const wchar_t *task_path,
+                                  unsigned long delay_seconds)
+{
+    if (task_path == NULL || task_path[0] == L'\0') {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    WT_ComScope com;
+    WT_Result r = wt_com_begin(&com);
+    if (r != WT_OK) {
+        return r;
+    }
+
+    wchar_t folder_path[256];
+    wchar_t task_name[128];
+    wt_task_split_path(task_path, folder_path, ARRAYSIZE(folder_path),
+                       task_name, ARRAYSIZE(task_name));
+
+    ITaskService *service = NULL;
+    ITaskFolder *folder = NULL;
+    IRegisteredTask *task = NULL;
+    r = wt_task_connect(&service, &folder, folder_path, &task, task_name);
+    if (r != WT_OK) {
+        wt_com_end(&com);
+        return r;
+    }
+
+    ITaskDefinition *def = NULL;
+    HRESULT hr = task->lpVtbl->get_Definition(task, &def);
+    if (FAILED(hr) || def == NULL) {
+        task->lpVtbl->Release(task);
+        folder->lpVtbl->Release(folder);
+        service->lpVtbl->Release(service);
+        wt_com_end(&com);
+        return WT_ERR_WIN32;
+    }
+
+    ITriggerCollection *triggers = NULL;
+    hr = def->lpVtbl->get_Triggers(def, &triggers);
+    if (FAILED(hr) || triggers == NULL) {
+        def->lpVtbl->Release(def);
+        task->lpVtbl->Release(task);
+        folder->lpVtbl->Release(folder);
+        service->lpVtbl->Release(service);
+        wt_com_end(&com);
+        return WT_ERR_NOT_SUPPORTED;
+    }
+
+    int updated = 0;
+    LONG count = 0;
+    triggers->lpVtbl->get_Count(triggers, &count);
+    for (LONG i = 1; i <= count; ++i) {
+        ITrigger *trigger = NULL;
+        if (FAILED(triggers->lpVtbl->get_Item(triggers, i, &trigger)) ||
+            trigger == NULL) {
+            continue;
+        }
+
+        TASK_TRIGGER_TYPE2 type = TASK_TRIGGER_EVENT;
+        trigger->lpVtbl->get_Type(trigger, &type);
+        if (type == TASK_TRIGGER_LOGON) {
+            ILogonTrigger *logon = NULL;
+            if (SUCCEEDED(trigger->lpVtbl->QueryInterface(
+                    trigger, &IID_ILogonTrigger, (void **)&logon)) &&
+                logon != NULL) {
+                BSTR delay = wt_task_format_delay(delay_seconds);
+                if (delay != NULL) {
+                    hr = logon->lpVtbl->put_Delay(logon, delay);
+                    SysFreeString(delay);
+                    if (SUCCEEDED(hr)) {
+                        updated = 1;
+                    }
+                }
+                logon->lpVtbl->Release(logon);
+            }
+        }
+        trigger->lpVtbl->Release(trigger);
+    }
+    triggers->lpVtbl->Release(triggers);
+
+    if (!updated) {
+        def->lpVtbl->Release(def);
+        task->lpVtbl->Release(task);
+        folder->lpVtbl->Release(folder);
+        service->lpVtbl->Release(service);
+        wt_com_end(&com);
+        return WT_ERR_NOT_SUPPORTED;
+    }
+
+    r = wt_task_register_definition(folder, task_name, def);
+    def->lpVtbl->Release(def);
+    task->lpVtbl->Release(task);
+    folder->lpVtbl->Release(folder);
+    service->lpVtbl->Release(service);
+    wt_com_end(&com);
+    return r;
 }
 
 void wt_tasks_apply_measured(WT_ScheduledTask *tasks, size_t count,

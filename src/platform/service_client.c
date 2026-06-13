@@ -191,3 +191,53 @@ WT_Result wt_service_client_startup_set(const wchar_t *id, int enable,
              id_utf8, enable ? 1 : 0, assume_yes ? 1 : 0);
     return wt_service_client_action(req, msg, msg_cap);
 }
+
+WT_Result wt_service_client_startup_delay(const wchar_t *id,
+                                          unsigned long delay_seconds,
+                                          int assume_yes,
+                                          char *msg, size_t msg_cap)
+{
+    if (id == NULL || delay_seconds == 0) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    char id_utf8[256];
+    if (!wt_service_client_utf8_from_w(id, id_utf8, sizeof(id_utf8))) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    char req[384];
+    snprintf(req, sizeof(req),
+             "{\"cmd\":\"startup_delay\",\"id\":\"%s\",\"delay_seconds\":%lu,"
+             "\"yes\":%d}",
+             id_utf8, delay_seconds, assume_yes ? 1 : 0);
+    return wt_service_client_action(req, msg, msg_cap);
+}
+
+WT_Result wt_service_client_task_set(const wchar_t *id, int enable,
+                                     unsigned long delay_seconds,
+                                     int assume_yes,
+                                     char *msg, size_t msg_cap)
+{
+    if (id == NULL) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    char id_utf8[256];
+    if (!wt_service_client_utf8_from_w(id, id_utf8, sizeof(id_utf8))) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    char req[384];
+    if (delay_seconds > 0) {
+        snprintf(req, sizeof(req),
+                 "{\"cmd\":\"task_set\",\"id\":\"%s\",\"delay_seconds\":%lu,"
+                 "\"yes\":%d}",
+                 id_utf8, delay_seconds, assume_yes ? 1 : 0);
+    } else {
+        snprintf(req, sizeof(req),
+                 "{\"cmd\":\"task_set\",\"id\":\"%s\",\"enable\":%d,\"yes\":%d}",
+                 id_utf8, enable ? 1 : 0, assume_yes ? 1 : 0);
+    }
+    return wt_service_client_action(req, msg, msg_cap);
+}

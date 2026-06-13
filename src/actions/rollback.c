@@ -2,6 +2,7 @@
 #include "actions/safe_actions.h"
 #include "platform/paths.h"
 #include "system/power.h"
+#include "system/tasks.h"
 #include "common/log.h"
 
 #include <windows.h>
@@ -334,6 +335,90 @@ WT_Result wt_rollback_apply(const wchar_t *id, int assume_yes)
         }
         int enabled = (wcscmp(parts[3], L"02") == 0);
         WT_Result sr = wt_startup_write_approved(parts[0], parts[1], parts[2], enabled);
+        if (sr == WT_OK) {
+            wt_log(WT_LOG_INFO, "rollback applied: %ls", id);
+        }
+        return sr;
+    }
+
+    if (strcmp(type, "task_enabled") == 0) {
+        char prompt[384];
+        StringCchPrintfA(prompt, sizeof(prompt),
+                         "Revert task enable/disable (undo: %s)?",
+                         desc[0] ? desc : "task change");
+        if (!wt_action_confirm(prompt, assume_yes)) {
+            return WT_ERR_CANCELLED;
+        }
+        wchar_t wprev[512];
+        MultiByteToWideChar(CP_UTF8, 0, prev, -1, wprev, ARRAYSIZE(wprev));
+        wchar_t *parts[2] = {0};
+        int n = 0;
+        wchar_t *ctx = NULL;
+        for (wchar_t *tok = wcstok_s(wprev, L"|", &ctx);
+             tok != NULL && n < 2;
+             tok = wcstok_s(NULL, L"|", &ctx)) {
+            parts[n++] = tok;
+        }
+        if (n != 2) {
+            return WT_ERR_INVALID_ARGUMENT;
+        }
+        int enabled = (wcscmp(parts[1], L"1") == 0);
+        WT_Result sr = wt_task_set_enabled(parts[0], enabled);
+        if (sr == WT_OK) {
+            wt_log(WT_LOG_INFO, "rollback applied: %ls", id);
+        }
+        return sr;
+    }
+
+    if (strcmp(type, "task_delay") == 0) {
+        char prompt[384];
+        StringCchPrintfA(prompt, sizeof(prompt),
+                         "Revert task delay (undo: %s)?",
+                         desc[0] ? desc : "task delay");
+        if (!wt_action_confirm(prompt, assume_yes)) {
+            return WT_ERR_CANCELLED;
+        }
+        wchar_t wprev[512];
+        MultiByteToWideChar(CP_UTF8, 0, prev, -1, wprev, ARRAYSIZE(wprev));
+        wchar_t *pipe = wcschr(wprev, L'|');
+        if (pipe == NULL) {
+            return WT_ERR_INVALID_ARGUMENT;
+        }
+        *pipe = L'\0';
+        const wchar_t *delay_part = pipe + 1;
+        unsigned long seconds = 0;
+        if (wcsncmp(delay_part, L"delay:", 6) == 0) {
+            seconds = wcstoul(delay_part + 6, NULL, 10);
+        }
+        WT_Result sr = wt_task_set_logon_delay(wprev, seconds);
+        if (sr == WT_OK) {
+            wt_log(WT_LOG_INFO, "rollback applied: %ls", id);
+        }
+        return sr;
+    }
+
+    if (strcmp(type, "startup_delay") == 0) {
+        char prompt[384];
+        StringCchPrintfA(prompt, sizeof(prompt),
+                         "Revert startup delay (undo: %s)?",
+                         desc[0] ? desc : "startup delay");
+        if (!wt_action_confirm(prompt, assume_yes)) {
+            return WT_ERR_CANCELLED;
+        }
+        wchar_t wprev[512];
+        MultiByteToWideChar(CP_UTF8, 0, prev, -1, wprev, ARRAYSIZE(wprev));
+        wchar_t *parts[4] = {0};
+        int n = 0;
+        wchar_t *ctx = NULL;
+        for (wchar_t *tok = wcstok_s(wprev, L"|", &ctx);
+             tok != NULL && n < 4;
+             tok = wcstok_s(NULL, L"|", &ctx)) {
+            parts[n++] = tok;
+        }
+        if (n < 3) {
+            return WT_ERR_INVALID_ARGUMENT;
+        }
+        WT_Result sr = wt_startup_write_approved(parts[0], parts[1], parts[2], 1);
         if (sr == WT_OK) {
             wt_log(WT_LOG_INFO, "rollback applied: %ls", id);
         }

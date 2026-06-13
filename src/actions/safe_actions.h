@@ -45,4 +45,25 @@ WT_Result wt_startup_write_approved(const wchar_t *hive_tag,
                                     const wchar_t *value_name,
                                     int enabled);
 
+/* Writes delayed-start StartupApproved flag (Task Manager compatible). */
+WT_Result wt_startup_write_delayed(const wchar_t *hive_tag,
+                                   const wchar_t *subkey,
+                                   const wchar_t *value_name,
+                                   unsigned long delay_seconds);
+
+WT_Result wt_action_set_startup_delay(const wchar_t *id,
+                                      unsigned long delay_seconds,
+                                      int assume_yes,
+                                      char *msg, size_t msg_cap);
+
+WT_Result wt_action_set_task_enabled(const wchar_t *id,
+                                     int enable,
+                                     int assume_yes,
+                                     char *msg, size_t msg_cap);
+
+WT_Result wt_action_set_task_delay(const wchar_t *id,
+                                   unsigned long delay_seconds,
+                                   int assume_yes,
+                                   char *msg, size_t msg_cap);
+
 #endif /* WINTUNE_SAFE_ACTIONS_H */

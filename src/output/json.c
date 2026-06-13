@@ -481,6 +481,42 @@ void wt_print_startup_json(const WT_StartupEntry *items, size_t count, FILE *out
     wt_json_finish(&w);
 }
 
+void wt_print_tasks_json(const WT_ScheduledTask *items, size_t count, FILE *out)
+{
+    WT_JsonWriter w;
+    wt_json_init(&w, out);
+
+    wt_json_begin_object(&w);
+    wt_json_emit_envelope_head(&w);
+    wt_json_key(&w, "tasks");
+    wt_json_begin_array(&w);
+    for (size_t i = 0; i < count; ++i) {
+        const WT_ScheduledTask *t = &items[i];
+        wt_json_begin_object(&w);
+        wt_json_key(&w, "id");           wt_json_wstring(&w, t->id);
+        wt_json_key(&w, "name");         wt_json_wstring(&w, t->name);
+        wt_json_key(&w, "path");         wt_json_wstring(&w, t->path);
+        wt_json_key(&w, "command");      wt_json_wstring(&w, t->command);
+        wt_json_key(&w, "author");       wt_json_wstring(&w, t->author);
+        wt_json_key(&w, "enabled");       wt_json_bool(&w, t->enabled);
+        wt_json_key(&w, "trigger");      wt_json_string(&w, wt_task_trigger_name(t->trigger_kind));
+        wt_json_key(&w, "delay_seconds"); wt_json_uint64(&w, t->delay_seconds);
+        wt_json_key(&w, "impact");       wt_json_string(&w, wt_startup_impact_name(t->impact));
+        wt_json_key(&w, "protected");    wt_json_bool(&w, t->is_microsoft);
+        wt_json_key(&w, "measured_available"); wt_json_bool(&w, t->measured_available);
+        wt_json_key(&w, "measured_ms");
+        if (t->measured_available) {
+            wt_json_uint64(&w, t->measured_ms);
+        } else {
+            wt_json_null(&w);
+        }
+        wt_json_end_object(&w);
+    }
+    wt_json_end_array(&w);
+    wt_json_end_object(&w);
+    wt_json_finish(&w);
+}
+
 void wt_print_services_json(const WT_ServiceInfo *items, size_t count, FILE *out)
 {
     WT_JsonWriter w;

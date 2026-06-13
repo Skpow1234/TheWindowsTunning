@@ -26,4 +26,14 @@ WT_Result wt_service_client_startup_set(const wchar_t *id, int enable,
                                         int assume_yes,
                                         char *msg, size_t msg_cap);
 
+WT_Result wt_service_client_startup_delay(const wchar_t *id,
+                                          unsigned long delay_seconds,
+                                          int assume_yes,
+                                          char *msg, size_t msg_cap);
+
+WT_Result wt_service_client_task_set(const wchar_t *id, int enable,
+                                     unsigned long delay_seconds,
+                                     int assume_yes,
+                                     char *msg, size_t msg_cap);
+
 #endif /* WINTUNE_SERVICE_CLIENT_H */

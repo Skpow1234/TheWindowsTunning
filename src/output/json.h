@@ -8,6 +8,7 @@
 #include "core/recommendations.h"
 #include "metrics/process.h"
 #include "system/startup.h"
+#include "system/tasks.h"
 #include "system/services.h"
 #include "system/boot.h"
 
@@ -44,6 +45,7 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
 void wt_print_processes_json(const WT_ProcessInfo *items, size_t count, FILE *out);
 void wt_print_recommendations_json(const WT_RecommendationList *recs, FILE *out);
 void wt_print_startup_json(const WT_StartupEntry *items, size_t count, FILE *out);
+void wt_print_tasks_json(const WT_ScheduledTask *items, size_t count, FILE *out);
 void wt_print_services_json(const WT_ServiceInfo *items, size_t count, FILE *out);
 void wt_print_boot_json(const WT_BootReport *boot, FILE *out);
 

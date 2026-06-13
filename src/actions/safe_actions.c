@@ -3,6 +3,7 @@
 #include "system/power.h"
 #include "system/privilege.h"
 #include "system/startup.h"
+#include "system/tasks.h"
 #include "platform/console.h"
 #include "common/log.h"
 
@@ -454,5 +455,308 @@ WT_Result wt_action_set_startup_enabled(const wchar_t *id,
     }
 
     free(entries);
+    return WT_OK;
+}
+
+WT_Result wt_startup_write_delayed(const wchar_t *hive_tag,
+                                   const wchar_t *subkey,
+                                   const wchar_t *value_name,
+                                   unsigned long delay_seconds)
+{
+    HKEY root = wt_hive_from_tag(hive_tag);
+    HKEY key = NULL;
+    LONG rc = RegCreateKeyExW(root, subkey, 0, NULL, 0,
+                              KEY_SET_VALUE | KEY_QUERY_VALUE, NULL, &key, NULL);
+    if (rc == ERROR_ACCESS_DENIED) {
+        return WT_ERR_ACCESS_DENIED;
+    }
+    if (rc != ERROR_SUCCESS) {
+        return WT_ERR_WIN32;
+    }
+
+    BYTE blob[12] = {0};
+    blob[0] = 0x06;
+    DWORD ms = delay_seconds * 1000u;
+    memcpy(&blob[4], &ms, sizeof(ms));
+    rc = RegSetValueExW(key, value_name, 0, REG_BINARY, blob, sizeof(blob));
+    RegCloseKey(key);
+
+    if (rc == ERROR_ACCESS_DENIED) {
+        return WT_ERR_ACCESS_DENIED;
+    }
+    return (rc == ERROR_SUCCESS) ? WT_OK : WT_ERR_WIN32;
+}
+
+static const WT_StartupEntry *wt_startup_find_entry(const wchar_t *id,
+                                                    WT_StartupEntry *entries,
+                                                    size_t count)
+{
+    for (size_t i = 0; i < count; ++i) {
+        if (_wcsicmp(entries[i].id, id) == 0) {
+            return &entries[i];
+        }
+    }
+    return NULL;
+}
+
+static const WT_ScheduledTask *wt_task_find_entry(const wchar_t *id)
+{
+    static WT_ScheduledTask tasks[WT_MAX_SCHEDULED_TASKS];
+    size_t count = 0;
+    if (wt_collect_scheduled_tasks(tasks, WT_MAX_SCHEDULED_TASKS, &count,
+                                   WT_TASK_FILTER_ALL) != WT_OK) {
+        return NULL;
+    }
+    for (size_t i = 0; i < count; ++i) {
+        if (_wcsicmp(tasks[i].id, id) == 0) {
+            return &tasks[i];
+        }
+    }
+    return NULL;
+}
+
+WT_Result wt_action_set_startup_delay(const wchar_t *id,
+                                      unsigned long delay_seconds,
+                                      int assume_yes,
+                                      char *msg, size_t msg_cap)
+{
+    if (msg != NULL && msg_cap > 0) {
+        msg[0] = '\0';
+    }
+    if (id == NULL || id[0] == L'\0' || delay_seconds == 0) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    WT_StartupEntry *entries =
+        (WT_StartupEntry *)malloc(sizeof(WT_StartupEntry) * WT_MAX_STARTUP_ENTRIES);
+    if (entries == NULL) {
+        return WT_ERR_OUT_OF_MEMORY;
+    }
+    size_t count = 0;
+    if (wt_collect_startup_entries(entries, WT_MAX_STARTUP_ENTRIES, &count) != WT_OK) {
+        free(entries);
+        StringCchPrintfA(msg, msg_cap, "Could not read startup entries.");
+        return WT_ERR_WIN32;
+    }
+
+    const WT_StartupEntry *entry = wt_startup_find_entry(id, entries, count);
+    if (entry == NULL) {
+        StringCchPrintfA(msg, msg_cap,
+                         "No startup entry with id '%ls'. "
+                         "List ids with 'wintune startup'.", id);
+        free(entries);
+        return WT_ERR_NOT_FOUND;
+    }
+
+    const wchar_t *hive_tag = NULL;
+    const wchar_t *subkey = NULL;
+    WT_Result loc = wt_startup_approved_location(entry->source, &hive_tag, &subkey);
+    if (loc != WT_OK) {
+        StringCchPrintfA(msg, msg_cap,
+                         "Delayed start is not supported for this startup source.");
+        free(entries);
+        return loc;
+    }
+
+    if (_wcsicmp(hive_tag, L"HKLM") == 0 && !wt_is_process_elevated()) {
+        wt_print_admin_required_message(stderr);
+        free(entries);
+        return WT_ERR_ACCESS_DENIED;
+    }
+
+    char prompt[384];
+    StringCchPrintfA(prompt, sizeof(prompt),
+                     "Delay startup entry '%ls' by %lu seconds?",
+                     entry->name, delay_seconds);
+    if (!wt_action_confirm(prompt, assume_yes)) {
+        StringCchPrintfA(msg, msg_cap, "Cancelled. Startup entry unchanged.");
+        free(entries);
+        return WT_ERR_CANCELLED;
+    }
+
+    WT_Result wr = wt_startup_write_delayed(hive_tag, subkey, entry->name,
+                                              delay_seconds);
+    if (wr != WT_OK) {
+        StringCchPrintfA(msg, msg_cap, "Failed to set startup delay (%s).",
+                         wt_result_to_string(wr));
+        free(entries);
+        return wr;
+    }
+
+    WT_RollbackRecord rec;
+    ZeroMemory(&rec, sizeof(rec));
+    StringCchCopyW(rec.action_type, ARRAYSIZE(rec.action_type), L"startup_delay");
+    StringCchCopyW(rec.action_id, ARRAYSIZE(rec.action_id), id);
+    StringCchPrintfW(rec.description, ARRAYSIZE(rec.description),
+                     L"Startup delay '%s': %lu s", entry->name, delay_seconds);
+    StringCchPrintfW(rec.previous_value, ARRAYSIZE(rec.previous_value),
+                     L"%s|%s|%s|immediate", hive_tag, subkey, entry->name);
+    StringCchPrintfW(rec.new_value, ARRAYSIZE(rec.new_value),
+                     L"%s|%s|%s|delay:%lu", hive_tag, subkey, entry->name,
+                     delay_seconds);
+
+    WT_Result rr = wt_rollback_write(&rec);
+    if (rr == WT_OK) {
+        StringCchPrintfA(msg, msg_cap,
+                         "Startup entry '%ls' delayed by %lu s. Rollback id: %ls",
+                         entry->name, delay_seconds, rec.id);
+    } else {
+        StringCchPrintfA(msg, msg_cap,
+                         "Startup entry '%ls' delayed by %lu s. (rollback not saved)",
+                         entry->name, delay_seconds);
+    }
+
+    free(entries);
+    return WT_OK;
+}
+
+WT_Result wt_action_set_task_enabled(const wchar_t *id,
+                                     int enable,
+                                     int assume_yes,
+                                     char *msg, size_t msg_cap)
+{
+    if (msg != NULL && msg_cap > 0) {
+        msg[0] = '\0';
+    }
+    if (id == NULL || id[0] == L'\0') {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    const WT_ScheduledTask *task = wt_task_find_entry(id);
+    if (task == NULL) {
+        StringCchPrintfA(msg, msg_cap,
+                         "No scheduled task with id '%ls'. "
+                         "List ids with 'wintune tasks list'.", id);
+        return WT_ERR_NOT_FOUND;
+    }
+    if (wt_task_is_protected(task)) {
+        StringCchPrintfA(msg, msg_cap,
+                         "Refusing to change a protected Microsoft/security task.");
+        return WT_ERR_NOT_SUPPORTED;
+    }
+
+    wchar_t path[256];
+    if (wt_task_path_from_id(id, path, ARRAYSIZE(path)) != WT_OK) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    if ((enable && task->enabled) || (!enable && !task->enabled)) {
+        StringCchPrintfA(msg, msg_cap, "Task '%ls' is already %s.",
+                         task->name, enable ? "enabled" : "disabled");
+        return WT_OK;
+    }
+
+    char prompt[320];
+    StringCchPrintfA(prompt, sizeof(prompt), "%s scheduled task '%ls'?",
+                     enable ? "Enable" : "Disable", task->name);
+    if (!wt_action_confirm(prompt, assume_yes)) {
+        StringCchPrintfA(msg, msg_cap, "Cancelled. Task unchanged.");
+        return WT_ERR_CANCELLED;
+    }
+
+    WT_Result wr = wt_task_set_enabled(path, enable);
+    if (wr != WT_OK) {
+        StringCchPrintfA(msg, msg_cap, "Failed to update task (%s).",
+                         wt_result_to_string(wr));
+        return wr;
+    }
+
+    WT_RollbackRecord rec;
+    ZeroMemory(&rec, sizeof(rec));
+    StringCchCopyW(rec.action_type, ARRAYSIZE(rec.action_type), L"task_enabled");
+    StringCchCopyW(rec.action_id, ARRAYSIZE(rec.action_id), id);
+    StringCchPrintfW(rec.description, ARRAYSIZE(rec.description),
+                     L"Task '%s': %s -> %s", task->name,
+                     task->enabled ? L"enabled" : L"disabled",
+                     enable ? L"enabled" : L"disabled");
+    StringCchPrintfW(rec.previous_value, ARRAYSIZE(rec.previous_value),
+                     L"%s|%s", path, task->enabled ? L"1" : L"0");
+    StringCchPrintfW(rec.new_value, ARRAYSIZE(rec.new_value),
+                     L"%s|%s", path, enable ? L"1" : L"0");
+
+    WT_Result rr = wt_rollback_write(&rec);
+    if (rr == WT_OK) {
+        StringCchPrintfA(msg, msg_cap, "Task '%ls' %s. Rollback id: %ls",
+                         task->name, enable ? "enabled" : "disabled", rec.id);
+    } else {
+        StringCchPrintfA(msg, msg_cap, "Task '%ls' %s. (rollback not saved)",
+                         task->name, enable ? "enabled" : "disabled");
+    }
+    return WT_OK;
+}
+
+WT_Result wt_action_set_task_delay(const wchar_t *id,
+                                   unsigned long delay_seconds,
+                                   int assume_yes,
+                                   char *msg, size_t msg_cap)
+{
+    if (msg != NULL && msg_cap > 0) {
+        msg[0] = '\0';
+    }
+    if (id == NULL || id[0] == L'\0' || delay_seconds == 0) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    const WT_ScheduledTask *task = wt_task_find_entry(id);
+    if (task == NULL) {
+        StringCchPrintfA(msg, msg_cap,
+                         "No scheduled task with id '%ls'. "
+                         "List ids with 'wintune tasks list'.", id);
+        return WT_ERR_NOT_FOUND;
+    }
+    if (wt_task_is_protected(task)) {
+        StringCchPrintfA(msg, msg_cap,
+                         "Refusing to change a protected Microsoft/security task.");
+        return WT_ERR_NOT_SUPPORTED;
+    }
+    if (task->trigger_kind != WT_TASK_TRIGGER_LOGON) {
+        StringCchPrintfA(msg, msg_cap,
+                         "Task '%ls' has no logon trigger; delay applies to "
+                         "logon-triggered tasks only.", task->name);
+        return WT_ERR_NOT_SUPPORTED;
+    }
+
+    wchar_t path[256];
+    if (wt_task_path_from_id(id, path, ARRAYSIZE(path)) != WT_OK) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    char prompt[384];
+    StringCchPrintfA(prompt, sizeof(prompt),
+                     "Delay logon task '%ls' by %lu seconds?",
+                     task->name, delay_seconds);
+    if (!wt_action_confirm(prompt, assume_yes)) {
+        StringCchPrintfA(msg, msg_cap, "Cancelled. Task unchanged.");
+        return WT_ERR_CANCELLED;
+    }
+
+    WT_Result wr = wt_task_set_logon_delay(path, delay_seconds);
+    if (wr != WT_OK) {
+        StringCchPrintfA(msg, msg_cap, "Failed to set task delay (%s).",
+                         wt_result_to_string(wr));
+        return wr;
+    }
+
+    WT_RollbackRecord rec;
+    ZeroMemory(&rec, sizeof(rec));
+    StringCchCopyW(rec.action_type, ARRAYSIZE(rec.action_type), L"task_delay");
+    StringCchCopyW(rec.action_id, ARRAYSIZE(rec.action_id), id);
+    StringCchPrintfW(rec.description, ARRAYSIZE(rec.description),
+                     L"Task delay '%s': %lu s", task->name, delay_seconds);
+    StringCchPrintfW(rec.previous_value, ARRAYSIZE(rec.previous_value),
+                     L"%s|delay:%lu", path, task->delay_seconds);
+    StringCchPrintfW(rec.new_value, ARRAYSIZE(rec.new_value),
+                     L"%s|delay:%lu", path, delay_seconds);
+
+    WT_Result rr = wt_rollback_write(&rec);
+    if (rr == WT_OK) {
+        StringCchPrintfA(msg, msg_cap,
+                         "Task '%ls' logon delay set to %lu s. Rollback id: %ls",
+                         task->name, delay_seconds, rec.id);
+    } else {
+        StringCchPrintfA(msg, msg_cap,
+                         "Task '%ls' logon delay set to %lu s. (rollback not saved)",
+                         task->name, delay_seconds);
+    }
     return WT_OK;
 }
