@@ -80,19 +80,50 @@ security tools, deletes system files, or promises magical speedups. See
 Requirements: CMake 3.24+ and the MSVC C toolchain (Visual Studio 2022 Build
 Tools or newer).
 
-```powershell
-# Configure (CMake auto-detects the Visual Studio generator)
-cmake -S . -B build
+### Option A — helper script (recommended)
 
-# Build
+| Terminal | Command |
+| -------- | ------- |
+| **PowerShell** | `.\scripts\build.ps1` |
+| **CMD** | `scripts\build.cmd` |
+| **Git Bash** | `./scripts/build` or `./scripts/build.sh` |
+
+Do **not** run `./scripts/build.ps1` from Git Bash — `.ps1` is PowerShell;
+Bash will fail on `param(` with a syntax error. Use `./scripts/build` instead.
+
+**PowerShell** (from the repo root):
+
+```powershell
+.\scripts\build.ps1              # Debug (default)
+.\scripts\build.ps1 -Config Release
+```
+
+**Git Bash** (from the repo root):
+
+```bash
+./scripts/build                  # recommended
+./scripts/build.sh               # same
+./scripts/build -Config Release
+```
+
+**CMD:**
+
+```cmd
+scripts\build.cmd
+```
+
+The executable is produced at `build\Debug\wintune.exe` (or `Release` when
+built with `-Config Release`).
+
+### Option B — CMake directly
+
+```powershell
+cmake -S . -B build
 cmake --build build --config Debug
 ```
 
-The executable is produced at `build\Debug\wintune.exe` (or `Release` when built
-with `--config Release`).
-
-Helper scripts are provided in `scripts/` (`build.ps1`, `test.ps1`,
-`clean.ps1`, `package.ps1`).
+Other scripts: `scripts\test.ps1`, `scripts\clean.ps1`, `scripts\package.ps1`
+(PowerShell) or call the matching `.cmd` / `.sh` wrappers where provided.
 
 ---
 
