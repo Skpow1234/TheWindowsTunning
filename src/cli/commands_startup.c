@@ -4,6 +4,7 @@
 #include "system/services.h"
 #include "system/boot.h"
 #include "actions/safe_actions.h"
+#include "system/tasks.h"
 #include "output/json.h"
 #include "platform/service_client.h"
 #include "common/units.h"
@@ -57,6 +58,35 @@ static void wt_print_startup_text(const WT_StartupEntry *entries, size_t count,
         printf("%-8s   %.88ls\n", "", e->command);
     }
     printf("\nDisable one with: wintune startup disable \"<id>\"\n");
+    printf("Delay one with:  wintune startup delay \"<id>\" --seconds 30\n");
+}
+
+static void wt_print_startup_tasks_text(const WT_ScheduledTask *tasks, size_t count,
+                                        int measured_mode)
+{
+    printf("\nScheduled Tasks at Logon/Boot (%zu)\n\n", count);
+    if (count == 0) {
+        printf("  No logon/boot scheduled tasks found.\n");
+        return;
+    }
+
+    for (size_t i = 0; i < count; ++i) {
+        const WT_ScheduledTask *t = &tasks[i];
+        if (measured_mode && t->measured_available) {
+            wchar_t ms[32];
+            wt_format_duration_ms(t->measured_ms, ms, ARRAYSIZE(ms));
+            printf("  [%s] %ls  (%s, delay %lus, measured %ls)\n",
+                   wt_startup_impact_name(t->impact), t->id,
+                   wt_task_trigger_name(t->trigger_kind),
+                   t->delay_seconds, ms);
+        } else {
+            printf("  [%s] %ls  (%s)\n",
+                   wt_startup_impact_name(t->impact), t->id,
+                   wt_task_trigger_name(t->trigger_kind));
+        }
+        wprintf(L"           %.72ls\n", t->command);
+    }
+    printf("\nSee full list: wintune tasks list\n");
 }
 
 static void wt_print_auto_services_text(void)
@@ -114,6 +144,40 @@ static int wt_startup_set_enabled(const WT_CliOptions *opts, int enable)
     return (r == WT_OK) ? 0 : 1;
 }
 
+static int wt_startup_delay(const WT_CliOptions *opts)
+{
+    if (opts->arg2 == NULL) {
+        fprintf(stderr,
+                "wintune: startup delay requires an entry id\n"
+                "Usage: wintune startup delay \"<id>\" --seconds 30\n");
+        return 2;
+    }
+    if (opts->delay_seconds <= 0) {
+        fprintf(stderr, "wintune: startup delay requires --seconds <N>\n");
+        return 2;
+    }
+
+    char msg[512] = {0};
+    WT_Result r;
+    if (wt_cli_should_route_via_service(opts)) {
+        if (!wt_service_client_is_available(2000)) {
+            fprintf(stderr, "wintune: WinTune service is not reachable.\n");
+            return 1;
+        }
+        r = wt_service_client_startup_delay(opts->arg2,
+                                            (unsigned long)opts->delay_seconds,
+                                            opts->yes, msg, sizeof(msg));
+    } else {
+        r = wt_action_set_startup_delay(opts->arg2,
+                                        (unsigned long)opts->delay_seconds,
+                                        opts->yes, msg, sizeof(msg));
+    }
+    if (msg[0] != '\0') {
+        printf("%s\n", msg);
+    }
+    return (r == WT_OK) ? 0 : 1;
+}
+
 int wt_cmd_startup(const WT_CliOptions *opts)
 {
     if (opts != NULL && opts->arg1 != NULL) {
@@ -123,9 +187,13 @@ int wt_cmd_startup(const WT_CliOptions *opts)
         if (wcscmp(opts->arg1, L"enable") == 0) {
             return wt_startup_set_enabled(opts, 1);
         }
+        if (wcscmp(opts->arg1, L"delay") == 0) {
+            return wt_startup_delay(opts);
+        }
         fwprintf(stderr,
                  L"wintune: unknown startup subcommand '%ls'. "
-                 L"Use 'disable <id>' or 'enable <id>'.\n", opts->arg1);
+                 L"Use 'disable <id>', 'enable <id>', or 'delay <id>'.\n",
+                 opts->arg1);
         return 2;
     }
 
@@ -176,8 +244,23 @@ int wt_cmd_startup(const WT_CliOptions *opts)
             wt_print_auto_services_text();
         }
         if (opts != NULL && opts->include_tasks) {
-            printf("\nScheduled task inspection is not implemented yet "
-                   "(planned for a later phase).\n");
+            WT_ScheduledTask *tasks = (WT_ScheduledTask *)malloc(
+                sizeof(WT_ScheduledTask) * WT_MAX_SCHEDULED_TASKS);
+            if (tasks != NULL) {
+                size_t task_count = 0;
+                if (wt_collect_scheduled_tasks(tasks, WT_MAX_SCHEDULED_TASKS,
+                                               &task_count,
+                                               WT_TASK_FILTER_STARTUP) == WT_OK) {
+                    if (measured_mode) {
+                        WT_BootReport boot_tasks;
+                        if (wt_collect_boot_from_event_log(&boot_tasks) == WT_OK) {
+                            wt_tasks_apply_measured(tasks, task_count, &boot_tasks);
+                        }
+                    }
+                    wt_print_startup_tasks_text(tasks, task_count, measured_mode);
+                }
+                free(tasks);
+            }
         }
     }
 
