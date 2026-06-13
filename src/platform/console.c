@@ -244,7 +244,7 @@ void wt_console_hold_open_if_explorer_launch(int argc)
 
     static const wchar_t msg[] =
         L"\r\n"
-        L"WinTune is a command-line tool — it does not stay open like a GUI app.\r\n"
+        L"WinTune is a command-line tool - it does not stay open like a GUI app.\r\n"
         L"Open PowerShell or CMD in this folder and run, for example:\r\n"
         L"\r\n"
         L"  wintune doctor\r\n"

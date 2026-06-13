@@ -6,6 +6,7 @@
 
 #include <windows.h>
 #include <strsafe.h>
+#include <stdio.h>
 #include <string.h>
 #include <wchar.h>
 
@@ -68,7 +69,7 @@ static int wt_cli_line_is_quit(const wchar_t *line)
 }
 
 static const wchar_t *wt_cli_menu_shortcut(const wchar_t *line, wchar_t *buf,
-                                         size_t buf_cap)
+                                           size_t buf_cap)
 {
     if (line == NULL || line[0] == L'\0') {
         return NULL;
@@ -93,7 +94,7 @@ static const wchar_t *wt_cli_menu_shortcut(const wchar_t *line, wchar_t *buf,
         return line;
     }
     StringCchCopyW(buf, buf_cap, shortcuts[idx]);
-    wprintf(L"  -> wintune %ls\n", buf);
+    printf("  -> wintune %ls\n", buf);
     return buf;
 }
 
@@ -123,7 +124,7 @@ static int wt_cli_spawn_command_line(const wchar_t *args)
     ZeroMemory(&pi, sizeof(pi));
 
     if (!CreateProcessW(exe, cmdline, NULL, NULL, TRUE, 0, NULL, NULL, &si,
-                       &pi)) {
+                        &pi)) {
         fwprintf(stderr, L"wintune: failed to run '%ls'.\n", args);
         return WT_EXIT_ERROR;
     }
@@ -136,47 +137,92 @@ static int wt_cli_spawn_command_line(const wchar_t *args)
     return (int)code;
 }
 
-static void wt_cli_print_launcher_banner(void)
+static void wt_cli_print_menu_row(int color, const char *num, const char *cmd,
+                                  const char *desc)
 {
-    wprintf(
-        L"\n"
-        L"  WinTune %hs — Interactive mode\n"
-        L"  Native Windows performance diagnostics.\n"
-        L"\n"
-        L"  Quick picks (type a number or any full command):\n"
-        L"    1  doctor          scan + recommendations + summary\n"
-        L"    2  scan            full performance scan\n"
-        L"    3  top             process usage snapshot\n"
-        L"    4  startup         startup entries\n"
-        L"    5  power           power plan + tips\n"
-        L"    6  recommend       recommendations only\n"
-        L"    7  help            all commands and options\n"
-        L"    8  tui             live terminal dashboard\n"
-        L"    9  rollback list   saved rollback records\n"
-        L"\n"
-        L"  Examples:\n"
-        L"    scan --samples 3\n"
-        L"    top --watch\n"
-        L"    apply WT-POWER-001 --yes\n"
-        L"    startup --include-tasks\n"
-        L"\n"
-        L"  quit | exit | q  — leave interactive mode\n"
-        L"\n",
-        WT_VERSION_STRING);
+    const char *rst = color ? "\x1b[0m" : "";
+    const char *bold = color ? "\x1b[1m" : "";
+    const char *dim = color ? "\x1b[2m" : "";
+    const char *acc = color ? "\x1b[96m" : "";
+
+    if (color) {
+        printf("    %s%s%s  %s%-14s%s %s%s\n", bold, num, rst, acc, cmd, rst,
+               dim, desc);
+    } else {
+        printf("    %s  %-14s %s\n", num, cmd, desc);
+    }
+}
+
+static void wt_cli_print_launcher_banner(int color)
+{
+    const char *rst = color ? "\x1b[0m" : "";
+    const char *bold = color ? "\x1b[1m" : "";
+    const char *cyan = color ? "\x1b[36m" : "";
+    const char *dim = color ? "\x1b[2m" : "";
+
+    printf("\n");
+    if (color) {
+        printf("%s+-----------------------------------------------------------------------------+%s\n",
+               dim, rst);
+        printf("%s|%s %sWinTune %s%s - Interactive mode%s                              %s|%s\n",
+               dim, rst, bold, WT_VERSION_STRING, cyan, rst, dim, rst);
+        printf("%s|%s  Native Windows performance diagnostics.%s                         %s|%s\n",
+               dim, rst, dim, dim, rst);
+        printf("%s+-----------------------------------------------------------------------------+%s\n\n",
+               dim, rst);
+    } else {
+        printf("  WinTune %s - Interactive mode\n", WT_VERSION_STRING);
+        printf("  Native Windows performance diagnostics.\n\n");
+    }
+
+    printf("%s  Quick picks (type a number or any full command):%s\n\n", bold, rst);
+    wt_cli_print_menu_row(color, "1", "doctor", "scan + recommendations + summary");
+    wt_cli_print_menu_row(color, "2", "scan", "full performance scan");
+    wt_cli_print_menu_row(color, "3", "top", "process usage snapshot");
+    wt_cli_print_menu_row(color, "4", "startup", "startup entries");
+    wt_cli_print_menu_row(color, "5", "power", "power plan + tips");
+    wt_cli_print_menu_row(color, "6", "recommend", "recommendations only");
+    wt_cli_print_menu_row(color, "7", "help", "all commands and options");
+    wt_cli_print_menu_row(color, "8", "tui", "live dashboard (best visuals)");
+    wt_cli_print_menu_row(color, "9", "rollback list", "saved rollback records");
+
+    printf("\n%s  Examples:%s\n", bold, rst);
+    printf("%s    scan --samples 3%s\n", dim, rst);
+    printf("%s    top --watch%s\n", dim, rst);
+    printf("%s    apply WT-POWER-001 --yes%s\n", dim, rst);
+    printf("%s    startup --include-tasks%s\n\n", dim, rst);
+    printf("%s  quit | exit | q%s - leave interactive mode\n\n", dim, rst);
+
+    if (color) {
+        printf("%s  Tip: use Windows Terminal for the best colors and fonts.%s\n\n",
+               dim, rst);
+    }
+}
+
+static void wt_cli_print_prompt(int color)
+{
+    if (color) {
+        printf("\x1b[1m\x1b[36mwintune>\x1b[0m ");
+    } else {
+        printf("wintune> ");
+    }
+    fflush(stdout);
 }
 
 int wt_cli_interactive_launcher(void)
 {
     (void)wt_console_enable_vt();
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
 
-    wt_cli_print_launcher_banner();
+    int color = wt_console_supports_color();
+    wt_cli_print_launcher_banner(color);
 
     wchar_t line[1024];
     wchar_t mapped[256];
 
     for (;;) {
-        wprintf(L"wintune> ");
-        fflush(stdout);
+        wt_cli_print_prompt(color);
 
         if (!wt_cli_read_line(line, ARRAYSIZE(line))) {
             break;
@@ -192,6 +238,6 @@ int wt_cli_interactive_launcher(void)
         (void)wt_cli_spawn_command_line(cmd);
     }
 
-    wprintf(L"\nGoodbye.\n");
+    printf("\nGoodbye.\n");
     return WT_EXIT_OK;
 }
