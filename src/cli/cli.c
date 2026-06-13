@@ -6,6 +6,7 @@
 #include "cli/commands_doctor.h"
 #include "cli/commands_startup.h"
 #include "cli/commands_tasks.h"
+#include "cli/commands_updates.h"
 #include "cli/commands_services.h"
 #include "cli/commands_power.h"
 #include "cli/commands_apply.h"
@@ -44,6 +45,7 @@ static void wt_print_usage(void)
         "  tui         Live terminal dashboard\n"
         "  startup     Show startup entries and estimated impact\n"
         "  tasks       Scheduled tasks (logon/boot startup impact)\n"
+        "  updates     Windows Update and reboot readiness\n"
         "  boot        Boot/login performance analysis (ETW-backed)\n"
         "  service     Install/manage the WinTune background agent\n"
         "  services    Show service status and startup type\n"
@@ -109,7 +111,7 @@ static void wt_print_version(void)
 static int wt_command_is_known(const wchar_t *cmd)
 {
     static const wchar_t *known[] = {
-        L"scan", L"top", L"tui", L"startup", L"tasks", L"boot", L"service", L"services", L"power",
+        L"scan", L"top", L"tui", L"startup", L"tasks", L"updates", L"boot", L"service", L"services", L"power",
         L"recommend", L"apply", L"report", L"doctor", L"rollback"
     };
     const size_t known_count = sizeof(known) / sizeof(known[0]);
@@ -347,6 +349,8 @@ int wt_cli_run(int argc, wchar_t **argv)
         rc = wt_cmd_startup(&opts);
     } else if (wcscmp(command, L"tasks") == 0) {
         rc = wt_cmd_tasks(&opts);
+    } else if (wcscmp(command, L"updates") == 0) {
+        rc = wt_cmd_updates(&opts);
     } else if (wcscmp(command, L"services") == 0) {
         rc = wt_cmd_services(&opts);
     } else if (wcscmp(command, L"power") == 0) {
