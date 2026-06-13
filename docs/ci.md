@@ -15,8 +15,12 @@ integration and release packaging.
 On every push and pull request to `main`:
 
 1. Configure with **MSVC `/W4`** and **`/WX`** (warnings as errors).
-2. Build **Debug** and **Release**.
-3. Smoke test: `wintune version` and `wintune help`.
+2. Build **Debug** and **Release** (x64).
+3. Unit tests (`wintune_unit_tests`).
+4. Smoke test: `wintune version` and `wintune help`.
+
+A separate **ARM64** job configures `build-arm64` with `-A ARM64`, builds
+Release, and smoke-tests `wintune version` (expects `Arch: arm64`).
 
 This is the primary lint gate for v1. The project does not require clang-format
 or third-party static analyzers yet.
@@ -42,13 +46,12 @@ git push origin v0.1.0
 
 The release workflow:
 
-1. Builds **Release** with the tag version embedded (`-DWINTUNE_VERSION=...`).
-2. Creates `dist/WinTune-<version>-win-x64.zip` containing:
-   - `wintune.exe`
-   - `README.md`
-   - `LICENSE`
-   - `VERSION.txt`
-3. Writes a **SHA-256** checksum file.
+1. Builds **Release** x64 + **ARM64** via `scripts/release.ps1`.
+2. Creates portable ZIPs:
+   - `dist/WinTune-<version>-win-x64.zip`
+   - `dist/WinTune-<version>-win-arm64.zip`
+   Each includes launchers from `pack/`, `VERSION.txt`, and `CHANNEL.txt`.
+3. Writes **SHA-256** checksum files for both ZIPs.
 4. Publishes assets to **GitHub Releases**.
 
 **Manual release (no tag yet):**

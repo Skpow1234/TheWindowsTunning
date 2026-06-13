@@ -65,6 +65,14 @@ foreach ($gen in $generators) {
 }
 
 Write-Warning "No Visual Studio generator matched; using CMake default."
+if ($Arch -eq "arm64") {
+    Write-Error @"
+ARM64 configure failed. Install Visual Studio with the ARM64 MSVC toolchain
+('Desktop development with C++' + ARM64 build tools), then re-run:
+  .\scripts\cmake-configure.ps1 -BuildDir build-arm64 -Arch arm64 -Clean
+"@
+    exit 1
+}
 $args = @("-S", ".", "-B", $BuildDir) + $DefineArg
 if ((Invoke-Configure $args) -ne 0) {
     exit $LASTEXITCODE

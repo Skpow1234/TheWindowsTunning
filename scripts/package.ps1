@@ -107,7 +107,15 @@ Set-Content -LiteralPath (Join-Path $StageDir "CHANNEL.txt") -Value $Channel `
 
 Write-Host ""
 Write-Host "Package directory: $StageDir"
-& $Exe version
+$versionOut = & $Exe version 2>&1 | Out-String
+Write-Host $versionOut.TrimEnd()
+if ($versionOut -match "Arch:\s+(\S+)") {
+    $reported = $Matches[1].ToLowerInvariant()
+    if ($reported -ne $Arch) {
+        Write-Error "Architecture mismatch: requested '$Arch' but binary reports '$reported'."
+        exit 1
+    }
+}
 
 if ($Zip) {
     if (-not (Test-Path $DistDir)) {
