@@ -45,7 +45,7 @@ int wt_cmd_scan(const WT_CliOptions *opts)
         return 0;
     }
 
-    WT_ScanOptions scan_opts;
+    WT_ScanOptions scan_opts = {0};
     scan_opts.cpu_sample_ms = (opts != NULL && opts->interval_ms > 0)
                                   ? (unsigned int)opts->interval_ms
                                   : 0;

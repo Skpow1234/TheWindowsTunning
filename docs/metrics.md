@@ -27,7 +27,8 @@ wintune top --sort memory
 
 Per-process metrics in `top`, `scan`, and TUI:
 
-- **CPU%** — PDH `\Process(*)\% Processor Time` mapped via `\Process(*)\ID Process`
+- **CPU%** — PDH `\Process(*)\% Processor Time` when available; otherwise
+  `GetProcessTimes` delta over the sample window (same approach as Task Manager)
 - **Disk read/write rates** — delta of `GetProcessIoCounters` over the sample window
 - Per-process network rates are not available without ETW (future phase)
 

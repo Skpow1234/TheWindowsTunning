@@ -120,6 +120,9 @@ WT_Result wt_run_scan(const WT_ScanOptions *opts, WT_ScanReport *report)
     if (sample_count > WT_SCAN_MAX_SAMPLES) {
         sample_count = WT_SCAN_MAX_SAMPLES;
     }
+    if (sample_count == 0) {
+        sample_count = WT_SCAN_DEFAULT_SAMPLE_COUNT;
+    }
 
     report->scan_sample_count = sample_count;
     report->scan_sample_interval_ms = sample_interval_ms;

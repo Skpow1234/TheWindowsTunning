@@ -16,6 +16,94 @@ typedef struct WT_ProcessIoSample {
     unsigned long long write_bytes;
 } WT_ProcessIoSample;
 
+typedef struct WT_ProcessCpuSample {
+    unsigned long pid;
+    unsigned long long cpu_time_100ns;
+} WT_ProcessCpuSample;
+
+static unsigned long long wt_filetime_to_ull(const FILETIME *ft)
+{
+    return (((unsigned long long)ft->dwHighDateTime) << 32) |
+           (unsigned long long)ft->dwLowDateTime;
+}
+
+static WT_Result wt_read_process_cpu_time(unsigned long pid,
+                                          unsigned long long *out_time)
+{
+    if (out_time == NULL) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+    *out_time = 0;
+
+    HANDLE proc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (proc == NULL) {
+        return WT_ERR_ACCESS_DENIED;
+    }
+
+    FILETIME created;
+    FILETIME exited;
+    FILETIME kernel;
+    FILETIME user;
+    WT_Result result = WT_ERR_WIN32;
+    if (GetProcessTimes(proc, &created, &exited, &kernel, &user)) {
+        *out_time = wt_filetime_to_ull(&kernel) + wt_filetime_to_ull(&user);
+        result = WT_OK;
+    }
+
+    CloseHandle(proc);
+    return result;
+}
+
+static WT_Result wt_sample_process_cpu(WT_ProcessCpuSample *samples,
+                                       size_t *sample_count,
+                                       size_t capacity)
+{
+    if (samples == NULL || sample_count == NULL) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+    *sample_count = 0;
+
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snapshot == INVALID_HANDLE_VALUE) {
+        return WT_ERR_WIN32;
+    }
+
+    PROCESSENTRY32W entry;
+    entry.dwSize = sizeof(entry);
+    WT_Result result = WT_OK;
+
+    if (Process32FirstW(snapshot, &entry)) {
+        do {
+            if (*sample_count >= capacity) {
+                break;
+            }
+            unsigned long long cpu_time = 0;
+            if (wt_read_process_cpu_time(entry.th32ProcessID, &cpu_time) == WT_OK) {
+                WT_ProcessCpuSample *s = &samples[*sample_count];
+                s->pid = entry.th32ProcessID;
+                s->cpu_time_100ns = cpu_time;
+                (*sample_count)++;
+            }
+        } while (Process32NextW(snapshot, &entry));
+    } else {
+        result = WT_ERR_WIN32;
+    }
+
+    CloseHandle(snapshot);
+    return result;
+}
+
+static const WT_ProcessCpuSample *wt_find_cpu_sample(
+    const WT_ProcessCpuSample *samples, size_t count, unsigned long pid)
+{
+    for (size_t i = 0; i < count; ++i) {
+        if (samples[i].pid == pid) {
+            return &samples[i];
+        }
+    }
+    return NULL;
+}
+
 static void wt_process_init_metrics(WT_ProcessInfo *p)
 {
     p->cpu_percent = -1.0;
@@ -434,16 +522,37 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
         return io_r;
     }
 
-    unsigned long pdh_pids[512];
-    double pdh_cpu[512];
-    size_t pdh_count = 0;
-    (void)wt_pdh_collect_process_cpu(sample_ms, pdh_pids, pdh_cpu,
-                                     ARRAYSIZE(pdh_pids), &pdh_count);
+    WT_ProcessCpuSample *cpu_before = (WT_ProcessCpuSample *)HeapAlloc(
+        GetProcessHeap(), HEAP_ZERO_MEMORY,
+        4096 * sizeof(WT_ProcessCpuSample));
+    if (cpu_before == NULL) {
+        HeapFree(GetProcessHeap(), 0, io_before);
+        return WT_ERR_OUT_OF_MEMORY;
+    }
+
+    size_t cpu_before_count = 0;
+    (void)wt_sample_process_cpu(cpu_before, &cpu_before_count, 4096);
+
+    Sleep(sample_ms);
+
+    WT_ProcessCpuSample *cpu_after = (WT_ProcessCpuSample *)HeapAlloc(
+        GetProcessHeap(), HEAP_ZERO_MEMORY,
+        4096 * sizeof(WT_ProcessCpuSample));
+    if (cpu_after == NULL) {
+        HeapFree(GetProcessHeap(), 0, cpu_before);
+        HeapFree(GetProcessHeap(), 0, io_before);
+        return WT_ERR_OUT_OF_MEMORY;
+    }
+
+    size_t cpu_after_count = 0;
+    (void)wt_sample_process_cpu(cpu_after, &cpu_after_count, 4096);
 
     WT_ProcessIoSample *io_after = (WT_ProcessIoSample *)HeapAlloc(
         GetProcessHeap(), HEAP_ZERO_MEMORY,
         4096 * sizeof(WT_ProcessIoSample));
     if (io_after == NULL) {
+        HeapFree(GetProcessHeap(), 0, cpu_after);
+        HeapFree(GetProcessHeap(), 0, cpu_before);
         HeapFree(GetProcessHeap(), 0, io_before);
         return WT_ERR_OUT_OF_MEMORY;
     }
@@ -453,8 +562,10 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
 
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snapshot == INVALID_HANDLE_VALUE) {
-        HeapFree(GetProcessHeap(), 0, io_before);
         HeapFree(GetProcessHeap(), 0, io_after);
+        HeapFree(GetProcessHeap(), 0, cpu_after);
+        HeapFree(GetProcessHeap(), 0, cpu_before);
+        HeapFree(GetProcessHeap(), 0, io_before);
         return WT_ERR_WIN32;
     }
 
@@ -469,10 +580,18 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
             WT_ProcessInfo info;
             wt_process_fill(&info, &entry);
 
-            for (size_t m = 0; m < pdh_count; ++m) {
-                if (info.pid == pdh_pids[m]) {
-                    info.cpu_percent = pdh_cpu[m];
-                    break;
+            if (info.cpu_percent < 0.0) {
+                const WT_ProcessCpuSample *cb =
+                    wt_find_cpu_sample(cpu_before, cpu_before_count, info.pid);
+                const WT_ProcessCpuSample *ca =
+                    wt_find_cpu_sample(cpu_after, cpu_after_count, info.pid);
+                if (cb != NULL && ca != NULL &&
+                        ca->cpu_time_100ns >= cb->cpu_time_100ns &&
+                        secs > 0.0) {
+                    unsigned long long delta =
+                        ca->cpu_time_100ns - cb->cpu_time_100ns;
+                    info.cpu_percent =
+                        ((double)delta / (secs * 10000000.0)) * 100.0;
                 }
             }
 
@@ -504,6 +623,8 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
     CloseHandle(snapshot);
     HeapFree(GetProcessHeap(), 0, io_before);
     HeapFree(GetProcessHeap(), 0, io_after);
+    HeapFree(GetProcessHeap(), 0, cpu_before);
+    HeapFree(GetProcessHeap(), 0, cpu_after);
 
     if (result == WT_OK) {
         wt_sort_processes(out, *out_count, sort);
