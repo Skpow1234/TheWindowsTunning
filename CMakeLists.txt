@@ -34,6 +34,8 @@ add_executable(wintune
     src/system/power.c
     src/system/startup.c
     src/system/services.c
+    src/system/boot.c
+    src/system/boot_etw.c
     src/system/privilege.c
 
     # actions
@@ -71,6 +73,7 @@ add_executable(wintune
     src/cli/commands_apply.c
     src/cli/commands_rollback.c
     src/cli/commands_report.c
+    src/cli/commands_boot.c
 )
 
 target_include_directories(wintune PRIVATE src)
@@ -98,13 +101,15 @@ install(FILES README.md LICENSE DESTINATION . OPTIONAL)
 # Windows libraries linked as modules require them:
 #   pdh      -> PDH performance counters (cpu, disk activity)
 #   psapi    -> process memory/IO counters (process)
-#   advapi32 -> registry (os_info), services
+#   advapi32 -> registry (os_info), services, ETW trace sessions
+#   wevtapi  -> boot performance event log (boot analyze)
 #   powrprof -> power scheme detection (power)
 #   iphlpapi -> network interface counters (network/tui)
 target_link_libraries(wintune PRIVATE
     pdh
     psapi
     advapi32
+    wevtapi
     powrprof
     iphlpapi
 )

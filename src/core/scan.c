@@ -6,6 +6,8 @@
 #include "metrics/process.h"
 #include "system/os_info.h"
 #include "system/power.h"
+#include "system/boot.h"
+#include "common/error.h"
 #include "common/log.h"
 
 #define WT_SCAN_DEFAULT_SAMPLE_MS 500
@@ -48,6 +50,12 @@ WT_Result wt_run_scan(const WT_ScanOptions *opts, WT_ScanReport *report)
     report->disk_active_ok =
         (wt_collect_disk_activity(sample_ms, &report->disk_active_percent) == WT_OK);
     report->power_ok = (wt_collect_power_info(&report->power) == WT_OK);
+
+    WT_Result boot_r = wt_collect_boot_from_event_log(&report->boot);
+    report->boot_ok = (boot_r == WT_OK);
+    if (boot_r != WT_OK && boot_r != WT_ERR_NOT_FOUND) {
+        WT_LOGW("boot metrics unavailable (%s)", wt_result_to_string(boot_r));
+    }
 
     wt_collect_top_processes(report, top_limit);
 

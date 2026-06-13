@@ -1,8 +1,11 @@
 #include "cli/commands_startup.h"
 #include "system/startup.h"
 #include "system/services.h"
+#include "system/boot.h"
 #include "actions/safe_actions.h"
 #include "output/json.h"
+#include "common/units.h"
+#include "platform/time.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,18 +27,31 @@ static FILE *wt_open_output(const WT_CliOptions *opts, FILE **opened)
     return stdout;
 }
 
-static void wt_print_startup_text(const WT_StartupEntry *entries, size_t count)
+static void wt_print_startup_text(const WT_StartupEntry *entries, size_t count,
+                                  int measured_mode)
 {
-    printf("Startup Entries (%zu)\n\n", count);
+    printf("Startup Entries (%zu)%s\n\n", count,
+           measured_mode ? " — measured impact from last boot" : "");
     if (count == 0) {
         printf("  No startup entries found.\n");
         return;
     }
 
-    printf("%-8s %ls\n", "Impact", L"Id / Command");
+    if (measured_mode) {
+        printf("%-8s %-10s %ls\n", "Impact", "Measured", L"Id / Command");
+    } else {
+        printf("%-8s %ls\n", "Impact", L"Id / Command");
+    }
     for (size_t i = 0; i < count; ++i) {
         const WT_StartupEntry *e = &entries[i];
-        printf("%-8s %ls\n", wt_startup_impact_name(e->impact), e->id);
+        if (measured_mode && e->measured_available) {
+            wchar_t ms[32];
+            wt_format_duration_ms(e->measured_ms, ms, 32);
+            printf("%-8s %-10ls %ls\n",
+                   wt_startup_impact_name(e->impact), ms, e->id);
+        } else {
+            printf("%-8s %ls\n", wt_startup_impact_name(e->impact), e->id);
+        }
         printf("%-8s   %.88ls\n", "", e->command);
     }
     printf("\nDisable one with: wintune startup disable \"<id>\"\n");
@@ -115,6 +131,20 @@ int wt_cmd_startup(const WT_CliOptions *opts)
         return 1;
     }
 
+    WT_BootReport boot;
+    int measured_mode = (opts != NULL && opts->measured);
+    if (measured_mode) {
+        WT_Result br = wt_collect_boot_from_event_log(&boot);
+        if (br == WT_OK) {
+            wt_startup_apply_measured(entries, count, &boot);
+        } else if (!opts->json) {
+            fprintf(stderr,
+                    "wintune: measured startup data unavailable (%s); "
+                    "showing heuristic impact only.\n",
+                    wt_result_to_string(br));
+        }
+    }
+
     int rc = 0;
     if (opts != NULL && opts->json) {
         FILE *opened = NULL;
@@ -128,7 +158,7 @@ int wt_cmd_startup(const WT_CliOptions *opts)
             fclose(opened);
         }
     } else {
-        wt_print_startup_text(entries, count);
+        wt_print_startup_text(entries, count, measured_mode);
         if (opts != NULL && opts->include_services) {
             wt_print_auto_services_text();
         }

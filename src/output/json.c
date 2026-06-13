@@ -5,6 +5,7 @@
 #include "platform/console.h"
 #include "system/power.h"
 #include "system/privilege.h"
+#include "system/boot.h"
 
 #include <windows.h>
 
@@ -250,6 +251,63 @@ static void wt_json_emit_recommendations_array(WT_JsonWriter *w,
     wt_json_end_array(w);
 }
 
+static void wt_json_emit_boot_object(WT_JsonWriter *w, const WT_BootReport *boot)
+{
+    wt_json_begin_object(w);
+    wt_json_key(w, "available");
+    wt_json_bool(w, boot != NULL && boot->boot_duration_ms > 0);
+    if (boot == NULL) {
+        wt_json_end_object(w);
+        return;
+    }
+
+    wt_json_key(w, "source"); wt_json_wstring(w, boot->source);
+    wt_json_key(w, "boot_duration_ms");
+    if (boot->boot_duration_ms > 0) {
+        wt_json_uint64(w, boot->boot_duration_ms);
+    } else {
+        wt_json_null(w);
+    }
+    wt_json_key(w, "main_path_ms");
+    boot->main_path_ms > 0 ? wt_json_uint64(w, boot->main_path_ms) : wt_json_null(w);
+    wt_json_key(w, "kernel_init_ms");
+    boot->kernel_init_ms > 0 ? wt_json_uint64(w, boot->kernel_init_ms) : wt_json_null(w);
+    wt_json_key(w, "driver_init_ms");
+    boot->driver_init_ms > 0 ? wt_json_uint64(w, boot->driver_init_ms) : wt_json_null(w);
+    wt_json_key(w, "post_boot_ms");
+    boot->post_boot_ms > 0 ? wt_json_uint64(w, boot->post_boot_ms) : wt_json_null(w);
+    wt_json_key(w, "is_degraded"); wt_json_bool(w, boot->is_degraded);
+    wt_json_key(w, "degradation_summary");
+    if (boot->degradation_summary[0] != L'\0') {
+        wt_json_wstring(w, boot->degradation_summary);
+    } else {
+        wt_json_null(w);
+    }
+
+    wt_json_key(w, "components");
+    wt_json_begin_array(w);
+    for (size_t i = 0; i < boot->component_count; ++i) {
+        const WT_BootComponent *c = &boot->components[i];
+        wt_json_begin_object(w);
+        wt_json_key(w, "name");         wt_json_wstring(w, c->name);
+        wt_json_key(w, "detail");       wt_json_wstring(w, c->detail);
+        wt_json_key(w, "kind");         wt_json_string(w, wt_boot_component_kind_name(c->kind));
+        wt_json_key(w, "duration_ms");  wt_json_uint64(w, c->duration_ms);
+        wt_json_key(w, "disk_heavy");   wt_json_bool(w, c->is_disk_heavy);
+        wt_json_end_object(w);
+    }
+    wt_json_end_array(w);
+
+    if (boot->trace_path[0] != L'\0') {
+        wt_json_key(w, "trace_path"); wt_json_wstring(w, boot->trace_path);
+    }
+    if (boot->etl_event_count > 0) {
+        wt_json_key(w, "etl_event_count"); wt_json_uint64(w, boot->etl_event_count);
+    }
+
+    wt_json_end_object(w);
+}
+
 void wt_print_scan_report_json(const WT_ScanReport *report,
                                const WT_RecommendationList *recs, FILE *out)
 {
@@ -348,6 +406,16 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     }
     wt_json_end_object(&w);
 
+    /* boot (Phase 10) */
+    wt_json_key(&w, "boot");
+    if (report->boot_ok) {
+        wt_json_emit_boot_object(&w, &report->boot);
+    } else {
+        wt_json_begin_object(&w);
+        wt_json_key(&w, "available"); wt_json_bool(&w, 0);
+        wt_json_end_object(&w);
+    }
+
     /* processes */
     wt_json_key(&w, "processes");
     wt_json_begin_object(&w);
@@ -399,6 +467,13 @@ void wt_print_startup_json(const WT_StartupEntry *items, size_t count, FILE *out
         wt_json_key(&w, "command"); wt_json_wstring(&w, e->command);
         wt_json_key(&w, "enabled"); wt_json_bool(&w, e->enabled);
         wt_json_key(&w, "impact");  wt_json_string(&w, wt_startup_impact_name(e->impact));
+        wt_json_key(&w, "measured_available"); wt_json_bool(&w, e->measured_available);
+        wt_json_key(&w, "measured_ms");
+        if (e->measured_available) {
+            wt_json_uint64(&w, e->measured_ms);
+        } else {
+            wt_json_null(&w);
+        }
         wt_json_end_object(&w);
     }
     wt_json_end_array(&w);
@@ -431,6 +506,19 @@ void wt_print_services_json(const WT_ServiceInfo *items, size_t count, FILE *out
         wt_json_end_object(&w);
     }
     wt_json_end_array(&w);
+    wt_json_end_object(&w);
+    wt_json_finish(&w);
+}
+
+void wt_print_boot_json(const WT_BootReport *boot, FILE *out)
+{
+    WT_JsonWriter w;
+    wt_json_init(&w, out);
+
+    wt_json_begin_object(&w);
+    wt_json_emit_envelope_head(&w);
+    wt_json_key(&w, "boot");
+    wt_json_emit_boot_object(&w, boot);
     wt_json_end_object(&w);
     wt_json_finish(&w);
 }

@@ -2,6 +2,7 @@
 #include "output/table.h"
 #include "common/units.h"
 #include "system/power.h"
+#include "platform/time.h"
 
 #include <stdio.h>
 
@@ -112,6 +113,22 @@ void wt_print_scan_report_text(const WT_ScanReport *report,
         printf("  Active time: %.0f%%\n", report->disk_active_percent);
     }
     printf("\n");
+
+    /* Boot (Phase 10) */
+    if (report->boot_ok && report->boot.boot_duration_ms > 0) {
+        wchar_t boot_dur[32];
+        wt_format_duration_ms(report->boot.boot_duration_ms, boot_dur, 32);
+        printf("Last boot: %ls", boot_dur);
+        if (report->boot.is_degraded) {
+            printf(" (degradation detected)");
+        }
+        printf("\n");
+        if (report->boot.component_count > 0) {
+            printf("  Slow components: %zu (see 'wintune boot analyze')\n",
+                   report->boot.component_count);
+        }
+        printf("\n");
+    }
 
     /* Top processes */
     printf("Top Processes by Memory:\n");

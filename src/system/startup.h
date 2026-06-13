@@ -22,6 +22,8 @@ typedef enum WT_StartupImpact {
     WT_STARTUP_IMPACT_HIGH
 } WT_StartupImpact;
 
+typedef struct WT_BootReport WT_BootReport;
+
 typedef struct WT_StartupEntry {
     wchar_t id[160];        /* synthetic, stable id: "<source>:<name>" */
     wchar_t name[128];      /* value name or file name */
@@ -29,6 +31,8 @@ typedef struct WT_StartupEntry {
     WT_StartupSource source;
     int enabled;            /* read-only: present entries are treated as enabled */
     WT_StartupImpact impact;
+    unsigned long measured_ms;   /* from boot analysis; 0 if unknown */
+    int measured_available;      /* 1 when matched to boot event data */
 } WT_StartupEntry;
 
 #define WT_MAX_STARTUP_ENTRIES 256
@@ -43,5 +47,9 @@ WT_Result wt_collect_startup_entries(WT_StartupEntry *out,
 
 const char *wt_startup_source_name(WT_StartupSource source);
 const char *wt_startup_impact_name(WT_StartupImpact impact);
+
+/* Correlates startup entries with measured boot/login component data. */
+void wt_startup_apply_measured(WT_StartupEntry *entries, size_t count,
+                               const WT_BootReport *boot);
 
 #endif /* WINTUNE_STARTUP_H */

@@ -27,12 +27,14 @@ typedef struct WT_CliOptions {
     int no_recommendations;     /* --no-recommendations */
     long limit;                 /* --limit N         (-1 = default) */
     long interval_ms;           /* --interval N      (-1 = default) */
+    long duration_ms;           /* --duration N      (-1 = default) */
     long samples;               /* --samples N       (-1 = default) */
     const wchar_t *sort;        /* --sort <key>      (NULL = default) */
 
     /* startup */
     int include_services;       /* --include-services */
     int include_tasks;          /* --include-tasks */
+    int measured;               /* --measured (Phase 10 boot correlation) */
 
     /* services filters (OR-combined; none == show all) */
     int svc_auto;               /* --auto */

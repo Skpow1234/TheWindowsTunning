@@ -1,4 +1,5 @@
 #include "system/startup.h"
+#include "system/boot.h"
 
 #include <windows.h>
 #include <strsafe.h>
@@ -26,10 +27,8 @@ const char *wt_startup_impact_name(WT_StartupImpact impact)
     }
 }
 
-/* Heuristic, clearly-labelled estimate. Without boot tracing (a later phase) we
- * cannot measure real startup cost, so this only flags a few well-known heavy
- * background apps and otherwise reports "unknown". It never drives automatic
- * action. */
+/* Heuristic baseline when measured boot data is unavailable. When measured
+ * data exists (Phase 10), wt_startup_apply_measured() overrides impact. */
 static WT_StartupImpact wt_estimate_impact(const wchar_t *name,
                                            const wchar_t *command)
 {
@@ -190,4 +189,36 @@ WT_Result wt_collect_startup_entries(WT_StartupEntry *out,
                            WT_STARTUP_SRC_COMMON_FOLDER, out, capacity, out_count);
 
     return WT_OK;
+}
+
+void wt_startup_apply_measured(WT_StartupEntry *entries, size_t count,
+                               const WT_BootReport *boot)
+{
+    if (entries == NULL || boot == NULL) {
+        return;
+    }
+
+    for (size_t i = 0; i < count; ++i) {
+        WT_StartupEntry *e = &entries[i];
+        e->measured_ms = 0;
+        e->measured_available = 0;
+
+        unsigned long ms = 0;
+        int matched = 0;
+        wt_boot_apply_measured_startup(boot, e->name, e->command, &ms, &matched);
+        if (!matched) {
+            continue;
+        }
+
+        e->measured_ms = ms;
+        e->measured_available = 1;
+
+        if (ms >= 10000) {
+            e->impact = WT_STARTUP_IMPACT_HIGH;
+        } else if (ms >= 3000) {
+            e->impact = WT_STARTUP_IMPACT_MEDIUM;
+        } else if (ms > 0) {
+            e->impact = WT_STARTUP_IMPACT_LOW;
+        }
+    }
 }

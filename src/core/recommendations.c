@@ -1,5 +1,6 @@
 #include "core/recommendations.h"
 #include "system/power.h"
+#include "system/boot.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -12,6 +13,8 @@
 #define WT_DISK_FREE_HIGH_PCT    5.0
 #define WT_DISK_FREE_MED_PCT     10.0
 #define WT_CPU_BUSY_PCT          85.0
+#define WT_BOOT_SLOW_MS          60000u
+#define WT_BOOT_APP_SLOW_MS      3000u
 
 const char *wt_severity_to_string(WT_Severity severity)
 {
@@ -199,6 +202,89 @@ static void wt_check_cpu(const WT_ScanReport *rep, WT_RecommendationList *out)
     }
 }
 
+static void wt_check_boot(const WT_ScanReport *rep, WT_RecommendationList *out)
+{
+    if (!rep->boot_ok) {
+        return;
+    }
+
+    const WT_BootReport *b = &rep->boot;
+
+    if (b->boot_duration_ms >= WT_BOOT_SLOW_MS) {
+        WT_Recommendation *r = wt_rec_add(out);
+        if (r != NULL) {
+            wt_str_set(r->id, sizeof(r->id), "WT-BOOT-001");
+            wt_str_set(r->title, sizeof(r->title),
+                       "Last boot took longer than expected");
+            snprintf(r->reason, sizeof(r->reason),
+                     "Windows reported a boot duration of %lu ms (%.1f s). "
+                     "Boot times above 60 s often indicate slow drivers, "
+                     "startup apps, or disk contention during login.",
+                     b->boot_duration_ms, b->boot_duration_ms / 1000.0);
+            wt_str_set(r->action, sizeof(r->action),
+                       "Run 'wintune boot analyze' and review startup apps.");
+            r->severity = (b->boot_duration_ms >= 120000u)
+                              ? WT_SEVERITY_MEDIUM : WT_SEVERITY_LOW;
+            r->risk = WT_RISK_NONE;
+            r->confidence_percent = 85;
+        }
+    }
+
+    if (b->is_degraded) {
+        WT_Recommendation *r = wt_rec_add(out);
+        if (r != NULL) {
+            wt_str_set(r->id, sizeof(r->id), "WT-BOOT-002");
+            wt_str_set(r->title, sizeof(r->title),
+                       "Windows detected boot performance degradation");
+            snprintf(r->reason, sizeof(r->reason),
+                     "The Diagnostic-Performance log reports boot degradation. "
+                     "%s",
+                     b->degradation_summary[0] != L'\0'
+                         ? "See 'wintune boot analyze' for component details."
+                         : "Review slow components with 'wintune boot analyze'.");
+            wt_str_set(r->action, sizeof(r->action), "wintune boot analyze");
+            r->severity = WT_SEVERITY_MEDIUM;
+            r->risk = WT_RISK_NONE;
+            r->confidence_percent = 80;
+        }
+    }
+
+    for (size_t i = 0; i < b->component_count; ++i) {
+        const WT_BootComponent *c = &b->components[i];
+        if (c->duration_ms < WT_BOOT_APP_SLOW_MS) {
+            continue;
+        }
+        if (c->kind != WT_BOOT_COMP_APPLICATION &&
+            c->kind != WT_BOOT_COMP_DEGRADATION) {
+            continue;
+        }
+
+        WT_Recommendation *r = wt_rec_add(out);
+        if (r == NULL) {
+            break;
+        }
+        wt_str_set(r->id, sizeof(r->id), "WT-STARTUP-001");
+        wt_str_set(r->title, sizeof(r->title),
+                   "A startup component had high measured delay");
+        snprintf(r->reason, sizeof(r->reason),
+                 "Windows measured a startup component adding about %lu ms "
+                 "during the last boot/login. %s Review details with "
+                 "'wintune boot analyze' and correlate entries with "
+                 "'wintune startup --measured'.",
+                 c->duration_ms,
+                 c->is_disk_heavy
+                     ? "Disk I/O during startup was reported."
+                     : "");
+        wt_str_set(r->action, sizeof(r->action),
+                   "wintune startup --measured");
+        r->severity = (c->duration_ms >= 10000u) ? WT_SEVERITY_MEDIUM
+                                                 : WT_SEVERITY_LOW;
+        r->risk = WT_RISK_LOW;
+        r->confidence_percent = 75;
+        break; /* one startup recommendation per scan to avoid noise */
+    }
+}
+
 WT_Result wt_generate_recommendations(const WT_ScanReport *report,
                                       WT_RecommendationList *out)
 {
@@ -211,6 +297,7 @@ WT_Result wt_generate_recommendations(const WT_ScanReport *report,
     wt_check_memory(report, out);
     wt_check_disk(report, out);
     wt_check_cpu(report, out);
+    wt_check_boot(report, out);
 
     return WT_OK;
 }

@@ -153,6 +153,16 @@ void wt_print_performance_report_text(FILE *out,
         fprintf(out, "  Disk active time: %.0f%%\n", report->disk_active_percent);
     }
 
+    if (report->boot_ok && report->boot.boot_duration_ms > 0) {
+        wchar_t boot_dur[32];
+        wt_format_duration_ms(report->boot.boot_duration_ms, boot_dur, 32);
+        fwprintf(out, L"  Last boot: %ls", boot_dur);
+        if (report->boot.is_degraded) {
+            fputs(" (degradation detected)", out);
+        }
+        fputc('\n', out);
+    }
+
     wt_report_bottlenecks(out, report, recs);
 
     wt_report_section(out, "Power plan");
@@ -202,7 +212,8 @@ void wt_print_performance_report_text(FILE *out,
     wt_report_risk_notes(out, recs);
 
     wt_report_section(out, "Further inspection");
-    fputs("  Startup impact:  wintune startup\n", out);
+    fputs("  Boot analysis:   wintune boot analyze\n", out);
+    fputs("  Startup impact:  wintune startup --measured\n", out);
     fputs("  Service status:  wintune services\n", out);
     fputs("  Live monitor:    wintune top --watch\n", out);
     fputs("  Apply a fix:     wintune apply <id>   (after reviewing recommendations)\n",
