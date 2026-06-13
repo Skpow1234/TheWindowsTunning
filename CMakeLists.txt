@@ -37,6 +37,7 @@ add_executable(wintune
     src/system/os_info.c
     src/system/power.c
     src/system/startup.c
+    src/system/tasks.c
     src/system/services.c
     src/system/boot.c
     src/system/boot_etw.c
@@ -77,6 +78,7 @@ add_executable(wintune
     src/cli/commands_recommend.c
     src/cli/commands_doctor.c
     src/cli/commands_startup.c
+    src/cli/commands_tasks.c
     src/cli/commands_services.c
     src/cli/commands_power.c
     src/cli/commands_apply.c
@@ -122,4 +124,7 @@ target_link_libraries(wintune PRIVATE
     wevtapi
     powrprof
     iphlpapi
+    taskschd
+    ole32
+    oleaut32
 )
