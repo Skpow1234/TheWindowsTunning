@@ -359,6 +359,8 @@ wintune top --sort cpu
 
 ### Phase 16 — Apply Actions v2 + Rollback Completeness
 
+**Status:** Done
+
 **Goal:** One coherent apply/rollback story for all mutating features.
 
 **Deliver:**
@@ -368,13 +370,16 @@ wintune top --sort cpu
 - More safe applies tied to recommendations (startup delay, selected tasks).
 - Service-based apply when Phase 11 is installed.
 
-**Example commands (target):**
+**Example commands:**
 
 ```bash
 wintune rollback list
 wintune rollback apply <id>
-wintune apply WT-STARTUP-001 --yes
+wintune apply WT-STARTUP-DISABLE "HKCU\Run:App" --yes
+wintune apply WT-POWER-001 --via-service --yes
 ```
+
+See [`docs/apply.md`](apply.md).
 
 ---
 

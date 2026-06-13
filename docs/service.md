@@ -114,6 +114,8 @@ Example requests:
 {"cmd":"scan","format":"text"}
 {"cmd":"doctor","format":"text"}
 {"cmd":"apply","id":"WT-POWER-001","yes":1}
+{"cmd":"apply","id":"WT-STARTUP-DISABLE","target_id":"HKCU\\Run:App","yes":1}
+{"cmd":"apply","id":"WT-TASK-DELAY","target_id":"task:\\Vendor\\App","delay_seconds":30,"yes":1}
 {"cmd":"power_set","plan":"performance","yes":1}
 {"cmd":"restart_service","name":"Spooler","yes":1}
 {"cmd":"startup_set","id":"HKCU\\...\\Run\\App","enable":0,"yes":1}

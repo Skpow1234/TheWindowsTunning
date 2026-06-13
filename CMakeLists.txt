@@ -53,6 +53,7 @@ add_executable(wintune
     # actions
     src/actions/rollback.c
     src/actions/safe_actions.c
+    src/actions/action_map.c
     src/actions/apply.c
 
     # core

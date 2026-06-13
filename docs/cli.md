@@ -334,21 +334,42 @@ apply (if any). Recommendations are deterministic and explainable.
 
 ## `wintune apply`
 
-Applies a specific recommendation by ID.
+Applies a specific recommendation by ID through the central action map
+(`docs/apply.md`).
 
 ```bash
 wintune apply WT-POWER-001
 wintune apply WT-POWER-001 --yes
+wintune apply WT-STARTUP-DISABLE "HKCU\Run:App"
+wintune apply WT-STARTUP-DELAY "HKCU\Run:App" --seconds 30
+wintune apply WT-TASK-DELAY "task:\Vendor\App" --seconds 30
+wintune apply WT-POWER-001 --via-service --yes
 ```
 
+- Power recommendations need only the id; startup/task applies require a
+  **target id** as the second argument (see `wintune startup`).
 - Never applies all recommendations blindly.
-- Requires confirmation and admin where necessary.
+- Requires confirmation and admin where necessary (`--yes` for automation/SSH).
 - Logs the change and creates rollback data where practical.
+- Advisory ids (memory, disk, boot analyze, etc.) report that no automatic
+  action exists.
 - Dangerous actions remain blocked even with `--yes`.
 
 ---
 
-## `wintune report`
+## `wintune rollback`
+
+Lists or applies saved rollback records for power, startup, and task changes.
+
+```bash
+wintune rollback list
+wintune rollback list --json
+wintune rollback apply <id>
+wintune rollback apply <id> --yes
+```
+
+JSON list entries include `action_id`, `previous_value`, and `new_value`.
+See [`docs/apply.md`](apply.md) for record locations and supported types.
 
 Writes a local performance report (system summary, performance summary, top
 bottlenecks, startup impact, power plan status, service observations,
@@ -374,18 +395,11 @@ wintune doctor
 
 ---
 
-## `wintune rollback`
-
-Rollback support is partial in v1 but designed early.
-
-```bash
-wintune rollback list
-wintune rollback apply <id>
-```
+See [`docs/apply.md`](apply.md) for record locations and supported types.
 
 ---
 
-## `wintune version`
+## `wintune report`
 
 ```text
 WinTune 0.1.0

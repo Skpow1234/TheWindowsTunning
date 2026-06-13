@@ -181,6 +181,8 @@ when the change does, and write rollback metadata where practical:
 wintune power                       # show current plan, source, recommendation
 wintune power --set performance     # switch to an existing scheme (balanced|performance|saver|ultimate)
 wintune apply WT-POWER-001          # apply a recommendation by id
+wintune apply WT-STARTUP-DISABLE "HKCU\Run:App"   # disable startup entry
+wintune apply WT-TASK-DELAY "task:\Vendor\App" --seconds 30
 wintune startup disable "<id>"      # toggle a startup entry (StartupApproved flag; reversible)
 wintune startup enable  "<id>"
 wintune services restart <name>     # stop+start a service (admin; critical services refused)
@@ -335,7 +337,7 @@ WinTune is under active, phased development.
 | 13 | Windows Update & reboot readiness (`updates`, WT-UPDATE-*) | Done |
 | 14 | Restart Manager integration (`blockers`, WT-BLOCKER-001) | Done |
 | 15 | Metrics depth (per-process CPU, disk rates, multi-sample scan) | Done |
-| 16 | Apply actions v2 + rollback completeness | Planned |
+| 16 | Apply actions v2 + rollback completeness | Done |
 | 17 | Fleet / automation hardening | Planned |
 | 18 | Packaging + ARM64 (developer) | Planned |
 | 19 | Optional tray / native GUI (never Electron) | Planned |
@@ -360,17 +362,17 @@ exit non-zero.
   semantics) for interactive PTY sessions.
 - Process enumeration uses a top-K collector (no full-process buffer) for
   `scan`, `top`, and `tui`.
-- Per-process CPU and disk-rate columns are not yet computed (later phases);
-  `cpu_percent` is reported as `null` in JSON for now.
+- Per-process CPU and disk I/O rates are sampled during `scan` and `top`; very
+  short-lived processes may be missed.
 - Recommendations cover power, memory, disk free space, disk activity, and CPU.
 - Disk active time is a single PDH sample per scan; multi-sample smoothing is
   planned.
 - `power --set` switches only to power schemes that already exist on the
   machine (it never creates custom plans); the previous scheme is captured for
   rollback, including custom plans.
-- `apply` only auto-applies actionable recommendations (currently the power
-  ones). Memory/disk/CPU recommendations are advisory and report that no
-  automatic action is taken.
+- `apply` uses a central action map for power, startup disable/delay, and task
+  disable/delay. Memory/disk/CPU/boot/update recommendations remain advisory.
+  See [`docs/apply.md`](docs/apply.md).
 - `startup enable/disable` toggles the Windows StartupApproved flag (the same
   one Task Manager uses) and never deletes the underlying Run value or startup
   file. HKLM-scoped entries (`HKLM\Run`, common Startup folder) require admin.
