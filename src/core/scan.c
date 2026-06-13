@@ -39,8 +39,13 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
                                  unsigned int sample_index,
                                  unsigned int sample_total)
 {
+    unsigned int scan_samples = acc->scan_sample_count;
+    unsigned int scan_interval = acc->scan_sample_interval_ms;
+
     if (sample_index == 0) {
         *acc = *sample;
+        acc->scan_sample_count = scan_samples;
+        acc->scan_sample_interval_ms = scan_interval;
         return;
     }
 
