@@ -1,6 +1,6 @@
 #include "output/json.h"
 
-#include "cli/cli.h"        /* WT_VERSION_STRING */
+#include "cli/cli.h"        /* WT_VERSION_STRING, WT_CliOptions */
 #include "platform/time.h"
 #include "platform/console.h"
 #include "system/power.h"
@@ -8,6 +8,26 @@
 #include "system/boot.h"
 
 #include <windows.h>
+
+static int g_json_compact = 0;
+
+void wt_json_set_compact(WT_JsonWriter *w, int compact)
+{
+    if (w != NULL) {
+        w->compact = compact;
+    }
+}
+
+void wt_json_apply_cli_options(const WT_CliOptions *opts)
+{
+    g_json_compact = 0;
+    if (opts == NULL) {
+        return;
+    }
+    if (opts->compact_json || opts->ndjson) {
+        g_json_compact = 1;
+    }
+}
 
 /* ------------------------------------------------------------------ */
 /* Low-level writer                                                    */
@@ -18,6 +38,7 @@ void wt_json_init(WT_JsonWriter *w, FILE *out)
     w->out = out;
     w->depth = 0;
     w->expect_value = 0;
+    w->compact = g_json_compact;
     for (int i = 0; i < WT_JSON_MAX_DEPTH; ++i) {
         w->counts[i] = 0;
     }
@@ -25,6 +46,9 @@ void wt_json_init(WT_JsonWriter *w, FILE *out)
 
 static void wt_json_newline_indent(WT_JsonWriter *w, int level)
 {
+    if (w->compact) {
+        return;
+    }
     fputc('\n', w->out);
     for (int i = 0; i < level * 2; ++i) {
         fputc(' ', w->out);
@@ -125,11 +149,17 @@ void wt_json_key(WT_JsonWriter *w, const char *key)
         if (w->counts[w->depth - 1] > 0) {
             fputc(',', w->out);
         }
-        wt_json_newline_indent(w, w->depth);
+        if (!w->compact) {
+            wt_json_newline_indent(w, w->depth);
+        }
         w->counts[w->depth - 1]++;
     }
     wt_json_write_escaped(w, key);
-    fputs(": ", w->out);
+    if (w->compact) {
+        fputc(':', w->out);
+    } else {
+        fputs(": ", w->out);
+    }
     w->expect_value = 1;
 }
 
@@ -223,6 +253,7 @@ static void wt_json_emit_envelope_head(WT_JsonWriter *w)
     if (wt_now_iso8601_utc(ts, sizeof(ts)) != WT_OK) {
         ts[0] = '\0';
     }
+    wt_json_key(w, "schema_version"); wt_json_string(w, WT_JSON_SCHEMA_VERSION);
     wt_json_key(w, "version");       wt_json_string(w, WT_VERSION_STRING);
     wt_json_key(w, "timestamp_utc"); wt_json_string(w, ts);
 

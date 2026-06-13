@@ -14,6 +14,11 @@
 #include "system/updates.h"
 #include "system/blockers.h"
 
+/* Stable JSON schema version (independent of wintune tool version). */
+#define WT_JSON_SCHEMA_VERSION "1.0.0"
+
+struct WT_CliOptions;
+
 /* Minimal, dependency-free JSON writer that emits pretty-printed UTF-8 JSON to
  * a FILE stream. It tracks nesting and comma placement so callers only describe
  * structure. Strings are escaped; wide strings are converted to UTF-8. */
@@ -24,9 +29,14 @@ typedef struct WT_JsonWriter {
     int depth;
     int counts[WT_JSON_MAX_DEPTH]; /* members written per nesting level */
     int expect_value;              /* 1 after a key, before its value */
+    int compact;                   /* minified output when non-zero */
 } WT_JsonWriter;
 
 void wt_json_init(WT_JsonWriter *w, FILE *out);
+void wt_json_set_compact(WT_JsonWriter *w, int compact);
+
+/* Applies --compact-json / --ndjson from CLI options to subsequent emitters. */
+void wt_json_apply_cli_options(const struct WT_CliOptions *opts);
 void wt_json_begin_object(WT_JsonWriter *w);
 void wt_json_end_object(WT_JsonWriter *w);
 void wt_json_begin_array(WT_JsonWriter *w);

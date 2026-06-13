@@ -1,5 +1,7 @@
 #include "cli/commands_top.h"
 #include "cli/cli.h"
+#include "cli/cli_exit.h"
+#include "cli/exit_codes.h"
 #include "metrics/process.h"
 #include "output/table.h"
 #include "output/json.h"
@@ -130,6 +132,65 @@ static int wt_top_watch(size_t limit, WT_ProcessSort sort,
     return rc;
 }
 
+static int wt_top_ndjson_stream(const WT_CliOptions *opts, size_t limit,
+                                WT_ProcessSort sort, unsigned int sample_ms,
+                                unsigned int interval_ms,
+                                unsigned int duration_ms)
+{
+    WT_ProcessInfo *buffer =
+        (WT_ProcessInfo *)malloc(limit * sizeof(WT_ProcessInfo));
+    if (buffer == NULL) {
+        return wt_cli_exit_from_result(opts, WT_ERR_OUT_OF_MEMORY, L"top",
+                                       "Out of memory.");
+    }
+
+    wt_cli_configure_json_output(opts);
+
+    FILE *out = stdout;
+    FILE *opened = NULL;
+    if (opts != NULL && opts->output_path != NULL) {
+        if (_wfopen_s(&opened, opts->output_path, L"wb") != 0 || opened == NULL) {
+            free(buffer);
+            return wt_cli_exit_from_result(opts, WT_ERR_WIN32, L"top",
+                                           "Could not open output file.");
+        }
+        out = opened;
+    }
+
+    unsigned int elapsed = 0;
+    for (;;) {
+        size_t shown = 0;
+        WT_Result r =
+            wt_top_snapshot(buffer, limit, sort, sample_ms, &shown);
+        if (r != WT_OK) {
+            free(buffer);
+            if (opened != NULL) {
+                fclose(opened);
+            }
+            return wt_cli_exit_from_result(opts, r, L"top",
+                                           "Could not enumerate processes.");
+        }
+
+        wt_print_processes_json(buffer, shown, out);
+        fflush(out);
+
+        if (duration_ms == 0) {
+            break;
+        }
+        elapsed += interval_ms;
+        if (elapsed >= duration_ms) {
+            break;
+        }
+        Sleep(interval_ms);
+    }
+
+    if (opened != NULL) {
+        fclose(opened);
+    }
+    free(buffer);
+    return WT_EXIT_OK;
+}
+
 int wt_cmd_top(const WT_CliOptions *opts)
 {
     const int json = wt_cli_is_json_mode(opts);
@@ -157,6 +218,23 @@ int wt_cmd_top(const WT_CliOptions *opts)
 
     size_t limit = wt_top_clamp_limit(opts != NULL ? opts->limit : -1);
 
+    if (watch && json && opts != NULL && opts->ndjson) {
+        unsigned int interval = WT_TOP_DEFAULT_INTERVAL_MS;
+        if (opts->interval_ms > 0) {
+            interval = (unsigned int)opts->interval_ms;
+        }
+        unsigned int duration = 0;
+        if (opts->duration_ms > 0) {
+            duration = (unsigned int)opts->duration_ms;
+        } else if (!wt_session_is_interactive()) {
+            duration = interval;
+        } else {
+            duration = interval * 60u;
+        }
+        return wt_top_ndjson_stream(opts, limit, sort, sample_ms, interval,
+                                    duration);
+    }
+
     if (watch && !json) {
         if (wt_session_is_interactive()) {
             unsigned int interval = WT_TOP_DEFAULT_INTERVAL_MS;
@@ -174,17 +252,16 @@ int wt_cmd_top(const WT_CliOptions *opts)
 
     WT_ProcessInfo *buffer = (WT_ProcessInfo *)malloc(limit * sizeof(WT_ProcessInfo));
     if (buffer == NULL) {
-        fprintf(stderr, "wintune: out of memory\n");
-        return 1;
+        return wt_cli_exit_from_result(opts, WT_ERR_OUT_OF_MEMORY, L"top",
+                                       "Out of memory.");
     }
 
     size_t shown = 0;
     WT_Result r = wt_top_snapshot(buffer, limit, sort, sample_ms, &shown);
     if (r != WT_OK) {
-        fprintf(stderr, "wintune: could not enumerate processes (%s)\n",
-                wt_result_to_string(r));
         free(buffer);
-        return 1;
+        return wt_cli_exit_from_result(opts, r, L"top",
+                                       "Could not enumerate processes.");
     }
 
     if (json) {
@@ -192,13 +269,13 @@ int wt_cmd_top(const WT_CliOptions *opts)
         FILE *opened = NULL;
         if (opts != NULL && opts->output_path != NULL) {
             if (_wfopen_s(&opened, opts->output_path, L"wb") != 0 || opened == NULL) {
-                fwprintf(stderr, L"wintune: could not open output file '%ls'\n",
-                         opts->output_path);
                 free(buffer);
-                return 1;
+                return wt_cli_exit_from_result(opts, WT_ERR_WIN32, L"top",
+                                               "Could not open output file.");
             }
             out = opened;
         }
+        wt_cli_configure_json_output(opts);
         wt_print_processes_json(buffer, shown, out);
         if (opened != NULL) {
             fclose(opened);
@@ -208,5 +285,5 @@ int wt_cmd_top(const WT_CliOptions *opts)
     }
 
     free(buffer);
-    return 0;
+    return WT_EXIT_OK;
 }

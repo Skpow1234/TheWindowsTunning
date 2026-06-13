@@ -1,6 +1,7 @@
 #include "cli/commands_apply.h"
 #include "actions/apply.h"
 #include "cli/cli.h"
+#include "cli/cli_exit.h"
 #include "platform/service_client.h"
 
 #include <stdio.h>
@@ -15,7 +16,8 @@ int wt_cmd_apply(const WT_CliOptions *opts)
                 "  wintune apply WT-STARTUP-DISABLE \"HKCU\\\\Run:App\"\n"
                 "  wintune apply WT-STARTUP-DELAY \"HKCU\\\\Run:App\" --seconds 30\n"
                 "See current ids with 'wintune recommend'.\n");
-        return 2;
+        return wt_cli_exit_usage(opts, L"apply",
+                                 "apply requires a recommendation id");
     }
 
     char msg[512] = {0};
@@ -27,9 +29,9 @@ int wt_cmd_apply(const WT_CliOptions *opts)
 
     if (wt_cli_should_route_via_service(opts)) {
         if (!wt_service_client_is_available(2000)) {
-            fprintf(stderr,
-                    "wintune: WinTune service is not reachable for apply.\n");
-            return 1;
+            return wt_cli_exit_from_result(
+                opts, WT_ERR_NOT_FOUND, L"apply",
+                "WinTune service is not reachable for apply.");
         }
         r = wt_service_client_apply(opts->arg1, opts->arg2, delay, opts->yes,
                                     msg, sizeof(msg));
@@ -38,8 +40,9 @@ int wt_cmd_apply(const WT_CliOptions *opts)
                                     msg, sizeof(msg));
     }
 
-    if (msg[0] != '\0') {
+    if (msg[0] != '\0' && !wt_cli_is_json_mode(opts)) {
         printf("%s\n", msg);
     }
-    return (r == WT_OK) ? 0 : 1;
+    return wt_cli_exit_from_result(opts, r, L"apply",
+                                   msg[0] != '\0' ? msg : NULL);
 }

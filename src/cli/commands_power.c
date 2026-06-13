@@ -1,5 +1,6 @@
 #include "cli/commands_power.h"
 #include "cli/cli.h"
+#include "cli/cli_exit.h"
 #include "system/power.h"
 #include "actions/safe_actions.h"
 #include "platform/service_client.h"
@@ -87,31 +88,32 @@ int wt_cmd_power(const WT_CliOptions *opts)
                      L"wintune: unknown power plan '%ls'. "
                      L"Use balanced | performance | saver | ultimate.\n",
                      opts->set_value);
-            return 2;
+            return wt_cli_exit_usage(opts, L"power", "unknown power plan");
         }
         char msg[512] = {0};
         WT_Result r;
         if (wt_cli_should_route_via_service(opts)) {
             if (!wt_service_client_is_available(2000)) {
-                fprintf(stderr,
-                        "wintune: WinTune service is not reachable.\n");
-                return 1;
+                return wt_cli_exit_from_result(
+                    opts, WT_ERR_NOT_FOUND, L"power",
+                    "WinTune service is not reachable.");
             }
             r = wt_service_client_power_set(opts->set_value, opts->yes, msg,
                                             sizeof(msg));
         } else {
             r = wt_action_set_power_plan(target, opts->yes, msg, sizeof(msg));
         }
-        if (msg[0] != '\0') {
+        if (msg[0] != '\0' && !wt_cli_is_json_mode(opts)) {
             printf("%s\n", msg);
         }
-        return (r == WT_OK) ? 0 : 1;
+        return wt_cli_exit_from_result(opts, r, L"power",
+                                       msg[0] != '\0' ? msg : NULL);
     }
 
     WT_PowerInfo p;
     if (wt_collect_power_info(&p) != WT_OK) {
-        fprintf(stderr, "wintune: could not read power information\n");
-        return 1;
+        return wt_cli_exit_from_result(opts, WT_ERR_WIN32, L"power",
+                                       "Could not read power information.");
     }
     return wt_power_show(opts, &p);
 }
