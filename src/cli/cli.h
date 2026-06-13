@@ -35,6 +35,7 @@ typedef struct WT_CliOptions {
     int include_services;       /* --include-services */
     int include_tasks;          /* --include-tasks */
     int measured;               /* --measured (Phase 10 boot correlation) */
+    int via_service;            /* --via-service (Phase 11 service IPC) */
 
     /* services filters (OR-combined; none == show all) */
     int svc_auto;               /* --auto */

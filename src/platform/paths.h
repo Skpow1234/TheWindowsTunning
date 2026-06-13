@@ -18,4 +18,10 @@ WT_Result wt_paths_rollback_dir(wchar_t *out, size_t count);
  * Returns WT_OK if the directory exists afterwards. */
 WT_Result wt_paths_ensure_dir(const wchar_t *dir);
 
+/* Machine-wide WinTune data: %ProgramData%\\WinTune */
+WT_Result wt_paths_program_data_dir(wchar_t *out, size_t count);
+
+/* Cached service scan output: %ProgramData%\\WinTune\\last_scan.json */
+WT_Result wt_paths_last_scan_file(wchar_t *out, size_t count);
+
 #endif /* WINTUNE_PATHS_H */

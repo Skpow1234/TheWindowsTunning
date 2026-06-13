@@ -1,5 +1,7 @@
 #include "cli/commands_apply.h"
 #include "actions/apply.h"
+#include "platform/service_client.h"
+#include "system/privilege.h"
 
 #include <stdio.h>
 
@@ -14,7 +16,20 @@ int wt_cmd_apply(const WT_CliOptions *opts)
     }
 
     char msg[512] = {0};
-    WT_Result r = wt_apply_recommendation(opts->arg1, opts->yes, msg, sizeof(msg));
+    WT_Result r;
+
+    if (opts->via_service ||
+        (!wt_is_process_elevated() && wt_service_client_is_available(500))) {
+        if (!wt_service_client_is_available(2000)) {
+            fprintf(stderr,
+                    "wintune: WinTune service is not reachable for apply.\n");
+            return 1;
+        }
+        r = wt_service_client_apply(opts->arg1, opts->yes, msg, sizeof(msg));
+    } else {
+        r = wt_apply_recommendation(opts->arg1, opts->yes, msg, sizeof(msg));
+    }
+
     if (msg[0] != '\0') {
         printf("%s\n", msg);
     }

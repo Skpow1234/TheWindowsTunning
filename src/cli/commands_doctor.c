@@ -3,6 +3,8 @@
 #include "core/recommendations.h"
 #include "output/text.h"
 #include "output/json.h"
+#include "platform/service_client.h"
+#include "cli/cli.h"
 
 #include <stdio.h>
 
@@ -32,6 +34,29 @@ static void wt_print_doctor_summary(const WT_RecommendationList *recs)
 
 int wt_cmd_doctor(const WT_CliOptions *opts)
 {
+    if (opts != NULL && opts->via_service && wt_cli_is_json_mode(opts)) {
+        if (!wt_service_client_is_available(2000)) {
+            fprintf(stderr,
+                    "wintune: WinTune service is not reachable.\n"
+                    "Install/start it with: wintune service install && "
+                    "wintune service start\n");
+            return 1;
+        }
+        WT_Result r = wt_service_client_scan(
+            1, opts->interval_ms > 0 ? opts->interval_ms : 0, stdout);
+        if (r != WT_OK) {
+            fprintf(stderr, "wintune: service doctor failed (%s)\n",
+                    wt_result_to_string(r));
+            return 1;
+        }
+        return 0;
+    }
+    if (opts != NULL && opts->via_service) {
+        wt_cli_user_note(opts,
+            "Note: --via-service with JSON uses the WinTune service. "
+            "Running a local doctor instead.\n");
+    }
+
     WT_ScanOptions scan_opts;
     scan_opts.cpu_sample_ms = (opts != NULL && opts->interval_ms > 0)
                                   ? (unsigned int)opts->interval_ms
