@@ -1,5 +1,7 @@
 #include "cli/cli.h"
 
+#include "cli/cli_exit.h"
+#include "cli/exit_codes.h"
 #include "cli/commands_scan.h"
 #include "cli/commands_top.h"
 #include "cli/commands_recommend.h"
@@ -20,6 +22,7 @@
 #include "common/log.h"
 #include "platform/console.h"
 #include "platform/service_client.h"
+#include "output/json.h"
 #include "system/privilege.h"
 
 #include <stdio.h>
@@ -27,10 +30,7 @@
 #include <wchar.h>
 #include <stdarg.h>
 
-/* Exit codes kept small and stable for scripting. */
-#define WT_EXIT_OK              0
-#define WT_EXIT_NOT_IMPLEMENTED 1
-#define WT_EXIT_USAGE           2
+/* Exit codes: see cli/exit_codes.h (WT_EXIT_*). */
 
 static void wt_print_usage(void)
 {
@@ -71,7 +71,10 @@ static void wt_print_usage(void)
         "  --safe-terminal   Conservative rendering for SSH/unknown terminals\n"
         "  --output <path>   Write output to a file\n"
         "  --yes             Confirm mutating actions (dangerous actions stay blocked)\n"
-        "  --via-service     Use the local WinTune service for privileged work\n",
+        "  --via-service     Use the local WinTune service for privileged work\n"
+        "  --json-errors     Emit machine-readable JSON on failure\n"
+        "  --compact-json    Minified JSON (no pretty-printing)\n"
+        "  --ndjson          One JSON document per line (e.g. top --watch --json)\n",
         WT_VERSION_STRING);
 }
 
@@ -205,6 +208,11 @@ int wt_cli_should_route_via_service(const WT_CliOptions *opts)
     return 0;
 }
 
+void wt_cli_configure_json_output(const WT_CliOptions *opts)
+{
+    wt_json_apply_cli_options(opts);
+}
+
 int wt_cli_run(int argc, wchar_t **argv)
 {
     WT_CliOptions opts = {0};
@@ -242,6 +250,9 @@ int wt_cli_run(int argc, wchar_t **argv)
         }
         else if (wcscmp(t, L"--measured") == 0)    opts.measured = 1;
         else if (wcscmp(t, L"--via-service") == 0) opts.via_service = 1;
+        else if (wcscmp(t, L"--json-errors") == 0) opts.json_errors = 1;
+        else if (wcscmp(t, L"--compact-json") == 0) opts.compact_json = 1;
+        else if (wcscmp(t, L"--ndjson") == 0) opts.ndjson = 1;
         else if (wcscmp(t, L"--auto-start") == 0) opts.service_auto_start = 1;
         else if (wcscmp(t, L"--account") == 0) {
             if (i + 1 < argc) {
@@ -315,6 +326,10 @@ int wt_cli_run(int argc, wchar_t **argv)
 
     wt_apply_log_level(&opts);
     wt_cli_apply_session_defaults(&opts);
+    if (opts.compact_json && opts.ndjson) {
+        /* --ndjson implies compact single-line documents. */
+        opts.compact_json = 1;
+    }
     WT_LOGD("parsed command=%ls json=%d interactive=%d remote=%d",
             command ? command : L"(none)", opts.json,
             wt_session_is_interactive(), wt_session_is_remote());
@@ -371,7 +386,7 @@ int wt_cli_run(int argc, wchar_t **argv)
     } else if (wcscmp(command, L"service") == 0) {
         rc = wt_cmd_service(&opts);
     } else if (wcscmp(command, L"tui") == 0) {
-        rc = (wt_tui_run(&opts) == WT_OK) ? WT_EXIT_OK : WT_EXIT_NOT_IMPLEMENTED;
+        rc = (wt_tui_run(&opts) == WT_OK) ? WT_EXIT_OK : WT_EXIT_ERROR;
     } else if (wt_command_is_known(command)) {
         fwprintf(stderr,
                  L"wintune: '%ls' is recognized but not implemented yet "
@@ -391,5 +406,5 @@ int wt_cli_run(int argc, wchar_t **argv)
      * explicitly so output is never silently dropped. */
     fflush(stdout);
     fflush(stderr);
-    return rc;
+    return wt_cli_finish(&opts, rc, command);
 }

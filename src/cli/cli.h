@@ -38,6 +38,9 @@ typedef struct WT_CliOptions {
     long delay_seconds;         /* --seconds N (tasks/startup delay) */
     int measured;               /* --measured (Phase 10 boot correlation) */
     int via_service;            /* --via-service (Phase 11 service IPC) */
+    int json_errors;            /* --json-errors (machine-readable failures) */
+    int compact_json;           /* --compact-json (minified JSON) */
+    int ndjson;                 /* --ndjson (one JSON document per line) */
 
     /* service install (wintune service install) */
     int service_auto_start;     /* --auto-start */
@@ -83,5 +86,8 @@ void wt_cli_user_note(const WT_CliOptions *opts, const char *fmt, ...);
 
 /* True when mutating/read commands should route through the WinTune service. */
 int wt_cli_should_route_via_service(const WT_CliOptions *opts);
+
+/* Configure JSON writer global style from CLI flags before emitting documents. */
+void wt_cli_configure_json_output(const WT_CliOptions *opts);
 
 #endif /* WINTUNE_CLI_H */
