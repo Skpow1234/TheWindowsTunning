@@ -1,6 +1,11 @@
 #ifndef WINTUNE_LOG_H
 #define WINTUNE_LOG_H
 
+#include <stddef.h>
+#include <wchar.h>
+
+#include "common/error.h"
+
 /* Logging levels, ordered from most to least severe. The active level acts as
  * a threshold: messages with a level <= the active level are emitted. */
 typedef enum WT_LogLevel {
@@ -11,13 +16,15 @@ typedef enum WT_LogLevel {
     WT_LOG_TRACE
 } WT_LogLevel;
 
-/* Default level is WT_LOG_WARN so normal CLI output stays clean.
- * --verbose raises it to INFO, --debug raises it to DEBUG. */
 void wt_log_set_level(WT_LogLevel level);
 WT_LogLevel wt_log_get_level(void);
 
-/* Writes a formatted log line to stderr (never stdout, so JSON output on
- * stdout is never polluted). A trailing newline is added automatically. */
+/* Optional file sink (Phase 18). When open, log lines are appended to the file
+ * as well as stderr. Pass NULL to wt_log_close_file() only. */
+WT_Result wt_log_open_file(const wchar_t *path);
+void wt_log_close_file(void);
+int wt_log_file_is_open(void);
+
 void wt_log(WT_LogLevel level, const char *fmt, ...);
 
 #define WT_LOGE(...) wt_log(WT_LOG_ERROR, __VA_ARGS__)
