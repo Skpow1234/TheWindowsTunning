@@ -98,6 +98,11 @@ WinTune never attempts UAC bypass or credential tricks. Future privileged
 remote workflows are intended to use a local **WinTune Windows Service** and
 secure IPC, not unsafe elevation hacks.
 
+**Boot analysis (`wintune boot analyze`)** reads the Diagnostic-Performance
+event log. On some hosts this returns access denied unless the SSH session is
+elevated. `scan --json` / `doctor --json` still succeed with
+`"boot": { "available": false }`. See [`boot.md`](boot.md#admin-requirements).
+
 ---
 
 ## JSON for Remote Automation

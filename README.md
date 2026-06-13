@@ -376,8 +376,11 @@ exit non-zero.
   file. HKLM-scoped entries (`HKLM\Run`, common Startup folder) require admin.
   Startup "impact" uses heuristics by default; `wintune startup --measured`
   correlates entries with Windows boot/login metrics when available (may require
-  elevation). Scheduled-task inspection (`--include-tasks`) is not yet
-  implemented.
+  elevation). Boot analysis reads the Diagnostic-Performance event log — on some
+  systems that returns access denied without an elevated shell; `scan`/`doctor`/`report`
+  continue without boot data, while `boot analyze` asks for admin. See
+  [`docs/boot.md`](docs/boot.md#admin-requirements). Scheduled-task inspection
+  (`--include-tasks`) is not yet implemented.
 - `services restart` requires elevation and refuses a denylist of
   critical/security services to avoid destabilizing Windows.
 - The `tui` dashboard is read-only and keyboard-driven (no mouse). Network

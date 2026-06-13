@@ -64,13 +64,32 @@ section when data is available (JSON key `"boot"`). Recommendations may include:
 
 ## Admin requirements
 
-Reading the Diagnostic-Performance log or starting ETW sessions may require
-**administrator privileges** on some machines. WinTune fails gracefully:
+On some Windows setups, reading the **Diagnostic-Performance** event log returns
+**access denied** unless the shell is elevated. That is expected — the log is
+protected on certain builds and policies. WinTune does not bypass this; it fails
+safely and explains what to do.
 
-- `scan` / `doctor` continue with `"boot": { "available": false }`
-- `boot analyze` prints the standard admin-required message
+| Command | When access is denied |
+| --- | --- |
+| `wintune scan` / `wintune doctor` / `wintune report` | Continue normally; boot section omitted (`"boot": { "available": false }` in JSON) |
+| `wintune boot analyze` | Exit non-zero; prints the standard admin-required message |
+| `wintune boot trace` | Exit non-zero; ETW session start requires elevation on most systems |
+| `wintune startup --measured` | Falls back to heuristic impact; stderr note if measured data unavailable |
 
-Over SSH, use an elevated session or a future WinTune Service (Phase 11).
+**Run from an elevated PowerShell or CMD** to get full boot metrics:
+
+```powershell
+# From the repo after building:
+.\build\Release\wintune.exe boot analyze
+
+# Or if wintune is on PATH:
+wintune boot analyze
+wintune boot analyze --json
+```
+
+Over SSH, use an elevated session (`Run as administrator` on the remote shell)
+or a future WinTune Service (Phase 11). See [`ssh.md`](ssh.md) for remote
+admin guidance.
 
 ## Data sources
 
