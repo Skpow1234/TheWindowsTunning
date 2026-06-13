@@ -20,7 +20,8 @@ wintune top         # process usage snapshot (or --watch)
 wintune tui         # live terminal dashboard
 wintune startup     # startup entries and estimated impact
 wintune boot        # boot/login performance analysis (Phase 10)
-wintune services    # service status and startup type
+wintune service     # WinTune Windows Service install/manage (Phase 11)
+wintune services    # Windows SCM service listing
 wintune power       # current power plan + recommendations
 wintune recommend   # recommendations without applying
 wintune apply       # apply a specific recommendation
