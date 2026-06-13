@@ -39,4 +39,12 @@ int wt_session_is_remote(void);
  * still honor a user-supplied --no-color override. */
 int wt_console_supports_color(void);
 
+/* Returns 1 when the process was likely started by double-clicking the .exe in
+ * Explorer (parent is explorer.exe), as opposed to an existing shell. */
+int wt_console_launched_from_explorer(void);
+
+/* After printing help with no arguments, waits for Enter so Explorer-launched
+ * sessions do not flash closed. No-op for shells (CMD, PowerShell, Git Bash). */
+void wt_console_hold_open_if_explorer_launch(int argc);
+
 #endif /* WINTUNE_CONSOLE_H */

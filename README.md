@@ -153,6 +153,26 @@ Local equivalents:
 
 Details: [`docs/ci.md`](docs/ci.md).
 
+### Portable ZIP (GitHub Releases)
+
+The release artifact `WinTune-x.y.z-win-x64.zip` is **not a GUI app**. Do not
+double-click `wintune.exe` — it prints help and exits, so the window closes
+immediately.
+
+**To run WinTune from the ZIP:**
+
+1. Extract the ZIP to a folder (e.g. `C:\Tools\WinTune`).
+2. Double-click **`Run-Doctor.cmd`** for a first health check, **or**
+3. Open **PowerShell** or **CMD** in that folder and run:
+
+```powershell
+.\wintune.exe doctor
+.\wintune.exe scan
+.\wintune.exe help
+```
+
+Read `QUICKSTART.txt` in the ZIP for a short guide.
+
 ---
 
 ## Usage

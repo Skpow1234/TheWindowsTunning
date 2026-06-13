@@ -351,6 +351,7 @@ int wt_cli_run(int argc, wchar_t **argv)
 
     if (command == NULL) {
         wt_print_usage();
+        wt_console_hold_open_if_explorer_launch(argc);
         return WT_EXIT_OK;
     }
 

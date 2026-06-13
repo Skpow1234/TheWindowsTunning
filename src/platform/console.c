@@ -1,8 +1,11 @@
 #include "platform/console.h"
 
 #include <windows.h>
+#include <tlhelp32.h>
 #include <strsafe.h>
 #include <io.h>
+#include <stdlib.h>
+#include <string.h>
 
 static HANDLE wt_stdout_handle(void)
 {
@@ -140,4 +143,130 @@ int wt_session_is_remote(void)
 int wt_console_supports_color(void)
 {
     return wt_console_is_interactive();
+}
+
+static DWORD wt_console_parent_process_id(DWORD pid)
+{
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snap == INVALID_HANDLE_VALUE) {
+        return 0;
+    }
+
+    PROCESSENTRY32W pe;
+    ZeroMemory(&pe, sizeof(pe));
+    pe.dwSize = sizeof(pe);
+
+    DWORD parent = 0;
+    if (Process32FirstW(snap, &pe)) {
+        do {
+            if (pe.th32ProcessID == pid) {
+                parent = pe.th32ParentProcessID;
+                break;
+            }
+        } while (Process32NextW(snap, &pe));
+    }
+    CloseHandle(snap);
+    return parent;
+}
+
+static int wt_console_process_name(DWORD pid, wchar_t *name, size_t name_count)
+{
+    if (name == NULL || name_count == 0) {
+        return 0;
+    }
+    name[0] = L'\0';
+
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snap == INVALID_HANDLE_VALUE) {
+        return 0;
+    }
+
+    PROCESSENTRY32W pe;
+    ZeroMemory(&pe, sizeof(pe));
+    pe.dwSize = sizeof(pe);
+
+    int found = 0;
+    if (Process32FirstW(snap, &pe)) {
+        do {
+            if (pe.th32ProcessID == pid) {
+                StringCchCopyW(name, name_count, pe.szExeFile);
+                found = 1;
+                break;
+            }
+        } while (Process32NextW(snap, &pe));
+    }
+    CloseHandle(snap);
+    return found;
+}
+
+int wt_console_launched_from_explorer(void)
+{
+    DWORD parent_pid = wt_console_parent_process_id(GetCurrentProcessId());
+    if (parent_pid == 0) {
+        return 0;
+    }
+
+    wchar_t parent_name[MAX_PATH];
+    if (!wt_console_process_name(parent_pid, parent_name, ARRAYSIZE(parent_name))) {
+        return 0;
+    }
+    return (_wcsicmp(parent_name, L"explorer.exe") == 0) ? 1 : 0;
+}
+
+static int wt_console_runs_inside_known_shell(void)
+{
+    char buf[64];
+    if (GetEnvironmentVariableA("MSYSTEM", buf, (DWORD)sizeof(buf)) > 0) {
+        return 1;
+    }
+    if (GetEnvironmentVariableA("SHELL", buf, (DWORD)sizeof(buf)) > 0) {
+        if (strstr(buf, "bash") != NULL || strstr(buf, "sh") != NULL) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void wt_console_hold_open_if_explorer_launch(int argc)
+{
+    if (argc > 1) {
+        return;
+    }
+    if (!wt_session_is_interactive() || wt_session_is_remote()) {
+        return;
+    }
+    if (wt_console_runs_inside_known_shell()) {
+        return;
+    }
+    if (!wt_console_launched_from_explorer()) {
+        return;
+    }
+
+    static const wchar_t msg[] =
+        L"\r\n"
+        L"WinTune is a command-line tool — it does not stay open like a GUI app.\r\n"
+        L"Open PowerShell or CMD in this folder and run, for example:\r\n"
+        L"\r\n"
+        L"  wintune doctor\r\n"
+        L"  wintune scan\r\n"
+        L"  wintune help\r\n"
+        L"\r\n"
+        L"Tip: double-click Run-Doctor.cmd for a quick health check.\r\n"
+        L"\r\n"
+        L"Press Enter to close this window...\r\n";
+
+    HANDLE out = wt_stdout_handle();
+    if (out != NULL && out != INVALID_HANDLE_VALUE) {
+        DWORD written = 0;
+        (void)WriteConsoleW(out, msg, (DWORD)(ARRAYSIZE(msg) - 1), &written, NULL);
+    }
+
+    HANDLE in = wt_stdin_handle();
+    if (in == NULL || in == INVALID_HANDLE_VALUE) {
+        return;
+    }
+
+    wchar_t ch[4];
+    DWORD read = 0;
+    (void)ReadConsoleW(in, ch, 1, &read, NULL);
 }

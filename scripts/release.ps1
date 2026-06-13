@@ -62,6 +62,14 @@ foreach ($File in @("README.md", "LICENSE")) {
     }
 }
 
+$PackDir = Join-Path $Root "pack"
+foreach ($File in @("QUICKSTART.txt", "Run-Doctor.cmd", "Run-Help.cmd")) {
+    $Src = Join-Path $PackDir $File
+    if (Test-Path $Src) {
+        Copy-Item -LiteralPath $Src -Destination (Join-Path $StagingDir $File)
+    }
+}
+
 $VersionFile = Join-Path $StagingDir "VERSION.txt"
 Set-Content -LiteralPath $VersionFile -Value $Version -NoNewline -Encoding utf8
 
