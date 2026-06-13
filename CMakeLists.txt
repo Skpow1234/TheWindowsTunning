@@ -4,6 +4,9 @@ project(wintune C)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+set(WINTUNE_VERSION "0.1.0" CACHE STRING "WinTune version string (release CI may override)")
+option(WINTUNE_WARNINGS_AS_ERRORS "Treat compiler warnings as errors (CI lint)" OFF)
+
 # Source list grows per phase as modules are implemented.
 add_executable(wintune
     src/main.c
@@ -76,6 +79,7 @@ target_compile_definitions(wintune PRIVATE
     WIN32_LEAN_AND_MEAN
     UNICODE
     _UNICODE
+    WT_VERSION_STRING="${WINTUNE_VERSION}"
     # Target Windows 10+ so version-gated APIs (e.g. GetIfTable2) are visible.
     _WIN32_WINNT=0x0A00
     WINVER=0x0A00
@@ -83,7 +87,13 @@ target_compile_definitions(wintune PRIVATE
 
 if(MSVC)
     target_compile_options(wintune PRIVATE /W4 /permissive-)
+    if(WINTUNE_WARNINGS_AS_ERRORS)
+        target_compile_options(wintune PRIVATE /WX)
+    endif()
 endif()
+
+install(TARGETS wintune RUNTIME DESTINATION .)
+install(FILES README.md LICENSE DESTINATION . OPTIONAL)
 
 # Windows libraries linked as modules require them:
 #   pdh      -> PDH performance counters (cpu, disk activity)

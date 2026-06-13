@@ -3,7 +3,9 @@
 
 #include <wchar.h> /* wchar_t is a typedef in C, not a built-in keyword */
 
+#ifndef WT_VERSION_STRING
 #define WT_VERSION_STRING "0.1.0"
+#endif
 
 /* Parsed options shared by every command. Command-specific flags (e.g.
  * --limit, --watch) are parsed here too and simply ignored by commands that

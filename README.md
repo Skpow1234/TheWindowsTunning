@@ -1,6 +1,7 @@
 # WinTune
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/Skpow1234/TheWindowsTunning/actions/workflows/ci.yml/badge.svg)](https://github.com/Skpow1234/TheWindowsTunning/actions/workflows/ci.yml)
 [![Platform: Windows 10 | 11](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?logo=windows&logoColor=white)](#supported-platforms)
 [![Language: C17](https://img.shields.io/badge/Language-C17-00599C?logo=c&logoColor=white)](#build)
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
@@ -122,8 +123,35 @@ cmake -S . -B build
 cmake --build build --config Debug
 ```
 
-Other scripts: `scripts\test.ps1`, `scripts\clean.ps1`, `scripts\package.ps1`
-(PowerShell) or call the matching `.cmd` / `.sh` wrappers where provided.
+Other scripts: `scripts\test.ps1`, `scripts\clean.ps1`, `scripts\package.ps1`,
+`scripts\lint.ps1`, `scripts\release.ps1` (PowerShell) or call the matching
+`.cmd` / `.sh` wrappers where provided.
+
+---
+
+## CI/CD
+
+GitHub Actions runs on every push and pull request to `main`:
+
+- **Lint** — MSVC `/W4` with warnings as errors (`/WX`)
+- **Build** — Debug and Release on Windows x64
+- **Smoke test** — `wintune version` and `wintune help`
+
+**Releases:** push a semver tag to publish a portable ZIP to GitHub Releases:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Local equivalents:
+
+```powershell
+.\scripts\lint.ps1
+.\scripts\release.ps1 -Version 0.1.0
+```
+
+Details: [`docs/ci.md`](docs/ci.md).
 
 ---
 
@@ -309,10 +337,12 @@ WinTune is under active, phased development.
 | 15 | Metrics depth (per-process CPU, multi-sample) | Planned |
 | 16 | Apply actions v2 + rollback completeness | Planned |
 | 17 | Fleet / automation hardening | Planned |
-| 18 | Packaging + ARM64 | Planned |
+| 18 | Packaging + ARM64 (developer) | Planned |
 | 19 | Optional tray / native GUI (never Electron) | Planned |
+| 20 | TUI polish & UX | Planned |
+| 21 | Distributable executable (end-user release) | Planned |
 
-**v1 (Phases 0–9) is complete.** Phases 10–19 are documented in
+**v1 (Phases 0–9) is complete.** Phases 10–21 are documented in
 [`docs/roadmap.md`](docs/roadmap.md) with deliverables, example commands,
 dependencies, and explicit non-goals.
 
@@ -364,6 +394,7 @@ exit non-zero.
 - [`docs/tui.md`](docs/tui.md) — terminal dashboard
 - [`docs/ssh.md`](docs/ssh.md) — remote usage
 - [`docs/metrics.md`](docs/metrics.md) — what is measured and how
+- [`docs/ci.md`](docs/ci.md) — GitHub Actions, lint, and releases
 - [`docs/roadmap.md`](docs/roadmap.md) — phased delivery plan
 
 ---

@@ -34,8 +34,10 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 15 | Metrics depth (per-process CPU, multi-sample) | Planned |
 | 16 | Apply actions v2 + rollback completeness | Planned |
 | 17 | Fleet / automation hardening | Planned |
-| 18 | Packaging + ARM64 | Planned |
+| 18 | Packaging + ARM64 (developer) | Planned |
 | 19 | Optional tray / native GUI (never Electron) | Planned |
+| 20 | TUI polish & UX | Planned |
+| 21 | Distributable executable (end-user release) | Planned |
 
 ---
 
@@ -439,6 +441,89 @@ interface.
 
 ---
 
+### Phase 20 — TUI Polish & UX
+
+**Goal:** Make `wintune tui` feel production-quality — not just functional.
+
+Phase 6 delivered a working dashboard; Phase 20 refines layout, responsiveness,
+and readability across Windows Terminal, CMD, SSH, and narrow consoles.
+
+**Deliver:**
+
+- Robust **terminal resize** handling (small/large/SSH PTY).
+- **Scrollable or paged** process list; sort toggles (CPU / memory / disk).
+- **Per-process CPU and disk-rate columns** when Phase 15 metrics exist.
+- Clear **empty and error states** per view (no silent “unavailable”).
+- Lower **refresh overhead**; optional pause/freeze frame.
+- **Sparkline or mini trend** for CPU/RAM/disk (last N samples, lightweight).
+- Optional **`--theme`** or config file for colors/glyphs (still no-color/safe
+  fallbacks).
+- Optional **snapshot export** (`s` key → write report to `%USERPROFILE%\Documents\WinTune\Reports\`).
+- Improved **help overlay** and key hints for SSH/ASCII mode.
+- Documented **minimum terminal size** and degraded layout below it.
+
+**Example commands (target):**
+
+```bash
+wintune tui
+wintune tui --theme compact
+wintune tui --safe-terminal --interval 500
+```
+
+**Depends on:** Phase 6 (TUI exists). Per-process columns depend on Phase 15.
+
+**Never:** Mouse-required UI, mutating actions from the dashboard without
+confirmation, Electron/WebView.
+
+---
+
+### Phase 21 — Distributable Executable (End-User Release)
+
+**Goal:** Users download and run WinTune **without** installing Visual Studio,
+CMake, or building from source.
+
+Phase 18 covers **developer** packaging (`cmake --install`, ARM64 builds).
+Phase 21 is the **consumer** release: a shippable product artifact.
+
+**Deliver:**
+
+- **Prebuilt `wintune.exe`** on GitHub Releases (x64 first, ARM64 when Phase 18
+  is ready).
+- **Portable ZIP** — `wintune.exe`, `LICENSE`, `README`, version file.
+- Optional **installer** (Inno Setup, WiX MSI, or equivalent — native, no
+  Electron bootstrapper).
+- **Add to PATH** option during install (or documented manual step).
+- Embedded **version resources** — icon, `FileVersion`, `ProductVersion`,
+  company/name strings.
+- **Application manifest** — `asInvoker` by default, `longPathAware`, compatible
+  Windows 10/11.
+- **`wintune version`** matches release tag; reproducible CI build.
+- **GitHub Actions CI** — `/W4` + `/WX` lint gate, Debug/Release build, smoke
+  tests (see [`docs/ci.md`](ci.md)).
+- **GitHub Releases** — portable ZIP + SHA-256 checksum on `v*` tags (see
+  `scripts/release.ps1`).
+- Release **checklist** — checksums (SHA-256), release notes template.
+- Optional: **winget** / Chocolatey manifest (community or official).
+- Optional: **Authenticode signing** guidance (not required for open source, but
+  documented).
+
+**Example user flow (target):**
+
+```text
+1. Download WinTune-0.2.0-x64.zip from Releases
+2. Extract to C:\Tools\WinTune\
+3. Add to PATH (or run full path)
+4. wintune doctor
+```
+
+**Depends on:** Stable v1+ CLI; Phase 18 helps but Phase 21 can ship a portable
+ZIP before MSI/winget.
+
+**Never:** Bundled adware, auto-start without consent, silent background install,
+telemetry uploader in the installer.
+
+---
+
 ## Recommended Implementation Order (Post-v1)
 
 ```text
@@ -448,15 +533,18 @@ interface.
 13  Windows Update / reboot state
 14  Restart Manager
 15  Per-process CPU + multi-sample metrics
+20  TUI polish (best after 15 for new columns; UX fixes can start earlier)
 16  Rollback + apply v2
 17  Fleet/automation hardening
-18  Packaging + ARM64
+18  Packaging + ARM64 (developer)
+21  Distributable executable (GitHub Releases, installer, PATH)
 19  Tray / optional native GUI
 ```
 
 Phases 12–16 can be partially reordered, but **10 before 12** (measured
 startup) and **11 before 16** (service-based remote apply) are strong
-dependencies.
+dependencies. **21 after 18** is recommended but a portable ZIP release can
+ship before MSI/winget.
 
 ---
 
