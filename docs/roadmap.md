@@ -385,6 +385,8 @@ See [`docs/apply.md`](apply.md).
 
 ### Phase 17 — Fleet / Automation Hardening
 
+**Status:** Done
+
 **Goal:** Scriptable remote diagnostics at small scale (homelab, IT teams) —
 local-first, no required cloud.
 
@@ -392,17 +394,20 @@ local-first, no required cloud.
 
 - JSON schema versioning and changelog.
 - Stable exit codes per failure class.
-- Machine-readable error JSON on fatal failures (optional `--json-errors`).
-- Batch-friendly output (compact JSON mode, NDJSON option).
+- Machine-readable error JSON on fatal failures (`--json-errors`).
+- Batch-friendly output (`--compact-json`, `--ndjson`).
 - Documented SSH/Ansible patterns for many hosts.
 
-**Example usage (target):**
+**Example usage:**
 
 ```bash
 for h in host1 host2; do
-  ssh "admin@$h" "wintune scan --json" > "reports/$h.json"
+  ssh "admin@$h" "wintune scan --json --compact-json" > "reports/$h.json"
 done
 ```
+
+See [`json-schema.md`](json-schema.md), [`json-changelog.md`](json-changelog.md),
+and [`fleet.md`](fleet.md).
 
 **Never:** Default cloud upload, accounts, or telemetry.
 

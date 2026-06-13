@@ -66,6 +66,7 @@ add_executable(wintune
     src/output/text.c
     src/output/text_report.c
     src/output/json.c
+    src/output/json_error.c
 
     # tui
     src/tui/tui.c
@@ -76,6 +77,8 @@ add_executable(wintune
 
     # cli
     src/cli/cli.c
+    src/cli/cli_exit.c
+    src/cli/exit_codes.c
     src/cli/commands_scan.c
     src/cli/commands_top.c
     src/cli/commands_recommend.c
@@ -135,3 +138,19 @@ target_link_libraries(wintune PRIVATE
     wuguid
     rstrtmgr
 )
+
+enable_testing()
+
+add_executable(wintune_unit_tests
+    tests/test_exit_codes.c
+    src/cli/exit_codes.c
+    src/common/error.c
+)
+target_include_directories(wintune_unit_tests PRIVATE src)
+if(MSVC)
+    target_compile_options(wintune_unit_tests PRIVATE /W4 /permissive-)
+    if(WINTUNE_WARNINGS_AS_ERRORS)
+        target_compile_options(wintune_unit_tests PRIVATE /WX)
+    endif()
+endif()
+add_test(NAME exit_codes COMMAND wintune_unit_tests)

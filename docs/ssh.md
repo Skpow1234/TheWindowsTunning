@@ -125,6 +125,18 @@ Rules:
 
 Always flush explicitly at process exit so piped SSH sessions never drop output.
 
+## Exit codes and error JSON (Phase 17)
+
+WinTune uses stable exit codes (0, 2, 10–14, 20–21) for scripting. Use
+`--json-errors` with `--json` so failures still produce parseable stdout:
+
+```bash
+ssh user@host "wintune apply WT-POWER-001 --json --json-errors --yes"
+```
+
+See [`json-schema.md`](json-schema.md) and [`fleet.md`](fleet.md) for the full
+table and batch examples.
+
 ---
 
 ## Validation Checklist

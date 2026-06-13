@@ -45,12 +45,19 @@ wintune help        # usage
 --verbose          # show INFO/verbose logs
 --debug            # show DEBUG logs
 --json             # machine-readable output only
+--json-errors      # emit JSON error document on failure
+--compact-json     # minified JSON (no pretty-printing)
+--ndjson           # one JSON document per line (implies compact)
 --no-color         # disable ANSI colors
 --no-unicode       # ASCII fallback rendering
 --safe-terminal    # conservative rendering for SSH/unknown terminals
 --output <path>    # write output to a file
 --yes              # confirm mutating actions (dangerous actions still blocked)
+--via-service      # route privileged work through WinTune service
 ```
+
+JSON schema, exit codes, and fleet patterns: [`json-schema.md`](json-schema.md),
+[`fleet.md`](fleet.md).
 
 ### Global Rules
 
