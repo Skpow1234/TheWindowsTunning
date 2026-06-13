@@ -54,6 +54,10 @@ int wt_cmd_report(const WT_CliOptions *opts)
     WT_ScanOptions scan_opts;
     scan_opts.cpu_sample_ms =
         (opts != NULL && opts->interval_ms > 0) ? (unsigned int)opts->interval_ms : 0;
+    scan_opts.sample_count =
+        (opts != NULL && opts->samples > 0) ? (unsigned int)opts->samples : 0;
+    scan_opts.sample_interval_ms =
+        (opts != NULL && opts->interval_ms > 0) ? (unsigned int)opts->interval_ms : 0;
     scan_opts.top_limit = 15;
 
     WT_ScanReport report;

@@ -334,7 +334,7 @@ WinTune is under active, phased development.
 | 12 | Scheduled tasks + startup depth (`tasks`, `--include-tasks`, delay) | Done |
 | 13 | Windows Update & reboot readiness (`updates`, WT-UPDATE-*) | Done |
 | 14 | Restart Manager integration (`blockers`, WT-BLOCKER-001) | Done |
-| 15 | Metrics depth (per-process CPU, multi-sample) | Planned |
+| 15 | Metrics depth (per-process CPU, disk rates, multi-sample scan) | Done |
 | 16 | Apply actions v2 + rollback completeness | Planned |
 | 17 | Fleet / automation hardening | Planned |
 | 18 | Packaging + ARM64 (developer) | Planned |

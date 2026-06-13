@@ -188,8 +188,8 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
             }
         }
         if (show_cpu) {
-            fprintf(out, "  %-6s  %-28.28ls  %8s  %ls\n", "PID", "Process",
-                    "CPU%", "Memory");
+            fwprintf(out, L"  %-6s  %-28.28ls  %8s  %ls\n", L"PID", L"Process",
+                     L"CPU%", L"Memory");
         }
         for (size_t i = 0; i < report->top_process_count; ++i) {
             const WT_ProcessInfo *p = &report->top_processes[i];

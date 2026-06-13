@@ -10,8 +10,26 @@ failures are recorded rather than fatal.
 ## Sampling Model
 
 - Prefer multiple samples over a short interval rather than a single noisy read.
-- v1 default: **3 to 5 samples over 5 to 10 seconds** is acceptable.
-- Recommendations are never derived from one noisy sample.
+- Default single-sample window: **500 ms** PDH interval for CPU and disk activity.
+- Multi-sample scans: `wintune scan --samples N --interval MS` averages CPU and
+  disk active time across samples (up to 32).
+- Recommendations are never derived from one noisy sample when multi-sample
+  mode is used.
+
+### Phase 15 commands
+
+```bash
+wintune scan --samples 5 --interval 1000
+wintune top --sort cpu
+wintune top --sort disk
+wintune top --sort memory
+```
+
+Per-process metrics in `top`, `scan`, and TUI:
+
+- **CPU%** — PDH `\Process(*)\% Processor Time` mapped via `\Process(*)\ID Process`
+- **Disk read/write rates** — delta of `GetProcessIoCounters` over the sample window
+- Per-process network rates are not available without ETW (future phase)
 
 ---
 

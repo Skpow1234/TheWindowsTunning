@@ -15,6 +15,7 @@
 #define WT_TOP_DEFAULT_LIMIT 12
 #define WT_TOP_MAX_LIMIT 128
 #define WT_TOP_DEFAULT_INTERVAL_MS 1000
+#define WT_TOP_DEFAULT_SAMPLE_MS 500
 #define WT_TOP_POLL_STEP_MS 50
 
 static volatile int g_watch_stop = 0;
@@ -44,10 +45,12 @@ static size_t wt_top_clamp_limit(long requested)
 }
 
 static WT_Result wt_top_snapshot(WT_ProcessInfo *buffer, size_t limit,
+                                 WT_ProcessSort sort, unsigned int sample_ms,
                                  size_t *out_shown)
 {
     size_t count = 0;
-    WT_Result r = wt_collect_top_processes_by_memory(buffer, limit, &count);
+    WT_Result r =
+        wt_collect_top_processes(buffer, limit, sort, sample_ms, &count);
     if (r != WT_OK) {
         return r;
     }
@@ -76,7 +79,8 @@ static int wt_top_wait_or_quit(unsigned int ms)
     return 0;
 }
 
-static int wt_top_watch(size_t limit, unsigned int interval_ms)
+static int wt_top_watch(size_t limit, WT_ProcessSort sort,
+                        unsigned int interval_ms, unsigned int sample_ms)
 {
     WT_ProcessInfo *buffer = (WT_ProcessInfo *)malloc(limit * sizeof(WT_ProcessInfo));
     if (buffer == NULL) {
@@ -93,7 +97,8 @@ static int wt_top_watch(size_t limit, unsigned int interval_ms)
     int rc = 0;
     while (!g_watch_stop) {
         size_t shown = 0;
-        WT_Result r = wt_top_snapshot(buffer, limit, &shown);
+        WT_Result r =
+            wt_top_snapshot(buffer, limit, sort, sample_ms, &shown);
 
         fputs("\x1b[H\x1b[2J", stdout);
 
@@ -130,10 +135,24 @@ int wt_cmd_top(const WT_CliOptions *opts)
     const int json = wt_cli_is_json_mode(opts);
     const int watch = (opts != NULL && opts->watch);
 
-    if (opts != NULL && opts->sort != NULL && wcscmp(opts->sort, L"memory") != 0) {
-        wt_cli_user_note(opts,
-                         "wintune: only --sort memory is available; "
-                         "sorting by memory.\n");
+    WT_ProcessSort sort = WT_PROCESS_SORT_MEMORY;
+    if (opts != NULL && opts->sort != NULL) {
+        if (_wcsicmp(opts->sort, L"cpu") == 0) {
+            sort = WT_PROCESS_SORT_CPU;
+        } else if (_wcsicmp(opts->sort, L"disk") == 0) {
+            sort = WT_PROCESS_SORT_DISK;
+        } else if (_wcsicmp(opts->sort, L"memory") != 0) {
+            wt_cli_user_note(opts,
+                             "wintune: unknown --sort key; using memory.\n");
+        }
+    }
+
+    unsigned int sample_ms = WT_TOP_DEFAULT_SAMPLE_MS;
+    if (sort != WT_PROCESS_SORT_MEMORY ||
+            (opts != NULL && opts->sort != NULL)) {
+        if (opts != NULL && opts->interval_ms > 0) {
+            sample_ms = (unsigned int)opts->interval_ms;
+        }
     }
 
     size_t limit = wt_top_clamp_limit(opts != NULL ? opts->limit : -1);
@@ -141,10 +160,10 @@ int wt_cmd_top(const WT_CliOptions *opts)
     if (watch && !json) {
         if (wt_session_is_interactive()) {
             unsigned int interval = WT_TOP_DEFAULT_INTERVAL_MS;
-            if (opts->interval_ms > 0) {
+            if (opts != NULL && opts->interval_ms > 0) {
                 interval = (unsigned int)opts->interval_ms;
             }
-            return wt_top_watch(limit, interval);
+            return wt_top_watch(limit, sort, interval, sample_ms);
         }
         wt_cli_user_note(opts,
                          "wintune: 'top --watch' needs an interactive terminal; "
@@ -160,7 +179,7 @@ int wt_cmd_top(const WT_CliOptions *opts)
     }
 
     size_t shown = 0;
-    WT_Result r = wt_top_snapshot(buffer, limit, &shown);
+    WT_Result r = wt_top_snapshot(buffer, limit, sort, sample_ms, &shown);
     if (r != WT_OK) {
         fprintf(stderr, "wintune: could not enumerate processes (%s)\n",
                 wt_result_to_string(r));
@@ -171,7 +190,7 @@ int wt_cmd_top(const WT_CliOptions *opts)
     if (json) {
         FILE *out = stdout;
         FILE *opened = NULL;
-        if (opts->output_path != NULL) {
+        if (opts != NULL && opts->output_path != NULL) {
             if (_wfopen_s(&opened, opts->output_path, L"wb") != 0 || opened == NULL) {
                 fwprintf(stderr, L"wintune: could not open output file '%ls'\n",
                          opts->output_path);

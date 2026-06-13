@@ -38,6 +38,9 @@ typedef struct WT_ScanReport {
 
     WT_UpdateStatus updates;
 
+    unsigned int scan_sample_count;
+    unsigned int scan_sample_interval_ms;
+
     int os_ok;
     int cpu_ok;
     int memory_ok;

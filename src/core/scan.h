@@ -7,8 +7,10 @@
 #include "core/report_model.h"
 
 typedef struct WT_ScanOptions {
-    unsigned int cpu_sample_ms;   /* interval for the PDH CPU sample */
-    size_t top_limit;             /* number of top processes to keep */
+    unsigned int cpu_sample_ms;        /* PDH interval per sample window */
+    unsigned int sample_count;         /* 0 or 1 = single sample */
+    unsigned int sample_interval_ms;   /* pause between multi-samples */
+    size_t top_limit;                  /* number of top processes to keep */
 } WT_ScanOptions;
 
 /* Runs a full local scan, populating `report`. Collection is best-effort:
