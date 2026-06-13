@@ -290,15 +290,42 @@ WT_Result wt_collect_boot_from_event_log(WT_BootReport *report)
     wt_boot_report_init(report);
     StringCchCopyW(report->source, ARRAYSIZE(report->source), L"event_log");
 
-    EVT_HANDLE query = EvtQuery(NULL, WT_BOOT_PERF_CHANNEL, g_boot_query,
-                                EvtQueryChannelPath | EvtQueryReverseDirection);
+    DWORD query_flags = EvtQueryChannelPath | EvtQueryReverseDirection;
+    EVT_HANDLE query = EvtQuery(NULL, WT_BOOT_PERF_CHANNEL, g_boot_query, query_flags);
+
     if (query == NULL) {
         DWORD err = GetLastError();
-        WT_LOGW("EvtQuery failed for boot channel (err=%lu)", err);
+        WT_LOGW("EvtQuery channel failed (err=%lu)", err);
+
         if (err == ERROR_ACCESS_DENIED) {
-            return WT_ERR_ACCESS_DENIED;
+            wchar_t evtx[MAX_PATH];
+            UINT n = GetSystemDirectoryW(evtx, ARRAYSIZE(evtx));
+            if (n > 0 && n < ARRAYSIZE(evtx)) {
+                if (SUCCEEDED(StringCchPrintfW(
+                        evtx, ARRAYSIZE(evtx),
+                        L"%s\\winevt\\Logs\\"
+                        L"Microsoft-Windows-Diagnostics-Performance%%4Operational.evtx",
+                        evtx))) {
+                    query = EvtQuery(NULL, evtx, g_boot_query,
+                                     EvtQueryFilePath | EvtQueryReverseDirection);
+                    if (query != NULL) {
+                        StringCchCopyW(report->source, ARRAYSIZE(report->source),
+                                       L"event_log_file");
+                    } else {
+                        WT_LOGW("EvtQuery evtx fallback failed (err=%lu)",
+                                GetLastError());
+                    }
+                }
+            }
         }
-        return WT_ERR_WIN32;
+
+        if (query == NULL) {
+            err = GetLastError();
+            if (err == ERROR_ACCESS_DENIED) {
+                return WT_ERR_ACCESS_DENIED;
+            }
+            return WT_ERR_WIN32;
+        }
     }
 
     EVT_HANDLE events[32];

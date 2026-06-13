@@ -54,7 +54,7 @@ WT_Result wt_run_scan(const WT_ScanOptions *opts, WT_ScanReport *report)
     WT_Result boot_r = wt_collect_boot_from_event_log(&report->boot);
     report->boot_ok = (boot_r == WT_OK);
     if (boot_r != WT_OK && boot_r != WT_ERR_NOT_FOUND) {
-        WT_LOGW("boot metrics unavailable (%s)", wt_result_to_string(boot_r));
+        WT_LOGD("boot metrics unavailable (%s)", wt_result_to_string(boot_r));
     }
 
     wt_collect_top_processes(report, top_limit);

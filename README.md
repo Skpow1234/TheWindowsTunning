@@ -7,7 +7,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-blue.svg)](docs/roadmap.md)
-[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%209)-orange.svg)](#project-status)
+[![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%2010)-orange.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -329,7 +329,7 @@ WinTune is under active, phased development.
 | 7 | Safe apply actions: `power --set`, `apply`, startup toggle, service restart, `rollback` | Done |
 | 8 | `report` (text + JSON, `--output`) | Done |
 | 9 | SSH hardening (session detection, safe-terminal, JSON session metadata) | Done |
-| 10 | ETW boot/login analysis | Planned |
+| 10 | ETW boot/login analysis (`boot analyze`, `boot trace`, `startup --measured`) | Done |
 | 11 | Background agent / Windows Service | Planned |
 | 12 | Scheduled tasks + startup depth | Planned |
 | 13 | Windows Update & reboot readiness | Planned |
@@ -342,8 +342,8 @@ WinTune is under active, phased development.
 | 20 | TUI polish & UX | Planned |
 | 21 | Distributable executable (end-user release) | Planned |
 
-**v1 (Phases 0–9) is complete.** Phases 10–21 are documented in
-[`docs/roadmap.md`](docs/roadmap.md) with deliverables, example commands,
+**v1 (Phases 0–9) is complete.** Phase 10 adds boot/login analysis. Phases 11–21 are
+documented in [`docs/roadmap.md`](docs/roadmap.md) with deliverables, example commands,
 dependencies, and explicit non-goals.
 
 Commands that are recognized but not yet implemented print a clear notice and
@@ -374,8 +374,9 @@ exit non-zero.
 - `startup enable/disable` toggles the Windows StartupApproved flag (the same
   one Task Manager uses) and never deletes the underlying Run value or startup
   file. HKLM-scoped entries (`HKLM\Run`, common Startup folder) require admin.
-  Startup "impact" is a coarse heuristic until boot tracing (Phase 10) provides
-  measured costs. Scheduled-task inspection (`--include-tasks`) is not yet
+  Startup "impact" uses heuristics by default; `wintune startup --measured`
+  correlates entries with Windows boot/login metrics when available (may require
+  elevation). Scheduled-task inspection (`--include-tasks`) is not yet
   implemented.
 - `services restart` requires elevation and refuses a denylist of
   critical/security services to avoid destabilizing Windows.
@@ -393,6 +394,7 @@ exit non-zero.
 - [`docs/cli.md`](docs/cli.md) — command reference
 - [`docs/tui.md`](docs/tui.md) — terminal dashboard
 - [`docs/ssh.md`](docs/ssh.md) — remote usage
+- [`docs/boot.md`](docs/boot.md) — boot/login analysis (Phase 10)
 - [`docs/metrics.md`](docs/metrics.md) — what is measured and how
 - [`docs/ci.md`](docs/ci.md) — GitHub Actions, lint, and releases
 - [`docs/roadmap.md`](docs/roadmap.md) — phased delivery plan

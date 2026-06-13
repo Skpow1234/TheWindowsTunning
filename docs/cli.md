@@ -19,6 +19,7 @@ wintune scan        # full local scan
 wintune top         # process usage snapshot (or --watch)
 wintune tui         # live terminal dashboard
 wintune startup     # startup entries and estimated impact
+wintune boot        # boot/login performance analysis (Phase 10)
 wintune services    # service status and startup type
 wintune power       # current power plan + recommendations
 wintune recommend   # recommendations without applying
@@ -156,6 +157,7 @@ wintune startup
 wintune startup --json
 wintune startup --include-services
 wintune startup --include-tasks
+wintune startup --measured
 wintune startup --interactive
 ```
 
@@ -168,6 +170,25 @@ wintune startup enable <id>
 ```
 
 Microsoft and security startup items are not disabled by default.
+
+---
+
+## `wintune boot`
+
+Analyzes boot and login performance from Windows Diagnostic-Performance events
+(ETW-backed, summarized output).
+
+```bash
+wintune boot analyze
+wintune boot analyze trace.etl
+wintune boot trace --duration 60000
+wintune boot analyze --json
+```
+
+- **`analyze`** — last boot duration, degradation, slow components.
+- **`trace`** — live ETW login trace saved to `%LOCALAPPDATA%\WinTune\traces\`.
+
+Admin may be required on some systems. See [`boot.md`](boot.md).
 
 ---
 

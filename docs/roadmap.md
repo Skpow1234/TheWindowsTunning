@@ -26,7 +26,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 7 | Safe apply actions | Done |
 | 8 | Reports | Done |
 | 9 | SSH hardening | Done |
-| 10 | ETW boot/login analysis | Planned |
+| 10 | ETW boot/login analysis | Done |
 | 11 | Background agent / Windows Service | Planned |
 | 12 | Scheduled tasks + startup depth | Planned |
 | 13 | Windows Update & reboot readiness | Planned |
