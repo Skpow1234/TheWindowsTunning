@@ -11,6 +11,7 @@
 #include "system/tasks.h"
 #include "system/services.h"
 #include "system/boot.h"
+#include "system/updates.h"
 
 /* Minimal, dependency-free JSON writer that emits pretty-printed UTF-8 JSON to
  * a FILE stream. It tracks nesting and comma placement so callers only describe
@@ -48,5 +49,6 @@ void wt_print_startup_json(const WT_StartupEntry *items, size_t count, FILE *out
 void wt_print_tasks_json(const WT_ScheduledTask *items, size_t count, FILE *out);
 void wt_print_services_json(const WT_ServiceInfo *items, size_t count, FILE *out);
 void wt_print_boot_json(const WT_BootReport *boot, FILE *out);
+void wt_print_updates_json(const WT_UpdateStatus *status, FILE *out);
 
 #endif /* WINTUNE_JSON_H */

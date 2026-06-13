@@ -308,6 +308,74 @@ static void wt_json_emit_boot_object(WT_JsonWriter *w, const WT_BootReport *boot
     wt_json_end_object(w);
 }
 
+static void wt_json_emit_updates_object(WT_JsonWriter *w,
+                                        const WT_UpdateStatus *u)
+{
+    wt_json_begin_object(w);
+    wt_json_key(w, "available");
+    wt_json_bool(w, u != NULL);
+    if (u == NULL) {
+        wt_json_end_object(w);
+        return;
+    }
+
+    wt_json_key(w, "reboot_required"); wt_json_bool(w, u->reboot_required);
+    wt_json_key(w, "reboot_wu"); wt_json_bool(w, u->reboot_wu);
+    wt_json_key(w, "reboot_cbs"); wt_json_bool(w, u->reboot_cbs);
+    wt_json_key(w, "reboot_pending_file_rename");
+    wt_json_bool(w, u->reboot_pending_file_rename);
+
+    wt_json_key(w, "wu_service_running");
+    if (u->wu_service_running < 0) {
+        wt_json_null(w);
+    } else {
+        wt_json_bool(w, u->wu_service_running);
+    }
+
+    char ts[32];
+    wt_json_key(w, "last_check_utc");
+    if (u->last_check_available &&
+        wt_format_filetime_iso8601_utc(&u->last_check_utc, ts, sizeof(ts)) == WT_OK) {
+        wt_json_string(w, ts);
+    } else {
+        wt_json_null(w);
+    }
+
+    wt_json_key(w, "last_install_utc");
+    if (u->last_install_available &&
+        wt_format_filetime_iso8601_utc(&u->last_install_utc, ts, sizeof(ts)) == WT_OK) {
+        wt_json_string(w, ts);
+    } else {
+        wt_json_null(w);
+    }
+
+    wt_json_key(w, "last_install_title"); wt_json_wstring(w, u->last_install_title);
+
+    wt_json_key(w, "search_available"); wt_json_bool(w, u->search_available);
+    wt_json_key(w, "pending_count"); wt_json_uint64(w, u->pending_count);
+    wt_json_key(w, "pending_mandatory_count");
+    wt_json_uint64(w, u->pending_mandatory_count);
+
+    wt_json_key(w, "pending");
+    wt_json_begin_array(w);
+    for (unsigned long i = 0; i < u->pending_count; ++i) {
+        const WT_PendingUpdate *p = &u->pending[i];
+        wt_json_begin_object(w);
+        wt_json_key(w, "title"); wt_json_wstring(w, p->title);
+        wt_json_key(w, "update_id"); wt_json_wstring(w, p->update_id);
+        wt_json_key(w, "mandatory"); wt_json_bool(w, p->mandatory);
+        wt_json_key(w, "downloaded"); wt_json_bool(w, p->downloaded);
+        wt_json_key(w, "reboot_required"); wt_json_bool(w, p->reboot_required);
+        wt_json_end_object(w);
+    }
+    wt_json_end_array(w);
+
+    if (u->note[0] != L'\0') {
+        wt_json_key(w, "note"); wt_json_wstring(w, u->note);
+    }
+    wt_json_end_object(w);
+}
+
 void wt_print_scan_report_json(const WT_ScanReport *report,
                                const WT_RecommendationList *recs, FILE *out)
 {
@@ -410,6 +478,16 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     wt_json_key(&w, "boot");
     if (report->boot_ok) {
         wt_json_emit_boot_object(&w, &report->boot);
+    } else {
+        wt_json_begin_object(&w);
+        wt_json_key(&w, "available"); wt_json_bool(&w, 0);
+        wt_json_end_object(&w);
+    }
+
+    /* updates (Phase 13) */
+    wt_json_key(&w, "updates");
+    if (report->updates_ok) {
+        wt_json_emit_updates_object(&w, &report->updates);
     } else {
         wt_json_begin_object(&w);
         wt_json_key(&w, "available"); wt_json_bool(&w, 0);
@@ -555,6 +633,19 @@ void wt_print_boot_json(const WT_BootReport *boot, FILE *out)
     wt_json_emit_envelope_head(&w);
     wt_json_key(&w, "boot");
     wt_json_emit_boot_object(&w, boot);
+    wt_json_end_object(&w);
+    wt_json_finish(&w);
+}
+
+void wt_print_updates_json(const WT_UpdateStatus *status, FILE *out)
+{
+    WT_JsonWriter w;
+    wt_json_init(&w, out);
+
+    wt_json_begin_object(&w);
+    wt_json_emit_envelope_head(&w);
+    wt_json_key(&w, "updates");
+    wt_json_emit_updates_object(&w, status);
     wt_json_end_object(&w);
     wt_json_finish(&w);
 }
