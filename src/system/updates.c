@@ -322,9 +322,14 @@ static void wt_add_pending_update(WT_UpdateStatus *status, IUpdate *update)
         p->downloaded = (downloaded == VARIANT_TRUE) ? 1 : 0;
     }
 
-    VARIANT_BOOL reboot = VARIANT_FALSE;
-    if (SUCCEEDED(update->lpVtbl->get_RebootRequired(update, &reboot))) {
-        p->reboot_required = (reboot == VARIANT_TRUE) ? 1 : 0;
+    IInstallationBehavior *behavior = NULL;
+    if (SUCCEEDED(update->lpVtbl->get_InstallationBehavior(update, &behavior)) &&
+        behavior != NULL) {
+        InstallationRebootBehavior rb = irbNeverReboots;
+        if (SUCCEEDED(behavior->lpVtbl->get_RebootBehavior(behavior, &rb))) {
+            p->reboot_required = (rb == irbAlwaysRequiresReboot) ? 1 : 0;
+        }
+        behavior->lpVtbl->Release(behavior);
     }
 
     status->pending_count++;

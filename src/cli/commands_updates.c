@@ -71,11 +71,11 @@ static void wt_print_updates_text(const WT_UpdateStatus *s)
             printf("\n%-4s %-4s %-6s %ls\n", "Mand", "DL", "Reboot", L"Title");
             for (unsigned long i = 0; i < s->pending_count; ++i) {
                 const WT_PendingUpdate *p = &s->pending[i];
-                wprintf(L"%-4s %-4s %-6s %.72ls\n",
-                        p->mandatory ? "yes" : "no",
-                        p->downloaded ? "yes" : "no",
-                        p->reboot_required ? "yes" : "no",
-                        p->title);
+                printf("%-4s %-4s %-6s ",
+                       p->mandatory ? "yes" : "no",
+                       p->downloaded ? "yes" : "no",
+                       p->reboot_required ? "yes" : "no");
+                wprintf(L"%.72ls\n", p->title);
             }
         }
     } else if (s->note[0] != L'\0') {
@@ -95,6 +95,10 @@ int wt_cmd_updates(const WT_CliOptions *opts)
     if (r != WT_OK && !status.reboot_required && status.pending_count == 0) {
         fprintf(stderr, "wintune: update status failed (%s)\n",
                 wt_result_to_string(r));
+        if (status.note[0] != L'\0') {
+            wprintf(L" — %ls", status.note);
+        }
+        fputc('\n', stderr);
         return 1;
     }
 

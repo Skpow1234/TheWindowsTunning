@@ -11,6 +11,7 @@
 #include "system/os_info.h"
 #include "system/power.h"
 #include "system/boot.h"
+#include "system/updates.h"
 
 #define WT_MAX_VOLUMES 32
 #define WT_MAX_TOP_PROCESSES 32
@@ -35,6 +36,8 @@ typedef struct WT_ScanReport {
 
     WT_BootReport boot;
 
+    WT_UpdateStatus updates;
+
     int os_ok;
     int cpu_ok;
     int memory_ok;
@@ -43,6 +46,7 @@ typedef struct WT_ScanReport {
     int processes_ok;
     int power_ok;
     int boot_ok;
+    int updates_ok;
 } WT_ScanReport;
 
 /* Zero-initializes a report and clears all availability flags. */

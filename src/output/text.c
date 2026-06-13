@@ -159,6 +159,17 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
         fprintf(out, "\n");
     }
 
+    if (report->updates_ok && report->updates.reboot_required) {
+        fprintf(out, "Updates: reboot pending");
+        if (report->updates.reboot_wu) {
+            fprintf(out, " (Windows Update)");
+        }
+        if (report->updates.reboot_cbs) {
+            fprintf(out, " (servicing)");
+        }
+        fprintf(out, "\n  Run 'wintune updates' for details.\n\n");
+    }
+
     fprintf(out, "Top Processes by Memory:\n");
     if (report->processes_ok && report->top_process_count > 0) {
         /* Table helper writes to stdout today; emit compact list to stream. */

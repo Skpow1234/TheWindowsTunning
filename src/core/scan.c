@@ -7,6 +7,7 @@
 #include "system/os_info.h"
 #include "system/power.h"
 #include "system/boot.h"
+#include "system/updates.h"
 #include "common/error.h"
 #include "common/log.h"
 
@@ -56,6 +57,9 @@ WT_Result wt_run_scan(const WT_ScanOptions *opts, WT_ScanReport *report)
     if (boot_r != WT_OK && boot_r != WT_ERR_NOT_FOUND) {
         WT_LOGD("boot metrics unavailable (%s)", wt_result_to_string(boot_r));
     }
+
+    WT_Result upd_r = wt_collect_update_status_fast(&report->updates);
+    report->updates_ok = (upd_r == WT_OK);
 
     wt_collect_top_processes(report, top_limit);
 

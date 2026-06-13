@@ -1,6 +1,7 @@
 #include "core/recommendations.h"
 #include "system/power.h"
 #include "system/boot.h"
+#include "system/updates.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -285,6 +286,94 @@ static void wt_check_boot(const WT_ScanReport *rep, WT_RecommendationList *out)
     }
 }
 
+static void wt_check_updates(const WT_ScanReport *rep, WT_RecommendationList *out)
+{
+    if (!rep->updates_ok) {
+        return;
+    }
+
+    const WT_UpdateStatus *u = &rep->updates;
+
+    if (u->reboot_required) {
+        WT_Recommendation *r = wt_rec_add(out);
+        if (r == NULL) {
+            return;
+        }
+        wt_str_set(r->id, sizeof(r->id), "WT-UPDATE-001");
+        wt_str_set(r->title, sizeof(r->title),
+                   "A reboot is pending to finish updates or servicing");
+        snprintf(r->reason, sizeof(r->reason),
+                 "Windows reports a pending reboot%s%s%s. Leaving the "
+                 "machine without rebooting can leave updates incomplete and "
+                 "may keep showing restart prompts.",
+                 u->reboot_wu ? " (Windows Update)" : "",
+                 u->reboot_cbs ? " (component servicing)" : "",
+                 u->reboot_pending_file_rename ? " (file operations)" : "");
+        wt_str_set(r->action, sizeof(r->action),
+                   "Schedule a reboot when convenient; run 'wintune updates'.");
+        r->severity = WT_SEVERITY_MEDIUM;
+        r->risk = WT_RISK_LOW;
+        r->requires_admin = 0;
+        r->rollback_available = 0;
+        r->confidence_percent = 95;
+    }
+
+    if (u->search_available && u->pending_mandatory_count > 0) {
+        WT_Recommendation *r = wt_rec_add(out);
+        if (r == NULL) {
+            return;
+        }
+        wt_str_set(r->id, sizeof(r->id), "WT-UPDATE-002");
+        wt_str_set(r->title, sizeof(r->title),
+                   "Mandatory Windows updates are pending");
+        snprintf(r->reason, sizeof(r->reason),
+                 "Windows Update reports %lu mandatory update(s) not yet "
+                 "installed. WinTune does not install updates; review them in "
+                 "Settings > Windows Update.",
+                 u->pending_mandatory_count);
+        wt_str_set(r->action, sizeof(r->action), "wintune updates");
+        r->severity = WT_SEVERITY_MEDIUM;
+        r->risk = WT_RISK_NONE;
+        r->requires_admin = 0;
+        r->rollback_available = 0;
+        r->confidence_percent = 90;
+    } else if (u->search_available && u->pending_count >= 5) {
+        WT_Recommendation *r = wt_rec_add(out);
+        if (r == NULL) {
+            return;
+        }
+        wt_str_set(r->id, sizeof(r->id), "WT-UPDATE-003");
+        wt_str_set(r->title, sizeof(r->title),
+                   "Many Windows updates are pending");
+        snprintf(r->reason, sizeof(r->reason),
+                 "Windows Update reports %lu pending update(s). Installing "
+                 "them during maintenance can improve security and stability.",
+                 u->pending_count);
+        wt_str_set(r->action, sizeof(r->action), "wintune updates");
+        r->severity = WT_SEVERITY_LOW;
+        r->risk = WT_RISK_NONE;
+        r->confidence_percent = 85;
+    }
+
+    if (u->wu_service_running == 0) {
+        WT_Recommendation *r = wt_rec_add(out);
+        if (r == NULL) {
+            return;
+        }
+        wt_str_set(r->id, sizeof(r->id), "WT-UPDATE-004");
+        wt_str_set(r->title, sizeof(r->title),
+                   "Windows Update service is not running");
+        wt_str_set(r->reason, sizeof(r->reason),
+                   "The Windows Update service (wuauserv) is stopped. Updates "
+                   "cannot be checked or installed until it is running.");
+        wt_str_set(r->action, sizeof(r->action),
+                   "Start the Windows Update service or use Settings > Windows Update.");
+        r->severity = WT_SEVERITY_LOW;
+        r->risk = WT_RISK_NONE;
+        r->confidence_percent = 90;
+    }
+}
+
 WT_Result wt_generate_recommendations(const WT_ScanReport *report,
                                       WT_RecommendationList *out)
 {
@@ -298,6 +387,7 @@ WT_Result wt_generate_recommendations(const WT_ScanReport *report,
     wt_check_disk(report, out);
     wt_check_cpu(report, out);
     wt_check_boot(report, out);
+    wt_check_updates(report, out);
 
     return WT_OK;
 }
