@@ -19,8 +19,8 @@
 #define WT_SCAN_DEFAULT_SAMPLE_INTERVAL_MS 1000
 #define WT_SCAN_MAX_SAMPLES 32
 
-static void wt_collect_top_processes(WT_ScanReport *report, size_t top_limit,
-                                     unsigned int sample_ms)
+static void wt_scan_collect_top_processes(WT_ScanReport *report, size_t top_limit,
+                                          unsigned int sample_ms)
 {
     if (top_limit > WT_MAX_TOP_PROCESSES) {
         top_limit = WT_MAX_TOP_PROCESSES;
@@ -95,7 +95,7 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
     WT_Result upd_r = wt_collect_update_status_fast(&report->updates);
     report->updates_ok = (upd_r == WT_OK);
 
-    wt_collect_top_processes(report, top_limit, sample_ms);
+    wt_scan_collect_top_processes(report, top_limit, sample_ms);
 
     return WT_OK;
 }
