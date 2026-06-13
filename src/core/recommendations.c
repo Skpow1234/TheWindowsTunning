@@ -3,9 +3,12 @@
 #include "system/boot.h"
 #include "system/updates.h"
 #include "system/blockers.h"
+#include "system/startup.h"
+#include "system/tasks.h"
 
 #include <stdio.h>
 #include <string.h>
+#include <wchar.h>
 
 /* Thresholds are intentionally simple and explicit so recommendations are
  * deterministic and easy to justify. */
@@ -78,7 +81,7 @@ static void wt_check_power(const WT_ScanReport *rep, WT_RecommendationList *out)
                  "High performance plan can improve responsiveness for "
                  "compiling, gaming, or other heavy workloads.",
                  wt_power_scheme_name(p->scheme));
-        wt_str_set(r->action, sizeof(r->action), "wintune power --set performance");
+        wt_str_set(r->action, sizeof(r->action), "wintune apply WT-POWER-001");
         r->severity = (p->scheme == WT_POWER_POWER_SAVER)
                           ? WT_SEVERITY_MEDIUM : WT_SEVERITY_LOW;
         r->risk = WT_RISK_LOW;
@@ -96,7 +99,7 @@ static void wt_check_power(const WT_ScanReport *rep, WT_RecommendationList *out)
                  "Running on battery with the '%s' plan. A Balanced plan can "
                  "extend battery life with little impact on everyday tasks.",
                  wt_power_scheme_name(p->scheme));
-        wt_str_set(r->action, sizeof(r->action), "wintune power --set balanced");
+        wt_str_set(r->action, sizeof(r->action), "wintune apply WT-POWER-002");
         r->severity = WT_SEVERITY_LOW;
         r->risk = WT_RISK_LOW;
         r->requires_admin = 0;
@@ -411,6 +414,141 @@ static void wt_check_blockers(const WT_ScanReport *rep, WT_RecommendationList *o
     r->confidence_percent = 85;
 }
 
+static int wt_startup_is_systemish(const WT_StartupEntry *e)
+{
+    if (e == NULL) {
+        return 1;
+    }
+    const wchar_t *cmd = e->command;
+    if (cmd[0] == L'\0') {
+        return 0;
+    }
+    if (wcsstr(cmd, L"\\Windows\\") != NULL ||
+        wcsstr(cmd, L"\\Microsoft\\") != NULL ||
+        wcsstr(cmd, L"Windows Defender") != NULL ||
+        wcsstr(cmd, L"SecurityHealth") != NULL) {
+        return 1;
+    }
+    return 0;
+}
+
+static void wt_check_startup_actions(const WT_ScanReport *report,
+                                     WT_RecommendationList *out)
+{
+    WT_StartupEntry entries[WT_MAX_STARTUP_ENTRIES];
+    size_t count = 0;
+    if (wt_collect_startup_entries(entries, ARRAYSIZE(entries), &count) != WT_OK) {
+        return;
+    }
+    if (report != NULL && report->boot_ok) {
+        wt_startup_apply_measured(entries, count, &report->boot);
+    }
+
+    for (size_t i = 0; i < count; ++i) {
+        const WT_StartupEntry *e = &entries[i];
+        if (!e->enabled) {
+            continue;
+        }
+        if (e->impact != WT_STARTUP_IMPACT_HIGH &&
+            !(e->measured_available && e->measured_ms >= WT_BOOT_APP_SLOW_MS)) {
+            continue;
+        }
+        if (wt_startup_is_systemish(e)) {
+            continue;
+        }
+
+        WT_Recommendation *r = wt_rec_add(out);
+        if (r == NULL) {
+            break;
+        }
+        wt_str_set(r->id, sizeof(r->id), "WT-STARTUP-002");
+        wt_str_set(r->title, sizeof(r->title),
+                   "Review disabling a high-impact startup entry");
+        if (e->measured_available) {
+            snprintf(r->reason, sizeof(r->reason),
+                     "Startup entry '%ls' is enabled and had about %lu ms "
+                     "measured delay during the last boot/login. Disabling it "
+                     "can reduce login time; you can re-enable it from Task "
+                     "Manager or WinTune rollback.",
+                     e->name, e->measured_ms);
+        } else {
+            snprintf(r->reason, sizeof(r->reason),
+                     "Startup entry '%ls' is enabled and estimated as high "
+                     "impact. Disabling it can reduce login overhead; you can "
+                     "re-enable it from Task Manager or WinTune rollback.",
+                     e->name);
+        }
+        snprintf(r->action, sizeof(r->action),
+                 "wintune apply WT-STARTUP-DISABLE \"%ls\"", e->id);
+        r->severity = WT_SEVERITY_MEDIUM;
+        r->risk = WT_RISK_LOW;
+        r->requires_admin = (wcsstr(e->id, L"HKLM") != NULL) ? 1 : 0;
+        r->rollback_available = 1;
+        r->confidence_percent = 70;
+        break;
+    }
+}
+
+static void wt_check_task_actions(const WT_ScanReport *report,
+                                  WT_RecommendationList *out)
+{
+    WT_ScheduledTask tasks[WT_MAX_SCHEDULED_TASKS];
+    size_t count = 0;
+    if (wt_collect_scheduled_tasks(tasks, ARRAYSIZE(tasks), &count,
+                                   WT_TASK_FILTER_LOGON) != WT_OK) {
+        return;
+    }
+    if (report != NULL && report->boot_ok) {
+        wt_tasks_apply_measured(tasks, count, &report->boot);
+    }
+
+    for (size_t i = 0; i < count; ++i) {
+        const WT_ScheduledTask *t = &tasks[i];
+        if (!t->enabled) {
+            continue;
+        }
+        if (wt_task_is_protected(t)) {
+            continue;
+        }
+        if (t->impact != WT_STARTUP_IMPACT_HIGH &&
+            !(t->measured_available && t->measured_ms >= WT_BOOT_APP_SLOW_MS)) {
+            continue;
+        }
+        if (t->delay_seconds > 0) {
+            continue;
+        }
+
+        WT_Recommendation *r = wt_rec_add(out);
+        if (r == NULL) {
+            break;
+        }
+        wt_str_set(r->id, sizeof(r->id), "WT-TASK-001");
+        wt_str_set(r->title, sizeof(r->title),
+                   "Consider delaying a logon scheduled task");
+        if (t->measured_available) {
+            snprintf(r->reason, sizeof(r->reason),
+                     "Logon task '%ls' is enabled and added about %lu ms "
+                     "during the last login. Delaying it by 30 seconds can "
+                     "spread login work without removing the task.",
+                     t->name, t->measured_ms);
+        } else {
+            snprintf(r->reason, sizeof(r->reason),
+                     "Logon task '%ls' is enabled and estimated as high "
+                     "impact. Delaying it by 30 seconds can spread login work "
+                     "without removing the task.",
+                     t->name);
+        }
+        snprintf(r->action, sizeof(r->action),
+                 "wintune apply WT-TASK-DELAY \"%ls\" --seconds 30", t->id);
+        r->severity = WT_SEVERITY_LOW;
+        r->risk = WT_RISK_LOW;
+        r->requires_admin = 0;
+        r->rollback_available = 1;
+        r->confidence_percent = 65;
+        break;
+    }
+}
+
 WT_Result wt_generate_recommendations(const WT_ScanReport *report,
                                       WT_RecommendationList *out)
 {
@@ -426,6 +564,8 @@ WT_Result wt_generate_recommendations(const WT_ScanReport *report,
     wt_check_boot(report, out);
     wt_check_updates(report, out);
     wt_check_blockers(report, out);
+    wt_check_startup_actions(report, out);
+    wt_check_task_actions(report, out);
 
     return WT_OK;
 }

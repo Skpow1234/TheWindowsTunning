@@ -111,6 +111,11 @@ WT_Result wt_action_set_power_plan(WT_PowerScheme target,
     ZeroMemory(&rec, sizeof(rec));
     StringCchCopyW(rec.action_type, ARRAYSIZE(rec.action_type),
                    WT_ROLLBACK_TYPE_POWER);
+    if (target == WT_POWER_BALANCED || target == WT_POWER_POWER_SAVER) {
+        StringCchCopyW(rec.action_id, ARRAYSIZE(rec.action_id), L"WT-POWER-002");
+    } else {
+        StringCchCopyW(rec.action_id, ARRAYSIZE(rec.action_id), L"WT-POWER-001");
+    }
     StringCchPrintfW(rec.description, ARRAYSIZE(rec.description),
                      L"Power plan: %hs -> %hs",
                      wt_power_scheme_name(cur.scheme),

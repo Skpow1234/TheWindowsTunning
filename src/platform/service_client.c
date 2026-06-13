@@ -115,7 +115,8 @@ WT_Result wt_service_client_scan(int doctor_mode, long interval_ms,
     return WT_OK;
 }
 
-WT_Result wt_service_client_apply(const wchar_t *id, int assume_yes,
+WT_Result wt_service_client_apply(const wchar_t *id, const wchar_t *target_id,
+                                  unsigned long delay_seconds, int assume_yes,
                                   char *msg, size_t msg_cap)
 {
     if (id == NULL) {
@@ -127,10 +128,35 @@ WT_Result wt_service_client_apply(const wchar_t *id, int assume_yes,
         return WT_ERR_INVALID_ARGUMENT;
     }
 
-    char req[256];
-    snprintf(req, sizeof(req),
-             "{\"cmd\":\"apply\",\"id\":\"%s\",\"yes\":%d}",
-             id_utf8, assume_yes ? 1 : 0);
+    char target_utf8[256] = {0};
+    if (target_id != NULL && target_id[0] != L'\0') {
+        if (!wt_service_client_utf8_from_w(target_id, target_utf8,
+                                           sizeof(target_utf8))) {
+            return WT_ERR_INVALID_ARGUMENT;
+        }
+    }
+
+    char req[512];
+    if (target_utf8[0] != '\0' && delay_seconds > 0) {
+        snprintf(req, sizeof(req),
+                 "{\"cmd\":\"apply\",\"id\":\"%s\",\"target_id\":\"%s\","
+                 "\"delay_seconds\":%lu,\"yes\":%d}",
+                 id_utf8, target_utf8, delay_seconds, assume_yes ? 1 : 0);
+    } else if (target_utf8[0] != '\0') {
+        snprintf(req, sizeof(req),
+                 "{\"cmd\":\"apply\",\"id\":\"%s\",\"target_id\":\"%s\","
+                 "\"yes\":%d}",
+                 id_utf8, target_utf8, assume_yes ? 1 : 0);
+    } else if (delay_seconds > 0) {
+        snprintf(req, sizeof(req),
+                 "{\"cmd\":\"apply\",\"id\":\"%s\",\"delay_seconds\":%lu,"
+                 "\"yes\":%d}",
+                 id_utf8, delay_seconds, assume_yes ? 1 : 0);
+    } else {
+        snprintf(req, sizeof(req),
+                 "{\"cmd\":\"apply\",\"id\":\"%s\",\"yes\":%d}",
+                 id_utf8, assume_yes ? 1 : 0);
+    }
     return wt_service_client_action(req, msg, msg_cap);
 }
 

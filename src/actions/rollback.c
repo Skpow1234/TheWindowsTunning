@@ -235,10 +235,14 @@ WT_Result wt_rollback_list(FILE *out, int json)
             }
 
             char id[64] = {0}, ts[40] = {0}, type[80] = {0}, desc[256] = {0};
+            char action_id[128] = {0}, prev[512] = {0}, new_val[512] = {0};
             wt_json_get(buf, "id", id, sizeof(id));
             wt_json_get(buf, "timestamp_utc", ts, sizeof(ts));
             wt_json_get(buf, "action_type", type, sizeof(type));
+            wt_json_get(buf, "action_id", action_id, sizeof(action_id));
             wt_json_get(buf, "description", desc, sizeof(desc));
+            wt_json_get(buf, "previous_value", prev, sizeof(prev));
+            wt_json_get(buf, "new_value", new_val, sizeof(new_val));
             free(buf);
 
             any = 1;
@@ -251,11 +255,25 @@ WT_Result wt_rollback_list(FILE *out, int json)
                 fprintf(out, "    \"id\": \"%s\",\n", id);
                 fprintf(out, "    \"timestamp_utc\": \"%s\",\n", ts);
                 fprintf(out, "    \"action_type\": \"%s\",\n", type);
+                fprintf(out, "    \"action_id\": \"");
+                wt_json_write_escaped(out, action_id);
+                fputs("\",\n", out);
                 fprintf(out, "    \"description\": \"");
                 wt_json_write_escaped(out, desc);
+                fputs("\",\n", out);
+                fprintf(out, "    \"previous_value\": \"");
+                wt_json_write_escaped(out, prev);
+                fputs("\",\n", out);
+                fprintf(out, "    \"new_value\": \"");
+                wt_json_write_escaped(out, new_val);
                 fputs("\"\n  }", out);
             } else {
-                fprintf(out, "  %-22s %-20s %s\n", id, ts, desc);
+                if (action_id[0] != '\0') {
+                    fprintf(out, "  %-22s %-20s [%s] %s\n",
+                            id, ts, action_id, desc);
+                } else {
+                    fprintf(out, "  %-22s %-20s %s\n", id, ts, desc);
+                }
             }
         } while (FindNextFileW(h, &fd));
         FindClose(h);

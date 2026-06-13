@@ -490,18 +490,35 @@ WT_Result wt_service_handle_request(const char *request_json,
         if (id == NULL) {
             return wt_service_make_error("apply requires id", resp_out, resp_len);
         }
+        char *target_id = wt_json_extract_string_field(request_json, "target_id");
         long yes = 0;
+        long delay = 0;
         (void)wt_json_extract_int(request_json, "yes", &yes);
+        (void)wt_json_extract_int(request_json, "delay_seconds", &delay);
 
         char msg[512] = {0};
         wchar_t wid[64];
+        wchar_t wtarget[256] = {0};
         if (MultiByteToWideChar(CP_UTF8, 0, id, -1, wid, (int)ARRAYSIZE(wid)) <= 0) {
             free(id);
+            free(target_id);
             return wt_service_make_error("invalid id", resp_out, resp_len);
         }
         free(id);
 
-        WT_Result r = wt_apply_recommendation(wid, (int)yes, msg, sizeof(msg));
+        if (target_id != NULL && target_id[0] != '\0') {
+            if (MultiByteToWideChar(CP_UTF8, 0, target_id, -1, wtarget,
+                                    (int)ARRAYSIZE(wtarget)) <= 0) {
+                free(target_id);
+                return wt_service_make_error("invalid target_id", resp_out,
+                                             resp_len);
+            }
+        }
+        free(target_id);
+
+        WT_Result r = wt_apply_recommendation(
+            wid, wtarget[0] != L'\0' ? wtarget : NULL,
+            delay > 0 ? (unsigned long)delay : 0, (int)yes, msg, sizeof(msg));
         return wt_service_make_action_response("apply", r, msg, resp_out,
                                                resp_len);
     }
