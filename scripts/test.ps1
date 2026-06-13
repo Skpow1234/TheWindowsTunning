@@ -16,9 +16,9 @@ if (-not (Test-Path (Join-Path $BuildDir "CMakeCache.txt"))) {
 }
 
 Write-Host "Building test targets ($Config) ..."
-& cmake --build $BuildDir --config $Config --target test
+& cmake --build $BuildDir --config $Config --target wintune_unit_tests
 if ($LASTEXITCODE -ne 0) {
-    Write-Warning "No 'test' target in CMake yet (tests/ exist but are not wired in CMakeLists.txt)."
+    Write-Error "Failed to build wintune_unit_tests."
     exit $LASTEXITCODE
 }
 
