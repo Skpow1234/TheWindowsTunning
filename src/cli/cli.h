@@ -37,6 +37,11 @@ typedef struct WT_CliOptions {
     int measured;               /* --measured (Phase 10 boot correlation) */
     int via_service;            /* --via-service (Phase 11 service IPC) */
 
+    /* service install (wintune service install) */
+    int service_auto_start;     /* --auto-start */
+    const wchar_t *service_account; /* --account system|localservice|virtual|DOMAIN\User */
+    const wchar_t *service_account_password; /* --account-password (custom only) */
+
     /* services filters (OR-combined; none == show all) */
     int svc_auto;               /* --auto */
     int svc_running;            /* --running */
@@ -73,5 +78,8 @@ void wt_cli_apply_session_defaults(WT_CliOptions *opts);
 /* User-facing hint on stderr. Suppressed in JSON mode so stdout stays clean
  * for automation (errors still use stderr directly). */
 void wt_cli_user_note(const WT_CliOptions *opts, const char *fmt, ...);
+
+/* True when mutating/read commands should route through the WinTune service. */
+int wt_cli_should_route_via_service(const WT_CliOptions *opts);
 
 #endif /* WINTUNE_CLI_H */

@@ -16,6 +16,8 @@
 #include "common/error.h"
 #include "common/log.h"
 #include "platform/console.h"
+#include "platform/service_client.h"
+#include "system/privilege.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -185,6 +187,17 @@ void wt_cli_user_note(const WT_CliOptions *opts, const char *fmt, ...)
     va_end(args);
 }
 
+int wt_cli_should_route_via_service(const WT_CliOptions *opts)
+{
+    if (opts != NULL && opts->via_service) {
+        return 1;
+    }
+    if (!wt_is_process_elevated() && wt_service_client_is_available(500)) {
+        return 1;
+    }
+    return 0;
+}
+
 int wt_cli_run(int argc, wchar_t **argv)
 {
     WT_CliOptions opts = {0};
@@ -212,6 +225,24 @@ int wt_cli_run(int argc, wchar_t **argv)
         else if (wcscmp(t, L"--include-tasks") == 0) opts.include_tasks = 1;
         else if (wcscmp(t, L"--measured") == 0)    opts.measured = 1;
         else if (wcscmp(t, L"--via-service") == 0) opts.via_service = 1;
+        else if (wcscmp(t, L"--auto-start") == 0) opts.service_auto_start = 1;
+        else if (wcscmp(t, L"--account") == 0) {
+            if (i + 1 < argc) {
+                opts.service_account = argv[++i];
+            } else {
+                fprintf(stderr, "wintune: --account requires a value\n");
+                return WT_EXIT_USAGE;
+            }
+        }
+        else if (wcscmp(t, L"--account-password") == 0) {
+            if (i + 1 < argc) {
+                opts.service_account_password = argv[++i];
+            } else {
+                fprintf(stderr,
+                        "wintune: --account-password requires a value\n");
+                return WT_EXIT_USAGE;
+            }
+        }
         else if (wcscmp(t, L"--auto") == 0)         opts.svc_auto = 1;
         else if (wcscmp(t, L"--running") == 0)      opts.svc_running = 1;
         else if (wcscmp(t, L"--stopped") == 0)      opts.svc_stopped = 1;
