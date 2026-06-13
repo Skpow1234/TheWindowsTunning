@@ -148,10 +148,11 @@ Local equivalents:
 
 ```powershell
 .\scripts\lint.ps1
-.\scripts\release.ps1 -Version 0.1.0
+.\scripts\package.ps1 -Config Release -Arch x64 -Zip
+.\scripts\release.ps1 -Version 0.1.2
 ```
 
-Details: [`docs/ci.md`](docs/ci.md).
+Packaging details: [`docs/packaging.md`](docs/packaging.md).
 
 ### Portable ZIP (GitHub Releases)
 
@@ -363,7 +364,7 @@ WinTune is under active, phased development.
 | 15 | Metrics depth (per-process CPU, disk rates, multi-sample scan) | Done |
 | 16 | Apply actions v2 + rollback completeness | Done |
 | 17 | Fleet / automation hardening | Done |
-| 18 | Packaging + ARM64 (developer) | Planned |
+| 18 | Packaging + ARM64 (`package.ps1`, `--log-file`, dual-arch releases) | Done |
 | 19 | Optional tray / native GUI (never Electron) | Planned |
 | 20 | TUI polish & UX | Planned |
 | 21 | Distributable executable (end-user release) | Planned |

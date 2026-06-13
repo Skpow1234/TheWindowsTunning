@@ -54,6 +54,7 @@ wintune help        # usage
 --output <path>    # write output to a file
 --yes              # confirm mutating actions (dangerous actions still blocked)
 --via-service      # route privileged work through WinTune service
+--log-file <path>  # append verbose/debug logs to a file (also stderr)
 ```
 
 JSON schema, exit codes, and fleet patterns: [`json-schema.md`](json-schema.md),

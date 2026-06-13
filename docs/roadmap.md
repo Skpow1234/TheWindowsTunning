@@ -415,6 +415,8 @@ and [`fleet.md`](fleet.md).
 
 ### Phase 18 — Packaging + Platform Expansion
 
+**Status:** Done
+
 **Goal:** Make WinTune easy to deploy beyond “build from source.”
 
 **Deliver:**
@@ -428,9 +430,12 @@ and [`fleet.md`](fleet.md).
 **Example:**
 
 ```powershell
-.\scripts\package.ps1
+.\scripts\package.ps1 -Config Release -Arch arm64 -Zip
+wintune scan --verbose --log-file C:\ProgramData\WinTune\scan.log
 wintune version   # Arch: arm64
 ```
+
+See [`packaging.md`](packaging.md).
 
 ---
 

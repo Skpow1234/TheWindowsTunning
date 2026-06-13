@@ -118,6 +118,15 @@ endif()
 
 install(TARGETS wintune RUNTIME DESTINATION .)
 install(FILES README.md LICENSE DESTINATION . OPTIONAL)
+install(FILES
+    pack/QUICKSTART.txt
+    pack/Run-Doctor.cmd
+    pack/Run-Help.cmd
+    pack/Launch-WinTune.cmd
+    pack/Launch-WinTune.ps1
+    DESTINATION .
+    OPTIONAL
+)
 
 # Windows libraries linked as modules require them:
 #   pdh      -> PDH performance counters (cpu, disk activity)
