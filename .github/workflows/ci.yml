@@ -22,7 +22,7 @@ jobs:
       - name: Configure (warnings as errors)
         shell: pwsh
         run: |
-          .\scripts\cmake-configure.ps1 -BuildDir build -Clean `
+          .\scripts\cmake-configure.ps1 -BuildDir build -Arch x64 -Clean `
             -DefineArg "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
 
       - name: Build Debug
@@ -33,6 +33,10 @@ jobs:
         shell: pwsh
         run: cmake --build build --config Release
 
+      - name: Unit tests
+        shell: pwsh
+        run: .\scripts\test.ps1 -Config Release
+
       - name: Smoke test
         shell: pwsh
         run: |
@@ -40,3 +44,31 @@ jobs:
           & $exe version
           & $exe help | Out-Null
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  build-arm64:
+    name: Build (Windows ARM64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure ARM64
+        shell: pwsh
+        run: |
+          .\scripts\cmake-configure.ps1 -BuildDir build-arm64 -Arch arm64 -Clean `
+            -DefineArg "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
+
+      - name: Build Release
+        shell: pwsh
+        run: cmake --build build-arm64 --config Release
+
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          $exe = ".\build-arm64\Release\wintune.exe"
+          & $exe version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ((& $exe version 2>&1 | Out-String) -notmatch "arm64") {
+            Write-Warning "Expected arm64 in version output"
+          }

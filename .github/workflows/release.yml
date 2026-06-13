@@ -38,11 +38,16 @@ jobs:
             Write-Error "Invalid version '$v'. Use semver like 0.1.0 or tag v0.1.0."
             exit 1
           }
+          $channel = "stable"
+          if ($v -match "-beta") { $channel = "beta" }
           "value=$v" >> $env:GITHUB_OUTPUT
+          "channel=$channel" >> $env:GITHUB_OUTPUT
 
-      - name: Package release
+      - name: Package release (x64 + ARM64)
         shell: pwsh
-        run: .\scripts\release.ps1 -Version ${{ steps.version.outputs.value }} -Config Release
+        run: |
+          .\scripts\release.ps1 -Version ${{ steps.version.outputs.value }} `
+            -Config Release -Arch all -Channel ${{ steps.version.outputs.channel }}
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
@@ -53,5 +58,7 @@ jobs:
           files: |
             dist/WinTune-${{ steps.version.outputs.value }}-win-x64.zip
             dist/WinTune-${{ steps.version.outputs.value }}-win-x64.zip.sha256
+            dist/WinTune-${{ steps.version.outputs.value }}-win-arm64.zip
+            dist/WinTune-${{ steps.version.outputs.value }}-win-arm64.zip.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
