@@ -19,15 +19,17 @@ On every push and pull request to `main`:
 3. Unit tests (`wintune_unit_tests`).
 4. Smoke test: `wintune version` and `wintune help`.
 
-A separate **ARM64** job configures `build-arm64` with `-A ARM64`, builds
-Release, and smoke-tests `wintune version` (expects `Arch: arm64`).
+A separate **ARM64** job runs on **`windows-11-vs2026-arm`** (native ARM64 with
+Visual Studio 2026). Cross-compiling ARM64 on `windows-latest` (x64) fails unless
+the MSVC ARM64 workload is installed; CI uses a native runner instead.
 
-This is the primary lint gate for v1. The project does not require clang-format
-or third-party static analyzers yet.
+The job configures `build-arm64` with `-A ARM64`, builds Release, and
+smoke-tests `wintune version` (expects `Arch: arm64`).
 
-**Generator:** CI uses `scripts/cmake-configure.ps1`, which tries **Visual Studio
-18 2026** (GitHub `windows-latest` since June 2026), then **Visual Studio 17
-2022** (local dev), then CMake’s default generator.
+**Generator:** CI uses `scripts/cmake-configure.ps1`, which discovers installed
+Visual Studio via **vswhere** (VS 2026 first, then VS 2022 for local dev). ARM64
+on x64 hosts is blocked early with a clear error unless ARM64 MSVC tools are
+present.
 
 **Run locally:**
 
@@ -46,7 +48,8 @@ git push origin v0.1.0
 
 The release workflow:
 
-1. Builds **Release** x64 + **ARM64** via `scripts/release.ps1`.
+1. Builds **Release** x64 on `windows-latest` and **ARM64** on
+   `windows-11-vs2026-arm` (parallel package jobs).
 2. Creates portable ZIPs:
    - `dist/WinTune-<version>-win-x64.zip`
    - `dist/WinTune-<version>-win-arm64.zip`
@@ -83,7 +86,6 @@ bumping versions.
 Not yet in CI:
 
 - Authenticode signing
-- ARM64 release matrix
 - winget/Chocolatey manifests
 - Windows version resource / icon embedding
 - Installer (MSI/Inno Setup)

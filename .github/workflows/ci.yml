@@ -47,7 +47,9 @@ jobs:
 
   build-arm64:
     name: Build (Windows ARM64)
-    runs-on: windows-latest
+    # Native ARM64 + VS 2026. Cross-compiling ARM64 on windows-latest (x64) lacks
+    # the MSVC ARM64 toolchain unless the workload is installed separately.
+    runs-on: windows-11-vs2026-arm
 
     steps:
       - name: Checkout
