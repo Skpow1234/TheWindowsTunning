@@ -2,6 +2,7 @@
 
 #include "cli/cli_exit.h"
 #include "cli/exit_codes.h"
+#include "cli/cli_launcher.h"
 #include "cli/commands_scan.h"
 #include "cli/commands_top.h"
 #include "cli/commands_recommend.h"
@@ -350,8 +351,10 @@ int wt_cli_run(int argc, wchar_t **argv)
     }
 
     if (command == NULL) {
+        if (wt_cli_should_show_launcher(argc)) {
+            return wt_cli_interactive_launcher();
+        }
         wt_print_usage();
-        wt_console_hold_open_if_explorer_launch(argc);
         return WT_EXIT_OK;
     }
 

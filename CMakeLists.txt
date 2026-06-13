@@ -78,6 +78,7 @@ add_executable(wintune
     # cli
     src/cli/cli.c
     src/cli/cli_exit.c
+    src/cli/cli_launcher.c
     src/cli/exit_codes.c
     src/cli/commands_scan.c
     src/cli/commands_top.c

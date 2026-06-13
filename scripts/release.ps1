@@ -63,7 +63,8 @@ foreach ($File in @("README.md", "LICENSE")) {
 }
 
 $PackDir = Join-Path $Root "pack"
-foreach ($File in @("QUICKSTART.txt", "Run-Doctor.cmd", "Run-Help.cmd")) {
+foreach ($File in @("QUICKSTART.txt", "Run-Doctor.cmd", "Run-Help.cmd",
+                   "Launch-WinTune.cmd", "Launch-WinTune.ps1")) {
     $Src = Join-Path $PackDir $File
     if (Test-Path $Src) {
         Copy-Item -LiteralPath $Src -Destination (Join-Path $StagingDir $File)

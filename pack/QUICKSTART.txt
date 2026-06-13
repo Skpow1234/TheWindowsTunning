@@ -1,32 +1,32 @@
 WinTune — Quick start (portable ZIP)
 ====================================
 
-WinTune is a COMMAND-LINE tool, not a GUI application.
+WinTune is a command-line tool. Use one of these to get started:
 
-Do NOT double-click wintune.exe — the window will close immediately because
-there is no command to run.
+RECOMMENDED — double-click one of these:
+----------------------------------------
+  Launch-WinTune.cmd     Full interactive CLI (PowerShell prompt)
+  Launch-WinTune.ps1     Same (if PowerShell is your default)
+  Run-Doctor.cmd         One-shot health check (doctor)
+  wintune.exe            Interactive menu (built-in, no PowerShell needed)
 
-Easiest way to start
---------------------
+Interactive mode
+----------------
+After launching, type any command at the  wintune>  prompt, for example:
 
-1. Double-click  Run-Doctor.cmd
-   Runs a full health check (scan + recommendations). The window stays open.
+  doctor
+  scan
+  top --watch
+  startup --include-tasks
+  apply WT-POWER-001 --yes
+  help
 
-Other ways
-----------
+Shortcuts: press 1-9 for common commands (see the on-screen menu).
 
-Open PowerShell or CMD in this folder, then:
+Or open PowerShell / CMD in this folder:
 
-  wintune doctor          Recommended first run
-  wintune scan            Performance snapshot
-  wintune help            All commands
-
-Examples:
-
-  wintune top --watch
-  wintune startup
-  wintune power
-
-Add this folder to your PATH if you want to run "wintune" from anywhere.
+  wintune doctor
+  wintune scan
+  wintune help
 
 More help: README.md

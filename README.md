@@ -162,14 +162,18 @@ immediately.
 **To run WinTune from the ZIP:**
 
 1. Extract the ZIP to a folder (e.g. `C:\Tools\WinTune`).
-2. Double-click **`Run-Doctor.cmd`** for a first health check, **or**
-3. Open **PowerShell** or **CMD** in that folder and run:
+2. Double-click **`Launch-WinTune.cmd`** for an interactive prompt with the
+   full CLI, **or** double-click **`wintune.exe`** for the built-in menu, **or**
+3. Open **PowerShell** / **CMD** and run commands directly:
 
 ```powershell
 .\wintune.exe doctor
 .\wintune.exe scan
 .\wintune.exe help
 ```
+
+At the `wintune>` prompt you can type any command and options (e.g.
+`scan --samples 3`, `top --watch`, `startup --include-tasks`).
 
 Read `QUICKSTART.txt` in the ZIP for a short guide.
 
