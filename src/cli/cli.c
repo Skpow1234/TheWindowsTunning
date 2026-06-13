@@ -5,6 +5,7 @@
 #include "cli/commands_recommend.h"
 #include "cli/commands_doctor.h"
 #include "cli/commands_startup.h"
+#include "cli/commands_tasks.h"
 #include "cli/commands_services.h"
 #include "cli/commands_power.h"
 #include "cli/commands_apply.h"
@@ -42,6 +43,7 @@ static void wt_print_usage(void)
         "  top         Show process usage (use --watch to refresh)\n"
         "  tui         Live terminal dashboard\n"
         "  startup     Show startup entries and estimated impact\n"
+        "  tasks       Scheduled tasks (logon/boot startup impact)\n"
         "  boot        Boot/login performance analysis (ETW-backed)\n"
         "  service     Install/manage the WinTune background agent\n"
         "  services    Show service status and startup type\n"
@@ -107,7 +109,7 @@ static void wt_print_version(void)
 static int wt_command_is_known(const wchar_t *cmd)
 {
     static const wchar_t *known[] = {
-        L"scan", L"top", L"tui", L"startup", L"boot", L"service", L"services", L"power",
+        L"scan", L"top", L"tui", L"startup", L"tasks", L"boot", L"service", L"services", L"power",
         L"recommend", L"apply", L"report", L"doctor", L"rollback"
     };
     const size_t known_count = sizeof(known) / sizeof(known[0]);
@@ -205,6 +207,7 @@ int wt_cli_run(int argc, wchar_t **argv)
     opts.interval_ms = -1;
     opts.duration_ms = -1;
     opts.samples = -1;
+    opts.delay_seconds = -1;
     const wchar_t *command = NULL;
 
     for (int i = 1; i < argc; ++i) {
@@ -223,6 +226,15 @@ int wt_cli_run(int argc, wchar_t **argv)
         else if (wcscmp(t, L"--no-recommendations") == 0) opts.no_recommendations = 1;
         else if (wcscmp(t, L"--include-services") == 0) opts.include_services = 1;
         else if (wcscmp(t, L"--include-tasks") == 0) opts.include_tasks = 1;
+        else if (wcscmp(t, L"--logon") == 0)        opts.tasks_logon = 1;
+        else if (wcscmp(t, L"--seconds") == 0) {
+            if (i + 1 < argc) {
+                opts.delay_seconds = wcstol(argv[++i], NULL, 10);
+            } else {
+                fprintf(stderr, "wintune: --seconds requires a number\n");
+                return WT_EXIT_USAGE;
+            }
+        }
         else if (wcscmp(t, L"--measured") == 0)    opts.measured = 1;
         else if (wcscmp(t, L"--via-service") == 0) opts.via_service = 1;
         else if (wcscmp(t, L"--auto-start") == 0) opts.service_auto_start = 1;
@@ -333,6 +345,8 @@ int wt_cli_run(int argc, wchar_t **argv)
         rc = wt_cmd_doctor(&opts);
     } else if (wcscmp(command, L"startup") == 0) {
         rc = wt_cmd_startup(&opts);
+    } else if (wcscmp(command, L"tasks") == 0) {
+        rc = wt_cmd_tasks(&opts);
     } else if (wcscmp(command, L"services") == 0) {
         rc = wt_cmd_services(&opts);
     } else if (wcscmp(command, L"power") == 0) {

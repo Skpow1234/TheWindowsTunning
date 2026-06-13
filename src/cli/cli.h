@@ -34,6 +34,8 @@ typedef struct WT_CliOptions {
     /* startup */
     int include_services;       /* --include-services */
     int include_tasks;          /* --include-tasks */
+    int tasks_logon;            /* --logon (tasks list filter) */
+    long delay_seconds;         /* --seconds N (tasks/startup delay) */
     int measured;               /* --measured (Phase 10 boot correlation) */
     int via_service;            /* --via-service (Phase 11 service IPC) */
 
