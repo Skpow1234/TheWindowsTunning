@@ -4,7 +4,10 @@
 #include "core/scan.h"
 #include "core/recommendations.h"
 #include "actions/apply.h"
+#include "actions/safe_actions.h"
 #include "output/json.h"
+#include "output/text.h"
+#include "system/power.h"
 #include "platform/paths.h"
 #include "platform/time.h"
 #include "system/privilege.h"
@@ -134,14 +137,68 @@ typedef struct WT_ScanWriteCtx {
     WT_ScanReport report;
     WT_RecommendationList recs;
     int include_recs;
+    int doctor_summary;
+    int text_format;
 } WT_ScanWriteCtx;
 
 static void wt_service_scan_writer(const void *ctx, FILE *out)
 {
     const WT_ScanWriteCtx *c = (const WT_ScanWriteCtx *)ctx;
-    const WT_RecommendationList *recs_ptr =
-        c->include_recs ? &c->recs : NULL;
-    wt_print_scan_report_json(&c->report, recs_ptr, out);
+    if (c->text_format) {
+        wt_print_scan_report_text_to(
+            out, &c->report, c->include_recs ? &c->recs : NULL);
+        if (c->doctor_summary) {
+            wt_print_doctor_summary_text(out, &c->recs);
+        }
+    } else {
+        const WT_RecommendationList *recs_ptr =
+            c->include_recs ? &c->recs : NULL;
+        wt_print_scan_report_json(&c->report, recs_ptr, out);
+    }
+}
+
+static int wt_json_wants_text_format(const char *json)
+{
+    if (json == NULL) {
+        return 0;
+    }
+    return (strstr(json, "\"format\":\"text\"") != NULL ||
+            strstr(json, "\"format\": \"text\"") != NULL);
+}
+
+static int wt_json_utf8_to_wchar(const char *utf8, wchar_t *out, size_t out_count)
+{
+    if (utf8 == NULL || out == NULL || out_count == 0) {
+        return 0;
+    }
+    return MultiByteToWideChar(CP_UTF8, 0, utf8, -1, out, (int)out_count) > 0;
+}
+
+static WT_Result wt_service_make_action_response(const char *cmd, WT_Result result,
+                                                 const char *msg,
+                                                 char **resp_out, size_t *resp_len)
+{
+    char buf[768];
+    if (result == WT_OK) {
+        snprintf(buf, sizeof(buf),
+                 "{\"ok\":true,\"cmd\":\"%s\",\"message\":\"%s\"}",
+                 cmd, msg != NULL && msg[0] != '\0' ? msg : "ok");
+    } else {
+        snprintf(buf, sizeof(buf),
+                 "{\"ok\":false,\"cmd\":\"%s\",\"error\":\"%s\","
+                 "\"message\":\"%s\"}",
+                 cmd, wt_result_to_string(result),
+                 msg != NULL && msg[0] != '\0' ? msg : "");
+    }
+    size_t n = strlen(buf);
+    char *copy = (char *)malloc(n + 1u);
+    if (copy == NULL) {
+        return WT_ERR_OUT_OF_MEMORY;
+    }
+    memcpy(copy, buf, n + 1u);
+    *resp_out = copy;
+    *resp_len = n;
+    return WT_OK;
 }
 
 WT_Result wt_service_run_scan_and_cache(void)
@@ -275,6 +332,8 @@ WT_Result wt_service_handle_request(const char *request_json,
         }
 
         ctx.include_recs = (strcmp(cmd, "doctor") == 0) ? 1 : 0;
+        ctx.doctor_summary = (strcmp(cmd, "doctor") == 0) ? 1 : 0;
+        ctx.text_format = wt_json_wants_text_format(request_json) ? 1 : 0;
         if (ctx.include_recs) {
             wt_generate_recommendations(&ctx.report, &ctx.recs);
         }
@@ -285,6 +344,81 @@ WT_Result wt_service_handle_request(const char *request_json,
             (void)wt_service_run_scan_and_cache();
         }
         return r;
+    }
+
+    if (strcmp(cmd, "power_set") == 0) {
+        char *plan = wt_json_extract_string_field(request_json, "plan");
+        if (plan == NULL) {
+            return wt_service_make_error("power_set requires plan", resp_out,
+                                         resp_len);
+        }
+        long yes = 0;
+        (void)wt_json_extract_int(request_json, "yes", &yes);
+
+        wchar_t wplan[64];
+        if (!wt_json_utf8_to_wchar(plan, wplan, ARRAYSIZE(wplan))) {
+            free(plan);
+            return wt_service_make_error("invalid plan", resp_out, resp_len);
+        }
+        free(plan);
+
+        WT_PowerScheme target = wt_power_scheme_from_token(wplan);
+        if (target == WT_POWER_UNKNOWN) {
+            return wt_service_make_error("unknown power plan", resp_out, resp_len);
+        }
+
+        char msg[512] = {0};
+        WT_Result r = wt_action_set_power_plan(target, (int)yes, msg, sizeof(msg));
+        return wt_service_make_action_response("power_set", r, msg, resp_out,
+                                               resp_len);
+    }
+
+    if (strcmp(cmd, "restart_service") == 0) {
+        char *name = wt_json_extract_string_field(request_json, "name");
+        if (name == NULL) {
+            return wt_service_make_error("restart_service requires name",
+                                         resp_out, resp_len);
+        }
+        long yes = 0;
+        (void)wt_json_extract_int(request_json, "yes", &yes);
+
+        wchar_t wname[256];
+        if (!wt_json_utf8_to_wchar(name, wname, ARRAYSIZE(wname))) {
+            free(name);
+            return wt_service_make_error("invalid name", resp_out, resp_len);
+        }
+        free(name);
+
+        char msg[512] = {0};
+        WT_Result r =
+            wt_action_restart_service(wname, (int)yes, msg, sizeof(msg));
+        return wt_service_make_action_response("restart_service", r, msg,
+                                               resp_out, resp_len);
+    }
+
+    if (strcmp(cmd, "startup_set") == 0) {
+        char *id = wt_json_extract_string_field(request_json, "id");
+        if (id == NULL) {
+            return wt_service_make_error("startup_set requires id", resp_out,
+                                         resp_len);
+        }
+        long yes = 0;
+        long enable = 1;
+        (void)wt_json_extract_int(request_json, "yes", &yes);
+        (void)wt_json_extract_int(request_json, "enable", &enable);
+
+        wchar_t wid[256];
+        if (!wt_json_utf8_to_wchar(id, wid, ARRAYSIZE(wid))) {
+            free(id);
+            return wt_service_make_error("invalid id", resp_out, resp_len);
+        }
+        free(id);
+
+        char msg[512] = {0};
+        WT_Result r = wt_action_set_startup_enabled(wid, enable != 0, (int)yes,
+                                                    msg, sizeof(msg));
+        return wt_service_make_action_response("startup_set", r, msg, resp_out,
+                                               resp_len);
     }
 
     if (strcmp(cmd, "apply") == 0) {
@@ -304,28 +438,8 @@ WT_Result wt_service_handle_request(const char *request_json,
         free(id);
 
         WT_Result r = wt_apply_recommendation(wid, (int)yes, msg, sizeof(msg));
-
-        char buf[640];
-        if (r == WT_OK) {
-            snprintf(buf, sizeof(buf),
-                     "{\"ok\":true,\"cmd\":\"apply\",\"message\":\"%s\"}",
-                     msg[0] != '\0' ? msg : "applied");
-        } else {
-            snprintf(buf, sizeof(buf),
-                     "{\"ok\":false,\"cmd\":\"apply\",\"error\":\"%s\","
-                     "\"message\":\"%s\"}",
-                     wt_result_to_string(r),
-                     msg[0] != '\0' ? msg : "");
-        }
-        size_t n = strlen(buf);
-        char *copy = (char *)malloc(n + 1u);
-        if (copy == NULL) {
-            return WT_ERR_OUT_OF_MEMORY;
-        }
-        memcpy(copy, buf, n + 1u);
-        *resp_out = copy;
-        *resp_len = n;
-        return WT_OK;
+        return wt_service_make_action_response("apply", r, msg, resp_out,
+                                               resp_len);
     }
 
     return wt_service_make_error("unknown cmd", resp_out, resp_len);

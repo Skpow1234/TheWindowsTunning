@@ -7,6 +7,63 @@
 #include <stdlib.h>
 #include <string.h>
 
+static void wt_service_client_extract_message(const char *resp, char *msg,
+                                              size_t msg_cap)
+{
+    if (resp == NULL || msg == NULL || msg_cap == 0) {
+        return;
+    }
+    const char *msg_key = strstr(resp, "\"message\"");
+    if (msg_key == NULL) {
+        return;
+    }
+    const char *q = strchr(msg_key, ':');
+    if (q == NULL) {
+        return;
+    }
+    q = strchr(q, '"');
+    if (q == NULL) {
+        return;
+    }
+    q++;
+    const char *q2 = strchr(q, '"');
+    if (q2 == NULL) {
+        return;
+    }
+    size_t n = (size_t)(q2 - q);
+    if (n >= msg_cap) {
+        n = msg_cap - 1;
+    }
+    memcpy(msg, q, n);
+    msg[n] = '\0';
+}
+
+static WT_Result wt_service_client_action(const char *req_json, char *msg,
+                                          size_t msg_cap)
+{
+    char *resp = NULL;
+    size_t len = 0;
+    WT_Result r = wt_service_ipc_call(req_json, &resp, &len, 60000);
+    if (r != WT_OK) {
+        return r;
+    }
+
+    wt_service_client_extract_message(resp, msg, msg_cap);
+    int ok = (resp != NULL && strstr(resp, "\"ok\":true") != NULL);
+    free(resp);
+    return ok ? WT_OK : WT_ERR_UNKNOWN;
+}
+
+static int wt_service_client_utf8_from_w(const wchar_t *w, char *out,
+                                         size_t out_cap)
+{
+    if (w == NULL || out == NULL || out_cap == 0) {
+        return 0;
+    }
+    return WideCharToMultiByte(CP_UTF8, 0, w, -1, out, (int)out_cap, NULL,
+                               NULL) > 0;
+}
+
 int wt_service_client_is_available(unsigned timeout_ms)
 {
     char *resp = NULL;
@@ -21,20 +78,26 @@ int wt_service_client_is_available(unsigned timeout_ms)
     return ok;
 }
 
-WT_Result wt_service_client_scan(int doctor_mode, long interval_ms, FILE *out)
+WT_Result wt_service_client_scan(int doctor_mode, long interval_ms,
+                                 int text_format, FILE *out)
 {
     if (out == NULL) {
         return WT_ERR_INVALID_ARGUMENT;
     }
 
-    char req[128];
-    if (interval_ms > 0) {
+    char req[160];
+    const char *cmd = doctor_mode ? "doctor" : "scan";
+    if (interval_ms > 0 && text_format) {
         snprintf(req, sizeof(req),
-                 "{\"cmd\":\"%s\",\"interval_ms\":%ld}",
-                 doctor_mode ? "doctor" : "scan", interval_ms);
+                 "{\"cmd\":\"%s\",\"interval_ms\":%ld,\"format\":\"text\"}",
+                 cmd, interval_ms);
+    } else if (interval_ms > 0) {
+        snprintf(req, sizeof(req),
+                 "{\"cmd\":\"%s\",\"interval_ms\":%ld}", cmd, interval_ms);
+    } else if (text_format) {
+        snprintf(req, sizeof(req), "{\"cmd\":\"%s\",\"format\":\"text\"}", cmd);
     } else {
-        snprintf(req, sizeof(req), "{\"cmd\":\"%s\"}",
-                 doctor_mode ? "doctor" : "scan");
+        snprintf(req, sizeof(req), "{\"cmd\":\"%s\"}", cmd);
     }
 
     char *resp = NULL;
@@ -45,7 +108,9 @@ WT_Result wt_service_client_scan(int doctor_mode, long interval_ms, FILE *out)
     }
 
     fwrite(resp, 1, len, out);
-    fputc('\n', out);
+    if (len == 0 || resp[len - 1] != '\n') {
+        fputc('\n', out);
+    }
     free(resp);
     return WT_OK;
 }
@@ -58,8 +123,7 @@ WT_Result wt_service_client_apply(const wchar_t *id, int assume_yes,
     }
 
     char id_utf8[128];
-    if (WideCharToMultiByte(CP_UTF8, 0, id, -1, id_utf8, (int)sizeof(id_utf8),
-                            NULL, NULL) <= 0) {
+    if (!wt_service_client_utf8_from_w(id, id_utf8, sizeof(id_utf8))) {
         return WT_ERR_INVALID_ARGUMENT;
     }
 
@@ -67,35 +131,63 @@ WT_Result wt_service_client_apply(const wchar_t *id, int assume_yes,
     snprintf(req, sizeof(req),
              "{\"cmd\":\"apply\",\"id\":\"%s\",\"yes\":%d}",
              id_utf8, assume_yes ? 1 : 0);
+    return wt_service_client_action(req, msg, msg_cap);
+}
 
-    char *resp = NULL;
-    size_t len = 0;
-    WT_Result r = wt_service_ipc_call(req, &resp, &len, 60000);
-    if (r != WT_OK) {
-        return r;
+WT_Result wt_service_client_power_set(const wchar_t *plan_token, int assume_yes,
+                                      char *msg, size_t msg_cap)
+{
+    if (plan_token == NULL) {
+        return WT_ERR_INVALID_ARGUMENT;
     }
 
-    const char *msg_key = strstr(resp, "\"message\"");
-    if (msg_key != NULL && msg != NULL && msg_cap > 0) {
-        const char *q = strchr(msg_key, ':');
-        if (q != NULL) {
-            q = strchr(q, '"');
-            if (q != NULL) {
-                q++;
-                const char *q2 = strchr(q, '"');
-                if (q2 != NULL) {
-                    size_t n = (size_t)(q2 - q);
-                    if (n >= msg_cap) {
-                        n = msg_cap - 1;
-                    }
-                    memcpy(msg, q, n);
-                    msg[n] = '\0';
-                }
-            }
-        }
+    char plan_utf8[64];
+    if (!wt_service_client_utf8_from_w(plan_token, plan_utf8, sizeof(plan_utf8))) {
+        return WT_ERR_INVALID_ARGUMENT;
     }
 
-    int ok = (strstr(resp, "\"ok\":true") != NULL);
-    free(resp);
-    return ok ? WT_OK : WT_ERR_UNKNOWN;
+    char req[256];
+    snprintf(req, sizeof(req),
+             "{\"cmd\":\"power_set\",\"plan\":\"%s\",\"yes\":%d}",
+             plan_utf8, assume_yes ? 1 : 0);
+    return wt_service_client_action(req, msg, msg_cap);
+}
+
+WT_Result wt_service_client_restart_service(const wchar_t *name, int assume_yes,
+                                            char *msg, size_t msg_cap)
+{
+    if (name == NULL) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    char name_utf8[256];
+    if (!wt_service_client_utf8_from_w(name, name_utf8, sizeof(name_utf8))) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    char req[384];
+    snprintf(req, sizeof(req),
+             "{\"cmd\":\"restart_service\",\"name\":\"%s\",\"yes\":%d}",
+             name_utf8, assume_yes ? 1 : 0);
+    return wt_service_client_action(req, msg, msg_cap);
+}
+
+WT_Result wt_service_client_startup_set(const wchar_t *id, int enable,
+                                        int assume_yes,
+                                        char *msg, size_t msg_cap)
+{
+    if (id == NULL) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    char id_utf8[256];
+    if (!wt_service_client_utf8_from_w(id, id_utf8, sizeof(id_utf8))) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+
+    char req[384];
+    snprintf(req, sizeof(req),
+             "{\"cmd\":\"startup_set\",\"id\":\"%s\",\"enable\":%d,\"yes\":%d}",
+             id_utf8, enable ? 1 : 0, assume_yes ? 1 : 0);
+    return wt_service_client_action(req, msg, msg_cap);
 }
