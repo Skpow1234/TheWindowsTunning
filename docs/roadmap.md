@@ -27,7 +27,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 8 | Reports | Done |
 | 9 | SSH hardening | Done |
 | 10 | ETW boot/login analysis | Done |
-| 11 | Background agent / Windows Service | Planned |
+| 11 | Background agent / Windows Service | Done |
 | 12 | Scheduled tasks + startup depth | Planned |
 | 13 | Windows Update & reboot readiness | Planned |
 | 14 | Restart Manager integration | Planned |

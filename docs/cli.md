@@ -192,6 +192,29 @@ Admin may be required on some systems. See [`boot.md`](boot.md).
 
 ---
 
+## `wintune service`
+
+Install and manage the optional WinTune background agent (Phase 11).
+
+```bash
+wintune service status
+wintune service install
+wintune service start
+wintune service stop
+wintune service uninstall
+```
+
+Use **`--via-service`** on `scan --json`, `doctor --json`, or `apply` to delegate
+privileged work to the local agent. See [`service.md`](service.md).
+
+Global option:
+
+```bash
+wintune scan --json --via-service
+```
+
+---
+
 ## `wintune services`
 
 Shows service status and startup type.

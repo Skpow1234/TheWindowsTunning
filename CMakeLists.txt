@@ -21,6 +21,10 @@ add_executable(wintune
     src/platform/time.c
     src/platform/paths.c
 
+    # platform / service IPC
+    src/platform/service_ipc.c
+    src/platform/service_client.c
+
     # metrics
     src/metrics/pdh_utils.c
     src/metrics/cpu.c
@@ -37,6 +41,11 @@ add_executable(wintune
     src/system/boot.c
     src/system/boot_etw.c
     src/system/privilege.c
+
+    # service (Phase 11)
+    src/service/service_install.c
+    src/service/service_main.c
+    src/service/service_dispatch.c
 
     # actions
     src/actions/rollback.c
@@ -74,6 +83,7 @@ add_executable(wintune
     src/cli/commands_rollback.c
     src/cli/commands_report.c
     src/cli/commands_boot.c
+    src/cli/commands_service.c
 )
 
 target_include_directories(wintune PRIVATE src)

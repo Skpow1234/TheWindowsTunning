@@ -95,13 +95,15 @@ Over SSH, run from an elevated PowerShell or CMD session.
 ```
 
 WinTune never attempts UAC bypass or credential tricks. Future privileged
-remote workflows are intended to use a local **WinTune Windows Service** and
-secure IPC, not unsafe elevation hacks.
+remote workflows use the local **WinTune Windows Service** and secure IPC
+(`wintune service install`, `--via-service`). See [`service.md`](service.md).
 
 **Boot analysis (`wintune boot analyze`)** reads the Diagnostic-Performance
 event log. On some hosts this returns access denied unless the SSH session is
-elevated. `scan --json` / `doctor --json` still succeed with
-`"boot": { "available": false }`. See [`boot.md`](boot.md#admin-requirements).
+elevated or the WinTune service is running. `scan --json` / `doctor --json`
+still succeed with `"boot": { "available": false }` locally; use
+`scan --json --via-service` for elevated boot metrics. See
+[`boot.md`](boot.md#admin-requirements).
 
 ---
 

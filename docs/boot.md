@@ -87,9 +87,10 @@ wintune boot analyze
 wintune boot analyze --json
 ```
 
-Over SSH, use an elevated session (`Run as administrator` on the remote shell)
-or a future WinTune Service (Phase 11). See [`ssh.md`](ssh.md) for remote
-admin guidance.
+Over SSH, use an elevated session (`Run as administrator` on the remote shell),
+the WinTune Service (`wintune scan --json --via-service`), or a future WinTune
+Service-based workflow. See [`boot.md`](boot.md#admin-requirements) and
+[`service.md`](service.md).
 
 ## Data sources
 
