@@ -1,6 +1,7 @@
 #include "cli/commands_doctor.h"
 #include "core/scan.h"
 #include "core/recommendations.h"
+#include "system/updates.h"
 #include "output/text.h"
 #include "output/json.h"
 #include "platform/service_client.h"
@@ -80,6 +81,10 @@ int wt_cmd_doctor(const WT_CliOptions *opts)
     if (r != WT_OK) {
         fprintf(stderr, "wintune: scan failed (%s)\n", wt_result_to_string(r));
         return 1;
+    }
+
+    if (report.updates_ok) {
+        (void)wt_search_pending_updates(&report.updates);
     }
 
     WT_RecommendationList recs;
