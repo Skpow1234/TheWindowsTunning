@@ -15,8 +15,8 @@ commands with documented paths and identity.
 | Service name | `WinTune` |
 | Display name | WinTune Performance Agent |
 | Binary | Same `wintune.exe` with `service run` |
-| Start type | **Demand** (manual start after install) |
-| Account | Local System (default SCM account) |
+| Default start type | **Manual (demand)** — use `--auto-start` for boot start |
+| Default account | **Local System** — choose at install time (see below) |
 | IPC pipe | `\\.\pipe\WinTune` |
 | Data directory | `%ProgramData%\WinTune\` |
 | Cached scan | `%ProgramData%\WinTune\last_scan.json` |
@@ -34,10 +34,38 @@ wintune service start
 wintune service stop
 ```
 
+### Install options (admin)
+
+```powershell
+# Default: Local System, manual start
+wintune service install
+
+# Start automatically with Windows
+wintune service install --auto-start
+
+# Choose the service account (four supported options)
+wintune service install --account system          # Local System (default)
+wintune service install --account localservice    # NT AUTHORITY\LocalService
+wintune service install --account virtual         # NT SERVICE\WinTune (VSA)
+wintune service install --account "DOMAIN\User" --account-password "<secret>"
+```
+
+| `--account` value | Runs as | Notes |
+| --- | --- | --- |
+| `system` | Local System | Highest privilege; default |
+| `localservice` | NT AUTHORITY\LocalService | Lower privilege network service account |
+| `virtual` | NT SERVICE\WinTune | Virtual service account (VSA) for the WinTune service |
+| `DOMAIN\User` | Custom | Requires `--account-password`; use for least-privilege deployments |
+
+Combine with `--auto-start` when you want the agent to start at boot.
+
+`wintune service status` shows the installed start type, account name, and
+whether the pipe is reachable.
+
 ### Install workflow (admin PowerShell)
 
 ```powershell
-.\build\Release\wintune.exe service install
+.\build\Release\wintune.exe service install --account localservice
 .\build\Release\wintune.exe service start
 .\build\Release\wintune.exe service status
 ```
@@ -52,19 +80,26 @@ wintune service uninstall
 ## CLI integration: `--via-service`
 
 ```bash
+wintune scan --via-service
 wintune scan --json --via-service
-wintune doctor --json --via-service
+wintune doctor --via-service
 wintune apply WT-POWER-001 --via-service --yes
+wintune power --set performance --via-service --yes
+wintune services restart Spooler --via-service --yes
+wintune startup disable "HKCU\...\Run\SomeApp" --via-service --yes
 ```
 
-| Command | `--via-service` behavior |
+| Command | Service routing |
 | --- | --- |
-| `scan` / `doctor` | Uses service when **`--json`** is set (returns full scan JSON from the elevated agent) |
-| `apply` | Routes to service when flag is set **or** when CLI is not elevated and the service is reachable |
-| Other commands | Local execution (for now) |
+| `scan` / `doctor` | Uses service when `--via-service` is set (text or JSON) |
+| `apply` | Routes when `--via-service` is set **or** CLI is not elevated and the service is reachable |
+| `power --set` | Same auto-route as `apply` |
+| `services restart` | Same auto-route as `apply` |
+| `startup enable/disable` | Same auto-route as `apply` |
+| Other commands | Local execution |
 
-Text-mode `scan`/`doctor` with `--via-service` falls back to a local scan and
-prints a note — use `--json --via-service` for the service path.
+When the CLI is not elevated and the WinTune service is running, mutating
+commands automatically use the service without requiring `--via-service`.
 
 ## IPC protocol
 
@@ -76,12 +111,19 @@ Example requests:
 {"cmd":"ping"}
 {"cmd":"status"}
 {"cmd":"scan","interval_ms":500}
-{"cmd":"doctor"}
+{"cmd":"scan","format":"text"}
+{"cmd":"doctor","format":"text"}
 {"cmd":"apply","id":"WT-POWER-001","yes":1}
+{"cmd":"power_set","plan":"performance","yes":1}
+{"cmd":"restart_service","name":"Spooler","yes":1}
+{"cmd":"startup_set","id":"HKCU\\...\\Run\\App","enable":0,"yes":1}
 ```
 
+Text responses for `scan`/`doctor` use the same human-readable format as the
+local CLI (`format":"text"` in the request).
+
 The service runs the same core functions as the CLI (`wt_run_scan`,
-`wt_apply_recommendation`, etc.) inside the elevated process.
+`wt_apply_recommendation`, safe actions, etc.) inside the elevated process.
 
 ## Periodic health scans
 
@@ -98,11 +140,12 @@ Non-elevated SSH sessions can use the service for privileged work **if** an
 administrator has installed and started the service on the host:
 
 ```bash
-ssh user@host "wintune scan --json --via-service"
+ssh user@host "wintune scan --via-service"
+ssh user@host "wintune doctor --via-service"
 ssh user@host "wintune apply WT-POWER-001 --yes"
 ```
 
-The second command auto-routes to the service when the remote CLI is not
+Mutating commands auto-route to the service when the remote CLI is not
 elevated and the pipe is reachable.
 
 See [`ssh.md`](ssh.md).
@@ -114,13 +157,13 @@ See [`ssh.md`](ssh.md).
 - No network listeners; local pipe only.
 - Apply actions still respect confirmation/`--yes` and the existing denylist.
 - Dangerous actions remain blocked in the apply layer.
+- Choose the least-privileged account that meets your deployment needs.
 
-## Limitations (Phase 11)
+## Limitations
 
 - Single local pipe; no multi-user remote RPC.
-- Service runs as Local System — document before install in regulated environments.
-- No automatic start at boot (demand start); start manually or via policy.
-- Full apply routing for `services restart` / HKLM startup via IPC is partial —
-  power-plan apply is supported; extend in Phase 16.
+- Custom account password is passed on the install command line — prefer
+  interactive admin sessions or policy-based deployment in regulated environments.
+- Re-install is required to change account or start type (uninstall first).
 
 See [`roadmap.md`](roadmap.md) Phase 11 and Phase 16.

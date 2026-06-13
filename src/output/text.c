@@ -6,96 +6,126 @@
 
 #include <stdio.h>
 
-void wt_print_recommendations_text(const WT_RecommendationList *recs)
+static void wt_print_recommendations_to(FILE *out, const WT_RecommendationList *recs)
 {
-    printf("Recommendations:\n");
+    fprintf(out, "Recommendations:\n");
     if (recs == NULL || recs->count == 0) {
-        printf("  None. No performance issues detected from the current samples.\n");
+        fprintf(out,
+                "  None. No performance issues detected from the current samples.\n");
         return;
     }
 
     for (size_t i = 0; i < recs->count; ++i) {
         const WT_Recommendation *r = &recs->items[i];
-        printf("[%s] %s\n", r->id, r->title);
-        printf("  Severity: %s | Risk: %s | Confidence: %d%%%s%s\n",
-               wt_severity_to_string(r->severity),
-               wt_risk_to_string(r->risk),
-               r->confidence_percent,
-               r->requires_admin ? " | requires admin" : "",
-               r->rollback_available ? " | reversible" : "");
-        printf("  Why: %s\n", r->reason);
-        printf("  Action: %s\n", r->action);
+        fprintf(out, "[%s] %s\n", r->id, r->title);
+        fprintf(out, "  Severity: %s | Risk: %s | Confidence: %d%%%s%s\n",
+                wt_severity_to_string(r->severity),
+                wt_risk_to_string(r->risk),
+                r->confidence_percent,
+                r->requires_admin ? " | requires admin" : "",
+                r->rollback_available ? " | reversible" : "");
+        fprintf(out, "  Why: %s\n", r->reason);
+        fprintf(out, "  Action: %s\n", r->action);
         if (i + 1 < recs->count) {
-            printf("\n");
+            fprintf(out, "\n");
         }
     }
 }
 
-void wt_print_scan_report_text(const WT_ScanReport *report,
-                               const WT_RecommendationList *recs)
+void wt_print_recommendations_text(const WT_RecommendationList *recs)
 {
-    if (report == NULL) {
+    wt_print_recommendations_to(stdout, recs);
+}
+
+void wt_print_doctor_summary_text(FILE *out, const WT_RecommendationList *recs)
+{
+    if (out == NULL) {
         return;
     }
 
-    printf("WinTune System Scan\n\n");
+    size_t high = 0, medium = 0, low = 0;
+    size_t count = (recs != NULL) ? recs->count : 0;
+    for (size_t i = 0; i < count; ++i) {
+        switch (recs->items[i].severity) {
+        case WT_SEVERITY_CRITICAL:
+        case WT_SEVERITY_HIGH:   high++;   break;
+        case WT_SEVERITY_MEDIUM: medium++; break;
+        default:                 low++;    break;
+        }
+    }
 
-    /* System identity */
+    fprintf(out, "\nSummary: %zu recommendation(s)", count);
+    if (count > 0) {
+        fprintf(out, " - %zu high, %zu medium, %zu low/info", high, medium, low);
+    }
+    fprintf(out, "\n");
+    if (high > 0) {
+        fprintf(out, "Start with the high-severity items above.\n");
+    } else if (count == 0) {
+        fprintf(out, "Nothing needs attention based on the current samples.\n");
+    }
+}
+
+void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
+                                  const WT_RecommendationList *recs)
+{
+    if (out == NULL || report == NULL) {
+        return;
+    }
+
+    fprintf(out, "WinTune System Scan\n\n");
+
     if (report->os_ok) {
         wchar_t uptime[32];
         wt_format_duration_ms(report->os.uptime_ms, uptime, 32);
-        printf("OS: %ls %ls\n", report->os.product_name, report->os.arch);
-        printf("Host: %ls\n", report->os.hostname);
-        printf("Uptime: %ls\n", uptime);
+        fwprintf(out, L"OS: %ls %ls\n", report->os.product_name, report->os.arch);
+        fwprintf(out, L"Host: %ls\n", report->os.hostname);
+        fwprintf(out, L"Uptime: %ls\n", uptime);
     } else {
-        printf("OS: (unavailable)\n");
+        fprintf(out, "OS: (unavailable)\n");
     }
 
-    /* Power */
     if (report->power_ok) {
-        printf("Power: %s", wt_power_scheme_name(report->power.scheme));
+        fprintf(out, "Power: %s", wt_power_scheme_name(report->power.scheme));
         if (report->power.on_ac == 1) {
-            printf(" (AC");
+            fprintf(out, " (AC");
         } else if (report->power.on_ac == 0) {
-            printf(" (battery");
+            fprintf(out, " (battery");
         } else {
-            printf(" (");
+            fprintf(out, " (");
         }
         if (report->power.battery_percent >= 0) {
-            printf(" %d%%)", report->power.battery_percent);
+            fprintf(out, " %d%%)", report->power.battery_percent);
         } else {
-            printf(")");
+            fprintf(out, ")");
         }
-        printf("\n");
+        fprintf(out, "\n");
     }
-    printf("\n");
+    fprintf(out, "\n");
 
-    /* CPU */
-    printf("CPU:\n");
+    fprintf(out, "CPU:\n");
     if (report->cpu_ok && report->cpu.available) {
-        printf("  Usage: %.1f%%\n", report->cpu.total_usage_percent);
+        fprintf(out, "  Usage: %.1f%%\n", report->cpu.total_usage_percent);
     } else {
-        printf("  Usage: (unavailable)\n");
+        fprintf(out, "  Usage: (unavailable)\n");
     }
-    printf("  Logical processors: %u\n", report->cpu.logical_processor_count);
-    printf("\n");
+    fprintf(out, "  Logical processors: %u\n", report->cpu.logical_processor_count);
+    fprintf(out, "\n");
 
-    /* Memory */
-    printf("Memory:\n");
+    fprintf(out, "Memory:\n");
     if (report->memory_ok) {
         wchar_t used[32];
         wchar_t total[32];
         wt_format_bytes(report->memory.used_physical_bytes, used, 32);
         wt_format_bytes(report->memory.total_physical_bytes, total, 32);
-        printf("  Used: %ls / %ls (%.1f%%)\n", used, total,
-               report->memory.used_percent);
+        fwprintf(out, L"  Used: %ls / %ls (%.1f%%)\n", used, total,
+                 report->memory.used_percent);
     } else {
-        printf("  (unavailable)\n");
+        fprintf(out, "  (unavailable)\n");
     }
-    printf("\n");
+    fprintf(out, "\n");
 
-    /* Disk */
-    printf("Disk:\n");
+    fprintf(out, "Disk:\n");
     if (report->disk_ok && report->volume_count > 0) {
         for (size_t i = 0; i < report->volume_count; ++i) {
             const WT_DiskVolumeMetrics *v = &report->volumes[i];
@@ -103,44 +133,53 @@ void wt_print_scan_report_text(const WT_ScanReport *report,
             wchar_t total_bytes[32];
             wt_format_bytes(v->free_bytes, free_bytes, 32);
             wt_format_bytes(v->total_bytes, total_bytes, 32);
-            printf("  %ls %ls free / %ls (%.1f%% free)\n",
-                   v->root_path, free_bytes, total_bytes, v->free_percent);
+            fwprintf(out, L"  %ls %ls free / %ls (%.1f%% free)\n",
+                     v->root_path, free_bytes, total_bytes, v->free_percent);
         }
     } else {
-        printf("  (unavailable)\n");
+        fprintf(out, "  (unavailable)\n");
     }
     if (report->disk_active_ok) {
-        printf("  Active time: %.0f%%\n", report->disk_active_percent);
+        fprintf(out, "  Active time: %.0f%%\n", report->disk_active_percent);
     }
-    printf("\n");
+    fprintf(out, "\n");
 
-    /* Boot (Phase 10) */
     if (report->boot_ok && report->boot.boot_duration_ms > 0) {
         wchar_t boot_dur[32];
         wt_format_duration_ms(report->boot.boot_duration_ms, boot_dur, 32);
-        printf("Last boot: %ls", boot_dur);
+        fwprintf(out, L"Last boot: %ls", boot_dur);
         if (report->boot.is_degraded) {
-            printf(" (degradation detected)");
+            fprintf(out, " (degradation detected)");
         }
-        printf("\n");
+        fprintf(out, "\n");
         if (report->boot.component_count > 0) {
-            printf("  Slow components: %zu (see 'wintune boot analyze')\n",
-                   report->boot.component_count);
+            fprintf(out, "  Slow components: %zu (see 'wintune boot analyze')\n",
+                    report->boot.component_count);
         }
-        printf("\n");
+        fprintf(out, "\n");
     }
 
-    /* Top processes */
-    printf("Top Processes by Memory:\n");
+    fprintf(out, "Top Processes by Memory:\n");
     if (report->processes_ok && report->top_process_count > 0) {
-        wt_print_process_table(report->top_processes, report->top_process_count);
+        /* Table helper writes to stdout today; emit compact list to stream. */
+        for (size_t i = 0; i < report->top_process_count; ++i) {
+            const WT_ProcessInfo *p = &report->top_processes[i];
+            wchar_t mem[32];
+            wt_format_bytes(p->working_set_bytes, mem, 32);
+            fwprintf(out, L"  %6lu  %-32.32ls  %ls\n", p->pid, p->name, mem);
+        }
     } else {
-        printf("  (unavailable)\n");
+        fprintf(out, "  (unavailable)\n");
     }
 
-    /* Recommendations */
     if (recs != NULL) {
-        printf("\n");
-        wt_print_recommendations_text(recs);
+        fprintf(out, "\n");
+        wt_print_recommendations_to(out, recs);
     }
+}
+
+void wt_print_scan_report_text(const WT_ScanReport *report,
+                               const WT_RecommendationList *recs)
+{
+    wt_print_scan_report_text_to(stdout, report, recs);
 }

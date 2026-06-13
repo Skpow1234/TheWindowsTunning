@@ -1,8 +1,10 @@
 #include "cli/commands_services.h"
+#include "cli/cli.h"
 #include "system/services.h"
 #include "system/privilege.h"
 #include "actions/safe_actions.h"
 #include "output/json.h"
+#include "platform/service_client.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -98,8 +100,18 @@ static int wt_services_restart(const WT_CliOptions *opts)
         return 2;
     }
     char msg[512] = {0};
-    WT_Result r = wt_action_restart_service(opts->arg2, opts->yes,
-                                            msg, sizeof(msg));
+    WT_Result r;
+    if (wt_cli_should_route_via_service(opts)) {
+        if (!wt_service_client_is_available(2000)) {
+            fprintf(stderr,
+                    "wintune: WinTune service is not reachable.\n");
+            return 1;
+        }
+        r = wt_service_client_restart_service(opts->arg2, opts->yes, msg,
+                                              sizeof(msg));
+    } else {
+        r = wt_action_restart_service(opts->arg2, opts->yes, msg, sizeof(msg));
+    }
     if (msg[0] != '\0') {
         printf("%s\n", msg);
     }

@@ -10,7 +10,7 @@
 
 int wt_cmd_scan(const WT_CliOptions *opts)
 {
-    if (opts != NULL && opts->via_service && wt_cli_is_json_mode(opts)) {
+    if (opts != NULL && opts->via_service) {
         if (!wt_service_client_is_available(2000)) {
             fprintf(stderr,
                     "wintune: WinTune service is not reachable.\n"
@@ -31,8 +31,9 @@ int wt_cmd_scan(const WT_CliOptions *opts)
             out = opened;
         }
 
+        int text_format = !wt_cli_is_json_mode(opts);
         WT_Result r = wt_service_client_scan(
-            0, opts->interval_ms > 0 ? opts->interval_ms : 0, out);
+            0, opts->interval_ms > 0 ? opts->interval_ms : 0, text_format, out);
         if (opened != NULL) {
             fclose(opened);
         }
@@ -42,11 +43,6 @@ int wt_cmd_scan(const WT_CliOptions *opts)
             return 1;
         }
         return 0;
-    }
-    if (opts != NULL && opts->via_service) {
-        wt_cli_user_note(opts,
-            "Note: --via-service with JSON uses the WinTune service. "
-            "Running a local text scan instead.\n");
     }
 
     WT_ScanOptions scan_opts;

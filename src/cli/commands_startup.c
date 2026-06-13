@@ -1,9 +1,11 @@
 #include "cli/commands_startup.h"
+#include "cli/cli.h"
 #include "system/startup.h"
 #include "system/services.h"
 #include "system/boot.h"
 #include "actions/safe_actions.h"
 #include "output/json.h"
+#include "platform/service_client.h"
 #include "common/units.h"
 #include "platform/time.h"
 
@@ -93,8 +95,19 @@ static int wt_startup_set_enabled(const WT_CliOptions *opts, int enable)
         return 2;
     }
     char msg[512] = {0};
-    WT_Result r = wt_action_set_startup_enabled(opts->arg2, enable, opts->yes,
-                                                msg, sizeof(msg));
+    WT_Result r;
+    if (wt_cli_should_route_via_service(opts)) {
+        if (!wt_service_client_is_available(2000)) {
+            fprintf(stderr,
+                    "wintune: WinTune service is not reachable.\n");
+            return 1;
+        }
+        r = wt_service_client_startup_set(opts->arg2, enable, opts->yes, msg,
+                                          sizeof(msg));
+    } else {
+        r = wt_action_set_startup_enabled(opts->arg2, enable, opts->yes, msg,
+                                          sizeof(msg));
+    }
     if (msg[0] != '\0') {
         printf("%s\n", msg);
     }
