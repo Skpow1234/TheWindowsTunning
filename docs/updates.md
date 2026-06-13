@@ -50,6 +50,9 @@ Pending updates:  3 (1 mandatory)
 | `WT-UPDATE-003` | Many pending updates (5+) |
 | `WT-UPDATE-004` | Windows Update service stopped |
 
+When reboot is pending and blockers are detected, `WT-BLOCKER-001` may also
+appear (`wintune blockers`).
+
 Shown in `wintune recommend`, `wintune doctor`, and scan JSON when applicable.
 
 ## JSON

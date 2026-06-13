@@ -39,6 +39,7 @@ add_executable(wintune
     src/system/startup.c
     src/system/tasks.c
     src/system/updates.c
+    src/system/blockers.c
     src/system/services.c
     src/system/boot.c
     src/system/boot_etw.c
@@ -81,6 +82,7 @@ add_executable(wintune
     src/cli/commands_startup.c
     src/cli/commands_tasks.c
     src/cli/commands_updates.c
+    src/cli/commands_blockers.c
     src/cli/commands_services.c
     src/cli/commands_power.c
     src/cli/commands_apply.c
@@ -130,4 +132,5 @@ target_link_libraries(wintune PRIVATE
     ole32
     oleaut32
     wuguid
+    rstrtmgr
 )

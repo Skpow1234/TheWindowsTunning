@@ -333,7 +333,7 @@ WinTune is under active, phased development.
 | 11 | Background agent / Windows Service (`service install`, `--via-service`) | Done |
 | 12 | Scheduled tasks + startup depth (`tasks`, `--include-tasks`, delay) | Done |
 | 13 | Windows Update & reboot readiness (`updates`, WT-UPDATE-*) | Done |
-| 14 | Restart Manager integration | Planned |
+| 14 | Restart Manager integration (`blockers`, WT-BLOCKER-001) | Done |
 | 15 | Metrics depth (per-process CPU, multi-sample) | Planned |
 | 16 | Apply actions v2 + rollback completeness | Planned |
 | 17 | Fleet / automation hardening | Planned |
@@ -401,6 +401,7 @@ exit non-zero.
 - [`docs/boot.md`](docs/boot.md) — boot/login analysis (Phase 10)
 - [`docs/tasks.md`](docs/tasks.md) — scheduled tasks and startup delay (Phase 12)
 - [`docs/updates.md`](docs/updates.md) — Windows Update and reboot readiness (Phase 13)
+- [`docs/blockers.md`](docs/blockers.md) — Restart Manager and reboot blockers (Phase 14)
 - [`docs/metrics.md`](docs/metrics.md) — what is measured and how
 - [`docs/ci.md`](docs/ci.md) — GitHub Actions, lint, and releases
 - [`docs/roadmap.md`](docs/roadmap.md) — phased delivery plan

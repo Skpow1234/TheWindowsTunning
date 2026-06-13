@@ -19,6 +19,9 @@ wintune scan        # full local scan
 wintune top         # process usage snapshot (or --watch)
 wintune tui         # live terminal dashboard
 wintune startup     # startup entries and estimated impact
+wintune tasks        # scheduled tasks (logon/boot startup impact)
+wintune updates      # Windows Update and reboot readiness
+wintune blockers     # apps/files blocking restart or updates
 wintune boot        # boot/login performance analysis (Phase 10)
 wintune service     # WinTune Windows Service install/manage (Phase 11)
 wintune services    # Windows SCM service listing
@@ -203,7 +206,21 @@ wintune updates
 wintune updates --json
 ```
 
-See [`updates.md`](updates.md).
+See [`updates.md`](updates.md). When reboot is pending, also run `wintune blockers`.
+
+---
+
+## `wintune blockers`
+
+Reports applications and file locks that may block restart or update completion
+(Phase 14). Read-only; never closes applications.
+
+```bash
+wintune blockers
+wintune blockers --json
+```
+
+See [`blockers.md`](blockers.md).
 
 ---
 

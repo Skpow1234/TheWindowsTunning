@@ -30,7 +30,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 11 | Background agent / Windows Service | Done |
 | 12 | Scheduled tasks + startup depth | Done |
 | 13 | Windows Update & reboot readiness (`updates`, WT-UPDATE-*) | Done |
-| 14 | Restart Manager integration | Planned |
+| 14 | Restart Manager integration (`blockers`, WT-BLOCKER-001) | Done |
 | 15 | Metrics depth (per-process CPU, multi-sample) | Planned |
 | 16 | Apply actions v2 + rollback completeness | Planned |
 | 17 | Fleet / automation hardening | Planned |
@@ -313,7 +313,7 @@ wintune recommend   # includes WT-UPDATE-* ids
 
 ---
 
-### Phase 14 — Restart Manager Integration
+### Phase 14 — Restart Manager Integration ✅ Done
 
 **Goal:** Help users understand what blocks updates and restarts.
 
