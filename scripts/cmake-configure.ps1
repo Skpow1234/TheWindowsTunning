@@ -2,11 +2,14 @@
 # available. GitHub Actions windows-latest (June 2026+) ships VS 2026, not VS 2022.
 #
 # Usage:
+#   .\scripts\cmake-configure.ps1 -BuildDir build
+#   .\scripts\cmake-configure.ps1 -BuildDir build-arm64 -Arch arm64
 #   .\scripts\cmake-configure.ps1 -BuildDir build -DefineArg "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
-#   .\scripts\cmake-configure.ps1 -BuildDir build -DefineArg @("-DWINTUNE_VERSION=0.1.0", "-DWINTUNE_WARNINGS_AS_ERRORS=ON")
 
 param(
     [string]$BuildDir = "build",
+    [ValidateSet("x64", "arm64")]
+    [string]$Arch = "x64",
     [switch]$Clean,
     [string[]]$DefineArg = @()
 )
@@ -30,6 +33,8 @@ if (-not $Clean -and (Test-Path $CacheFile)) {
 
 New-Item -ItemType Directory -Path $BuildPath -Force | Out-Null
 
+$CMakeArch = if ($Arch -eq "arm64") { "ARM64" } else { "x64" }
+
 function Invoke-Configure {
     param([string[]]$CMakeArgs)
     Write-Host "cmake $($CMakeArgs -join ' ')"
@@ -38,8 +43,8 @@ function Invoke-Configure {
 }
 
 $generators = @(
-    @{ Name = "Visual Studio 18 2026"; Arch = "x64" },
-    @{ Name = "Visual Studio 17 2022"; Arch = "x64" }
+    @{ Name = "Visual Studio 18 2026"; Arch = $CMakeArch },
+    @{ Name = "Visual Studio 17 2022"; Arch = $CMakeArch }
 )
 
 foreach ($gen in $generators) {
@@ -49,7 +54,7 @@ foreach ($gen in $generators) {
     ) + $DefineArg
 
     if ((Invoke-Configure $args) -eq 0) {
-        Write-Host "Configured with $($gen.Name)"
+        Write-Host "Configured with $($gen.Name) ($Arch)"
         exit 0
     }
 
@@ -65,5 +70,5 @@ if ((Invoke-Configure $args) -ne 0) {
     exit $LASTEXITCODE
 }
 
-Write-Host "Configured with CMake default generator"
+Write-Host "Configured with CMake default generator ($Arch)"
 exit 0
