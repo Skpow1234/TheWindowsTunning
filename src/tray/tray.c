@@ -3,7 +3,6 @@
 
 #include "common/log.h"
 #include "platform/paths.h"
-#include "platform/service_client.h"
 
 #include <shellapi.h>
 #include <stdio.h>
@@ -19,6 +18,7 @@
 #define IDM_TRAY_OPEN_FOLDER 1005
 #define IDM_TRAY_CLI         1006
 #define IDM_TRAY_TUI         1007
+#define IDM_TRAY_ABOUT       1009
 #define IDM_TRAY_EXIT        1008
 
 #define WT_TRAY_SINGLETON_MUTEX L"Global\\WinTuneTray_v1"
@@ -272,6 +272,9 @@ static void wt_tray_handle_menu(UINT id)
     case IDM_TRAY_TUI:
         wt_tray_run_tui();
         break;
+    case IDM_TRAY_ABOUT:
+        wt_tray_show_about();
+        break;
     case IDM_TRAY_EXIT:
         PostQuitMessage(0);
         break;
@@ -329,6 +332,7 @@ static int wt_tray_add_icon(HWND hwnd)
     AppendMenuW(g_tray.menu, MF_STRING, IDM_TRAY_CLI, L"Open CLI menu...");
     AppendMenuW(g_tray.menu, MF_STRING, IDM_TRAY_TUI, L"Live dashboard (TUI)...");
     AppendMenuW(g_tray.menu, MF_SEPARATOR, 0, NULL);
+    AppendMenuW(g_tray.menu, MF_STRING, IDM_TRAY_ABOUT, L"About WinTune");
     AppendMenuW(g_tray.menu, MF_STRING, IDM_TRAY_EXIT, L"Exit");
     return 1;
 }

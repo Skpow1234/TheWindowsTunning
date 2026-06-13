@@ -18,6 +18,7 @@
 #include "cli/commands_report.h"
 #include "cli/commands_boot.h"
 #include "cli/commands_service.h"
+#include "cli/commands_tray.h"
 #include "tui/tui.h"
 #include "common/error.h"
 #include "common/log.h"
@@ -57,6 +58,7 @@ static void wt_print_usage(void)
         "  apply       Apply a specific recommendation\n"
         "  report      Write a local performance report\n"
         "  doctor      scan + recommend + summary (best for normal users)\n"
+        "  tray        System tray icon (native Win32, read-only by default)\n"
         "  rollback    List or apply rollback records\n"
         "  version     Show version information\n"
         "  help        Show this help\n"
@@ -120,7 +122,7 @@ static int wt_command_is_known(const wchar_t *cmd)
     static const wchar_t *known[] = {
         L"scan", L"top", L"tui", L"startup", L"tasks", L"updates", L"blockers",
         L"boot", L"service", L"services", L"power",
-        L"recommend", L"apply", L"report", L"doctor", L"rollback"
+        L"recommend", L"apply", L"report", L"doctor", L"tray", L"rollback"
     };
     const size_t known_count = sizeof(known) / sizeof(known[0]);
     for (size_t i = 0; i < known_count; ++i) {
@@ -407,6 +409,8 @@ int wt_cli_run(int argc, wchar_t **argv)
         rc = wt_cmd_boot(&opts);
     } else if (wcscmp(command, L"service") == 0) {
         rc = wt_cmd_service(&opts);
+    } else if (wcscmp(command, L"tray") == 0) {
+        rc = wt_cmd_tray(&opts);
     } else if (wcscmp(command, L"tui") == 0) {
         rc = (wt_tui_run(&opts) == WT_OK) ? WT_EXIT_OK : WT_EXIT_ERROR;
     } else if (wt_command_is_known(command)) {

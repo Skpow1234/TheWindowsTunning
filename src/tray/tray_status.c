@@ -130,17 +130,17 @@ void wt_tray_status_refresh(WT_TrayStatusSummary *summary)
                    summary->service_connected ? L"WinTune service cache"
                                               : L"Last service scan");
 
-    double cpu = wt_tray_json_extract_double(body, "cpu_total_percent");
+    double cpu = wt_tray_json_extract_double(body, "total_usage_percent");
     if (cpu < 0.0) {
-        cpu = wt_tray_json_extract_double(body, "total_usage_percent");
+        cpu = wt_tray_json_extract_double(body, "cpu_total_percent");
     }
     if (cpu >= 0.0) {
         summary->cpu_percent = cpu;
     }
 
-    double mem = wt_tray_json_extract_double(body, "memory_used_percent");
+    double mem = wt_tray_json_extract_double(body, "used_percent");
     if (mem < 0.0) {
-        mem = wt_tray_json_extract_double(body, "used_percent");
+        mem = wt_tray_json_extract_double(body, "memory_used_percent");
     }
     if (mem >= 0.0) {
         summary->memory_percent = mem;
