@@ -165,6 +165,7 @@ immediately.
 1. Extract the ZIP to a folder (e.g. `C:\Tools\WinTune`).
 2. Double-click **`Launch-WinTune.cmd`** for an interactive prompt with the
    full CLI, **or** double-click **`wintune.exe`** for the built-in menu, **or**
+   **`Start-Tray.cmd`** for the system tray icon, **or**
 3. Open **PowerShell** / **CMD** and run commands directly:
 
 ```powershell
@@ -365,7 +366,7 @@ WinTune is under active, phased development.
 | 16 | Apply actions v2 + rollback completeness | Done |
 | 17 | Fleet / automation hardening | Done |
 | 18 | Packaging + ARM64 (`package.ps1`, `--log-file`, dual-arch releases) | Done |
-| 19 | Optional tray / native GUI (never Electron) | Planned |
+| 19 | Optional tray / native GUI (never Electron) | Done |
 | 20 | TUI polish & UX | Planned |
 | 21 | Distributable executable (end-user release) | Planned |
 

@@ -8,6 +8,7 @@ RECOMMENDED — double-click one of these:
   Launch-WinTune.cmd     Full interactive CLI (PowerShell prompt)
   Launch-WinTune.ps1     Same (if PowerShell is your default)
   Run-Doctor.cmd         One-shot health check (doctor)
+  Start-Tray.cmd         System tray icon (native Win32)
   wintune.exe            Interactive menu (built-in, no PowerShell needed)
 
 Interactive mode

@@ -30,6 +30,7 @@ wintune recommend   # recommendations without applying
 wintune apply       # apply a specific recommendation
 wintune report      # write a local performance report
 wintune doctor      # scan + recommend + summary (best for normal users)
+wintune tray        # system tray icon (native Win32, read-only by default)
 wintune rollback    # list / apply rollback records
 wintune version     # version info
 wintune help        # usage
@@ -389,6 +390,19 @@ wintune report --format text
 wintune report --format json
 wintune report --output wintune-report.txt
 ```
+
+---
+
+## `wintune tray`
+
+Native Win32 system tray (Phase 19). Read-only by default — opens consoles for
+`doctor`, `report`, and `tui`. Mutating actions stay in the CLI with confirmation.
+
+```bash
+wintune tray
+```
+
+See [`docs/tray.md`](tray.md).
 
 ---
 

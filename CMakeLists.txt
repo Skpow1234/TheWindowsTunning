@@ -129,6 +129,7 @@ install(FILES
     pack/Run-Help.cmd
     pack/Launch-WinTune.cmd
     pack/Launch-WinTune.ps1
+    pack/Start-Tray.cmd
     DESTINATION .
     OPTIONAL
 )

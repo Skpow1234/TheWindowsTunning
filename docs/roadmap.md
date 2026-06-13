@@ -35,7 +35,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 16 | Apply actions v2 + rollback completeness | Planned |
 | 17 | Fleet / automation hardening | Planned |
 | 18 | Packaging + ARM64 (developer) | Planned |
-| 19 | Optional tray / native GUI (never Electron) | Planned |
+| 19 | Optional tray / native GUI (never Electron) | Done |
 | 20 | TUI polish & UX | Planned |
 | 21 | Distributable executable (end-user release) | Planned |
 
@@ -439,7 +439,7 @@ See [`packaging.md`](packaging.md).
 
 ---
 
-### Phase 19 — Optional Local UI (Never Electron)
+### Phase 19 — Optional Local UI (Never Electron) — **Done**
 
 **Goal:** Convenience for non-terminal users without compromising CLI-first
 identity.
@@ -450,6 +450,15 @@ identity.
 - Lightweight native GUI shell (Win32 or equivalent — **not** WebView/Electron).
 - Communicates with CLI or Phase 11 service via named pipe.
 - Read-only by default; mutating actions still require confirmation.
+
+**Commands:**
+
+```powershell
+wintune tray
+Start-Tray.cmd
+```
+
+See [`tray.md`](tray.md).
 
 **Never:** Electron, Chromium embedded UI, localhost web dashboard as primary
 interface.
