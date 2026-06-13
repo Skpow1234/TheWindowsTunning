@@ -27,9 +27,10 @@ The job configures `build-arm64` with `-A ARM64`, builds Release, and
 smoke-tests `wintune version` (expects `Arch: arm64`).
 
 **Generator:** CI uses `scripts/cmake-configure.ps1`, which discovers installed
-Visual Studio via **vswhere** (VS 2026 first, then VS 2022 for local dev). ARM64
-on x64 hosts is blocked early with a clear error unless ARM64 MSVC tools are
-present.
+Visual Studio via **vswhere** (VS 2026 first, then VS 2022 for local dev). The
+ARM64 job pins **CMake 4.3.3** (`lukka/get-cmake`) because the VS 2026 generator
+requires CMake 4.2+. If the VS generator still fails on ARM64, configure falls
+back to **Ninja** via `Launch-VsDevShell.ps1`.
 
 **Run locally:**
 

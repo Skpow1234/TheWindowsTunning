@@ -55,6 +55,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup CMake 4.3+
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "4.3.3"
+
+      - name: Environment diagnostics
+        shell: pwsh
+        run: |
+          cmake --version
+          Write-Host "PROCESSOR_ARCHITECTURE=$env:PROCESSOR_ARCHITECTURE"
+          $vw = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vw)) {
+            $vw = "$env:ProgramFiles\Microsoft Visual Studio\Installer\vswhere.exe"
+          }
+          if (Test-Path $vw) {
+            & $vw -latest -products * -property installationPath,installationVersion
+          } else {
+            Write-Warning "vswhere not found"
+          }
+
       - name: Configure ARM64
         shell: pwsh
         run: |
@@ -63,12 +83,13 @@ jobs:
 
       - name: Build Release
         shell: pwsh
-        run: cmake --build build-arm64 --config Release
+        run: .\scripts\cmake-build.ps1 -BuildDir build-arm64 -Config Release
 
       - name: Smoke test
         shell: pwsh
         run: |
           $exe = ".\build-arm64\Release\wintune.exe"
+          if (-not (Test-Path $exe)) { $exe = ".\build-arm64\wintune.exe" }
           & $exe version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if ((& $exe version 2>&1 | Out-String) -notmatch "arm64") {

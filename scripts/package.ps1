@@ -40,6 +40,35 @@ function Invoke-CMake {
     }
 }
 
+function Get-BuiltExePath {
+    param(
+        [string]$Dir,
+        [string]$ConfigName
+    )
+    $candidates = @(
+        (Join-Path $Dir "$ConfigName\wintune.exe"),
+        (Join-Path $Dir "wintune.exe")
+    )
+    foreach ($p in $candidates) {
+        if (Test-Path -LiteralPath $p) { return $p }
+    }
+    return $candidates[0]
+}
+
+function Invoke-CMakeInstall {
+    param(
+        [string]$Dir,
+        [string]$ConfigName,
+        [string]$Prefix
+    )
+    $args = @("--install", $Dir, "--prefix", $Prefix)
+    $marker = Join-Path $Dir "WINTUNE_CMAKE_GENERATOR.txt"
+    if (-not (Test-Path -LiteralPath $marker) -or (Get-Content -LiteralPath $marker -Raw).Trim() -ne "Ninja") {
+        $args += @("--config", $ConfigName)
+    }
+    Invoke-CMake $args
+}
+
 function Get-CMakeCacheValue {
     param([string]$Key, [string]$Dir)
     $cache = Join-Path $Dir "CMakeCache.txt"
@@ -71,10 +100,11 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 
 if ($Build -and -not $SkipBuild) {
     Write-Host "Building wintune ($Config, $Arch) ..."
-    Invoke-CMake @("--build", $BuildPath, "--config", $Config)
+    & (Join-Path $PSScriptRoot "cmake-build.ps1") -BuildDir $BuildDir -Config $Config
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
-$Exe = Join-Path $BuildPath "$Config\wintune.exe"
+$Exe = Get-BuiltExePath -Dir $BuildPath -ConfigName $Config
 if (-not (Test-Path $Exe)) {
     Write-Error "Executable not found: $Exe (run with -Build or build first)"
     exit 1
@@ -89,11 +119,11 @@ if (Test-Path $StageDir) {
 New-Item -ItemType Directory -Path $StageDir -Force | Out-Null
 
 Write-Host "Installing to $StageDir ..."
-Invoke-CMake @("--install", $BuildPath, "--config", $Config, "--prefix", $StageDir)
+Invoke-CMakeInstall -Dir $BuildPath -ConfigName $Config -Prefix $StageDir
 
 $PackDir = Join-Path $Root "pack"
 foreach ($File in @("QUICKSTART.txt", "Run-Doctor.cmd", "Run-Help.cmd",
-                   "Launch-WinTune.cmd", "Launch-WinTune.ps1")) {
+                   "Launch-WinTune.cmd", "Launch-WinTune.ps1", "Start-Tray.cmd")) {
     $Src = Join-Path $PackDir $File
     if (Test-Path $Src) {
         Copy-Item -LiteralPath $Src -Destination (Join-Path $StageDir $File) -Force

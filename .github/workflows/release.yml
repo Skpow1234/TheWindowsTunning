@@ -72,6 +72,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup CMake 4.3+
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "4.3.3"
+
       - name: Package ARM64
         shell: pwsh
         run: |
