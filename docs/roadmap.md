@@ -28,7 +28,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 9 | SSH hardening | Done |
 | 10 | ETW boot/login analysis | Done |
 | 11 | Background agent / Windows Service | Done |
-| 12 | Scheduled tasks + startup depth | Planned |
+| 12 | Scheduled tasks + startup depth | Done |
 | 13 | Windows Update & reboot readiness | Planned |
 | 14 | Restart Manager integration | Planned |
 | 15 | Metrics depth (per-process CPU, multi-sample) | Planned |
@@ -262,7 +262,7 @@ wintune scan --via-service
 
 ---
 
-### Phase 12 — Scheduled Tasks + Startup Depth
+### Phase 12 — Scheduled Tasks + Startup Depth ✅ Done
 
 **Goal:** Complete startup impact picture beyond registry and folders.
 

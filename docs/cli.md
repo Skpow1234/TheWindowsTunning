@@ -162,15 +162,34 @@ wintune startup --measured
 wintune startup --interactive
 ```
 
-Actions (later phases, per-item, confirmation required):
+Actions (confirmation required unless `--yes`):
 
 ```bash
-wintune startup disable <id>
-wintune startup delay <id>
-wintune startup enable <id>
+wintune startup disable "<id>"
+wintune startup enable "<id>"
+wintune startup delay "<id>" --seconds 30
 ```
 
 Microsoft and security startup items are not disabled by default.
+
+---
+
+## `wintune tasks`
+
+Lists scheduled tasks with startup impact (Phase 12).
+
+```bash
+wintune tasks list
+wintune tasks list --logon
+wintune tasks list --measured
+wintune tasks list --json
+
+wintune tasks disable "<id>"
+wintune tasks enable "<id>"
+wintune tasks delay "<id>" --seconds 30
+```
+
+See [`tasks.md`](tasks.md).
 
 ---
 

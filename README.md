@@ -331,7 +331,7 @@ WinTune is under active, phased development.
 | 9 | SSH hardening (session detection, safe-terminal, JSON session metadata) | Done |
 | 10 | ETW boot/login analysis (`boot analyze`, `boot trace`, `startup --measured`) | Done |
 | 11 | Background agent / Windows Service (`service install`, `--via-service`) | Done |
-| 12 | Scheduled tasks + startup depth | Planned |
+| 12 | Scheduled tasks + startup depth (`tasks`, `--include-tasks`, delay) | Done |
 | 13 | Windows Update & reboot readiness | Planned |
 | 14 | Restart Manager integration | Planned |
 | 15 | Metrics depth (per-process CPU, multi-sample) | Planned |
@@ -379,8 +379,9 @@ exit non-zero.
   elevation). Boot analysis reads the Diagnostic-Performance event log — on some
   systems that returns access denied without an elevated shell; `scan`/`doctor`/`report`
   continue without boot data, while `boot analyze` asks for admin. See
-  [`docs/boot.md`](docs/boot.md#admin-requirements). Scheduled-task inspection
-  (`--include-tasks`) is not yet implemented.
+  [`docs/boot.md`](docs/boot.md#admin-requirements). Scheduled task inspection is
+  available via `wintune tasks list` and `wintune startup --include-tasks`.
+  See [`docs/tasks.md`](docs/tasks.md).
 - `services restart` requires elevation and refuses a denylist of
   critical/security services to avoid destabilizing Windows.
 - The `tui` dashboard is read-only and keyboard-driven (no mouse). Network
@@ -398,7 +399,7 @@ exit non-zero.
 - [`docs/tui.md`](docs/tui.md) — terminal dashboard
 - [`docs/ssh.md`](docs/ssh.md) — remote usage
 - [`docs/boot.md`](docs/boot.md) — boot/login analysis (Phase 10)
-- [`docs/service.md`](docs/service.md) — Windows Service and `--via-service` (Phase 11)
+- [`docs/tasks.md`](docs/tasks.md) — scheduled tasks and startup delay (Phase 12)
 - [`docs/metrics.md`](docs/metrics.md) — what is measured and how
 - [`docs/ci.md`](docs/ci.md) — GitHub Actions, lint, and releases
 - [`docs/roadmap.md`](docs/roadmap.md) — phased delivery plan
