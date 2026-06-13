@@ -3,7 +3,7 @@
 #
 # Usage:
 #   .\scripts\cmake-configure.ps1 -BuildDir build -DefineArg "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
-#   .\scripts\cmake-configure.ps1 -BuildDir build -DefineArg "-DWINTUNE_VERSION=0.1.0" -DefineArg "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
+#   .\scripts\cmake-configure.ps1 -BuildDir build -DefineArg @("-DWINTUNE_VERSION=0.1.0", "-DWINTUNE_WARNINGS_AS_ERRORS=ON")
 
 param(
     [string]$BuildDir = "build",

@@ -36,8 +36,7 @@ function Invoke-CMake {
 if (-not $SkipBuild) {
     Write-Host "Configuring WinTune release build ($Version) ..."
     & (Join-Path $PSScriptRoot "cmake-configure.ps1") -BuildDir "build" -Clean `
-        -DefineArg "-DWINTUNE_VERSION=$Version" `
-        -DefineArg "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
+        -DefineArg @("-DWINTUNE_VERSION=$Version", "-DWINTUNE_WARNINGS_AS_ERRORS=ON")
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     Write-Host "Building wintune ($Config) ..."

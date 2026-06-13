@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# WinTune release — use this from Git Bash, not release.ps1 (PowerShell only).
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$ROOT/scripts/release.ps1" "$@"
