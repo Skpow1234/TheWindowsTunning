@@ -75,7 +75,8 @@ static void wt_print_usage(void)
         "  --via-service     Use the local WinTune service for privileged work\n"
         "  --json-errors     Emit machine-readable JSON on failure\n"
         "  --compact-json    Minified JSON (no pretty-printing)\n"
-        "  --ndjson          One JSON document per line (e.g. top --watch --json)\n",
+        "  --ndjson          One JSON document per line (e.g. top --watch --json)\n"
+        "  --log-file <path> Append verbose/debug logs to a file (also stderr)\n",
         WT_VERSION_STRING);
 }
 
@@ -254,6 +255,14 @@ int wt_cli_run(int argc, wchar_t **argv)
         else if (wcscmp(t, L"--json-errors") == 0) opts.json_errors = 1;
         else if (wcscmp(t, L"--compact-json") == 0) opts.compact_json = 1;
         else if (wcscmp(t, L"--ndjson") == 0) opts.ndjson = 1;
+        else if (wcscmp(t, L"--log-file") == 0) {
+            if (i + 1 < argc) {
+                opts.log_file_path = argv[++i];
+            } else {
+                fprintf(stderr, "wintune: --log-file requires a path\n");
+                return WT_EXIT_USAGE;
+            }
+        }
         else if (wcscmp(t, L"--auto-start") == 0) opts.service_auto_start = 1;
         else if (wcscmp(t, L"--account") == 0) {
             if (i + 1 < argc) {
@@ -326,6 +335,15 @@ int wt_cli_run(int argc, wchar_t **argv)
     }
 
     wt_apply_log_level(&opts);
+    if (opts.log_file_path != NULL) {
+        WT_Result lr = wt_log_open_file(opts.log_file_path);
+        if (lr != WT_OK) {
+            fwprintf(stderr,
+                     L"wintune: could not open log file '%ls' (%hs)\n",
+                     opts.log_file_path, wt_result_to_string(lr));
+            return WT_EXIT_ERROR;
+        }
+    }
     wt_cli_apply_session_defaults(&opts);
     if (opts.compact_json && opts.ndjson) {
         /* --ndjson implies compact single-line documents. */

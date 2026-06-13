@@ -41,6 +41,7 @@ typedef struct WT_CliOptions {
     int json_errors;            /* --json-errors (machine-readable failures) */
     int compact_json;           /* --compact-json (minified JSON) */
     int ndjson;                 /* --ndjson (one JSON document per line) */
+    const wchar_t *log_file_path; /* --log-file <path> */
 
     /* service install (wintune service install) */
     int service_auto_start;     /* --auto-start */
