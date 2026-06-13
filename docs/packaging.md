@@ -67,7 +67,10 @@ cmake --build build-arm64 --config Release
 .\scripts\package.ps1 -BuildDir build-arm64 -Arch arm64 -Zip
 ```
 
-CI builds **x64** (lint + tests) and **ARM64** (Release smoke test) on every push.
+CI builds **x64** on `windows-latest` and **ARM64** on `windows-11-vs2026-arm`
+(native ARM64 + VS 2026). Cross-compiling ARM64 on an x64 PC requires the MSVC
+ARM64 workload in Visual Studio Installer.
+
 GitHub Releases upload both ZIPs on `v*` tags.
 
 Verify architecture:
