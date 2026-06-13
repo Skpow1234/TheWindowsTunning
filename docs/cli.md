@@ -193,6 +193,20 @@ See [`tasks.md`](tasks.md).
 
 ---
 
+## `wintune updates`
+
+Reports Windows Update and reboot readiness (Phase 13). Read-only; never installs
+updates.
+
+```bash
+wintune updates
+wintune updates --json
+```
+
+See [`updates.md`](updates.md).
+
+---
+
 ## `wintune boot`
 
 Analyzes boot and login performance from Windows Diagnostic-Performance events

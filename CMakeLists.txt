@@ -129,5 +129,5 @@ target_link_libraries(wintune PRIVATE
     taskschd
     ole32
     oleaut32
-    wuapi
+    wuguid
 )

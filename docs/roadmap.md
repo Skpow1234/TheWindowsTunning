@@ -29,7 +29,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 10 | ETW boot/login analysis | Done |
 | 11 | Background agent / Windows Service | Done |
 | 12 | Scheduled tasks + startup depth | Done |
-| 13 | Windows Update & reboot readiness | Planned |
+| 13 | Windows Update & reboot readiness (`updates`, WT-UPDATE-*) | Done |
 | 14 | Restart Manager integration | Planned |
 | 15 | Metrics depth (per-process CPU, multi-sample) | Planned |
 | 16 | Apply actions v2 + rollback completeness | Planned |
@@ -288,7 +288,7 @@ wintune tasks delay "<id>" --seconds 30
 
 ---
 
-### Phase 13 — Windows Update & Reboot Readiness
+### Phase 13 — Windows Update & Reboot Readiness ✅ Done
 
 **Goal:** Explain update and reboot state without becoming an installer.
 
