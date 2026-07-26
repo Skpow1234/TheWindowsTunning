@@ -187,6 +187,8 @@ static void wt_cli_print_launcher_banner(int color)
     wt_cli_print_menu_row(color, "9", "rollback list", "saved rollback records");
 
     printf("\n%s  Examples:%s\n", bold, rst);
+    printf("%s    (press Enter)     run doctor — recommended first step%s\n", dim,
+           rst);
     printf("%s    scan --samples 3%s\n", dim, rst);
     printf("%s    top --watch%s\n", dim, rst);
     printf("%s    apply WT-POWER-001 --yes%s\n", dim, rst);
@@ -199,10 +201,16 @@ static void wt_cli_print_launcher_banner(int color)
     }
 }
 
-static void wt_cli_print_prompt(int color)
+static void wt_cli_print_prompt(int color, int first)
 {
     if (color) {
-        printf("\x1b[1m\x1b[36mwintune>\x1b[0m ");
+        if (first) {
+            printf("\x1b[1m\x1b[36mwintune>\x1b[0m \x1b[2m(Enter = doctor)\x1b[0m ");
+        } else {
+            printf("\x1b[1m\x1b[36mwintune>\x1b[0m ");
+        }
+    } else if (first) {
+        printf("wintune> (Enter = doctor) ");
     } else {
         printf("wintune> ");
     }
@@ -220,16 +228,23 @@ int wt_cli_interactive_launcher(void)
 
     wchar_t line[1024];
     wchar_t mapped[256];
+    int first = 1;
 
     for (;;) {
-        wt_cli_print_prompt(color);
+        wt_cli_print_prompt(color, first);
 
         if (!wt_cli_read_line(line, ARRAYSIZE(line))) {
             break;
         }
         if (line[0] == L'\0') {
-            continue;
+            if (first) {
+                StringCchCopyW(line, ARRAYSIZE(line), L"doctor");
+                printf("  -> wintune doctor\n");
+            } else {
+                continue;
+            }
         }
+        first = 0;
         if (wt_cli_line_is_quit(line)) {
             break;
         }

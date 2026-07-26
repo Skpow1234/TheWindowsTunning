@@ -72,6 +72,11 @@ typedef struct WT_CliOptions {
     const wchar_t *arg2;
 } WT_CliOptions;
 
+/* Parses arguments into `opts` and optional command name. Does not print usage
+ * or dispatch. Returns WT_EXIT_OK on success, WT_EXIT_USAGE on bad flags. */
+int wt_cli_parse_argv(int argc, wchar_t **argv, WT_CliOptions *opts,
+                      const wchar_t **out_command);
+
 /* Parses arguments, applies global options, and dispatches to a command.
  * Returns a process exit code (0 == success). */
 int wt_cli_run(int argc, wchar_t **argv);
