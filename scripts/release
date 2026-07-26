@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WinTune release — use this from Git Bash, not release.ps1 (PowerShell only).
+# WinTune release — Git Bash / WSL / MSYS wrapper (calls release.ps1).
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$ROOT/scripts/release.ps1" "$@"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+exec "$ROOT/_invoke-ps1.sh" release.ps1 "$@"

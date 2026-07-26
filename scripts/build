@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# WinTune build — use this from Git Bash, not build.ps1 (PowerShell only).
+# WinTune build — Git Bash / WSL / MSYS wrapper (calls build.ps1).
+# Do not run build.ps1 with bash directly.
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$ROOT/scripts/build.ps1" "$@"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+exec "$ROOT/_invoke-ps1.sh" build.ps1 "$@"

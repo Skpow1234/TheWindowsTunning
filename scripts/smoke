@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Alias of ./scripts/build for older docs.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-exec "$ROOT/build" "$@"
+exec "$ROOT/_invoke-ps1.sh" smoke.ps1 "$@"

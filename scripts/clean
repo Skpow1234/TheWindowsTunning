@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$ROOT/scripts/clean.ps1" "$@"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+exec "$ROOT/_invoke-ps1.sh" clean.ps1 "$@"
