@@ -4,7 +4,7 @@ project(wintune C)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-set(WINTUNE_VERSION "0.1.0" CACHE STRING "WinTune version string (release CI may override)")
+set(WINTUNE_VERSION "0.2.0" CACHE STRING "WinTune version string (release CI may override)")
 option(WINTUNE_WARNINGS_AS_ERRORS "Treat compiler warnings as errors (CI lint)" OFF)
 
 # Parse semver for VERSIONINFO (strip pre-release suffix like -beta).

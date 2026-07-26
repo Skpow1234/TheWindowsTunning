@@ -6,7 +6,7 @@
 [![Language: C17](https://img.shields.io/badge/Language-C17-00599C?logo=c&logoColor=white)](#build)
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
-[![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-blue.svg)](docs/roadmap.md)
+[![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-blue.svg)](docs/roadmap.md)
 [![Status: WIP](https://img.shields.io/badge/Status-WIP%20(Phase%2011)-orange.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
@@ -168,14 +168,14 @@ Local equivalents:
 ```powershell
 .\scripts\lint.ps1
 .\scripts\package.ps1 -Config Release -Arch x64 -Zip
-.\scripts\release.ps1 -Version 0.1.2
+.\scripts\release.ps1 -Version 0.2.0
 ```
 
 ```bash
 # Git Bash / WSL
 ./scripts/lint
 ./scripts/package -Config Release -Arch x64 -Zip
-./scripts/release -Version 0.1.2
+./scripts/release -Version 0.2.0
 ```
 
 Packaging details: [`docs/packaging.md`](docs/packaging.md).

@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <wchar.h>
 
 static int g_failed = 0;
 
@@ -53,7 +54,9 @@ int main(void)
     report.disk_active_percent = 20.0;
     report.volume_count = 1;
     report.volumes[0].free_percent = 40.0;
-    wcscpy(report.volumes[0].root_path, L"C:\\");
+    (void)wcscpy_s(report.volumes[0].root_path,
+                   sizeof(report.volumes[0].root_path) / sizeof(wchar_t),
+                   L"C:\\");
     report.power_ok = 0; /* skip live-ish power from machine */
 
     expect_true(wt_generate_recommendations(&report, &list) == WT_OK, "gen ok");
@@ -82,7 +85,9 @@ int main(void)
     report.power_ok = 1;
     report.power.on_ac = 1;
     report.power.scheme = WT_POWER_BALANCED;
-    wcscpy(report.power.active_name, L"Balanced");
+    (void)wcscpy_s(report.power.active_name,
+                   sizeof(report.power.active_name) / sizeof(wchar_t),
+                   L"Balanced");
     expect_true(wt_generate_recommendations(&report, &list) == WT_OK, "gen power");
     expect_true(list_has_id(&list, "WT-POWER-001"), "power on AC id");
 
