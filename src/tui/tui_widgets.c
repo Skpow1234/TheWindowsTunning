@@ -1,5 +1,6 @@
 #include "tui/tui_widgets.h"
 
+#include <stdio.h>
 #include <string.h>
 
 void wt_tui_gauge_line(WT_TuiScreen *s, const WT_TuiTheme *t,
@@ -16,7 +17,6 @@ void wt_tui_gauge_line(WT_TuiScreen *s, const WT_TuiTheme *t,
     const char *color = wt_tui_color_for_pct(t, pct);
     const char *reset = wt_tui_reset(t);
 
-    /* Build the bar segment manually (glyphs may be multibyte UTF-8). */
     char bar[512];
     size_t pos = 0;
     bar[0] = '\0';
@@ -44,6 +44,39 @@ void wt_tui_gauge_line(WT_TuiScreen *s, const WT_TuiTheme *t,
 
     wt_tui_screen_line(s, "%-5s [%s] %5.1f%%  %s",
                        label, bar, pct, suffix ? suffix : "");
+}
+
+void wt_tui_sparkline_line(WT_TuiScreen *s, const WT_TuiTheme *t,
+                           const char *label, const double *samples,
+                           size_t count)
+{
+    if (s == NULL || t == NULL || samples == NULL || count == 0 ||
+        t->spark_levels == NULL || t->spark_level_count < 1) {
+        return;
+    }
+
+    char spark[256];
+    size_t pos = 0;
+    spark[0] = '\0';
+    for (size_t i = 0; i < count; ++i) {
+        double pct = samples[i];
+        if (pct < 0.0) pct = 0.0;
+        if (pct > 100.0) pct = 100.0;
+        int level = (int)((pct / 100.0) * (double)(t->spark_level_count - 1) + 0.5);
+        if (level < 0) level = 0;
+        if (level >= t->spark_level_count) level = t->spark_level_count - 1;
+        const char *glyph = t->spark_levels[level];
+        size_t gl = strlen(glyph);
+        if (pos + gl >= sizeof(spark) - 1) {
+            break;
+        }
+        memcpy(spark + pos, glyph, gl);
+        pos += gl;
+    }
+    spark[pos] = '\0';
+
+    wt_tui_screen_line(s, "%-5s %s%s%s", label ? label : "",
+                       wt_tui_cyan(t), spark, wt_tui_reset(t));
 }
 
 void wt_tui_rule_line(WT_TuiScreen *s, const WT_TuiTheme *t, int width)
@@ -98,4 +131,10 @@ void wt_tui_title_line(WT_TuiScreen *s, const WT_TuiTheme *t,
                        wt_tui_dim(t), buf,
                        wt_tui_bold(t), title, wt_tui_reset(t),
                        wt_tui_dim(t), tail, wt_tui_reset(t));
+}
+
+void wt_tui_empty_line(WT_TuiScreen *s, const WT_TuiTheme *t, const char *msg)
+{
+    wt_tui_screen_line(s, "%s%s%s", wt_tui_dim(t),
+                       msg ? msg : "(unavailable)", wt_tui_reset(t));
 }

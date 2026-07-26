@@ -10,11 +10,19 @@ void wt_tui_gauge_line(WT_TuiScreen *s, const WT_TuiTheme *t,
                        const char *label, double pct, int bar_width,
                        const char *suffix);
 
+/* Appends a sparkline of the last `count` samples (0..100 percent). */
+void wt_tui_sparkline_line(WT_TuiScreen *s, const WT_TuiTheme *t,
+                           const char *label, const double *samples,
+                           size_t count);
+
 /* Appends a horizontal rule line of `width` columns. */
 void wt_tui_rule_line(WT_TuiScreen *s, const WT_TuiTheme *t, int width);
 
 /* Appends a centered section title line, e.g. "── Top Processes ──". */
 void wt_tui_title_line(WT_TuiScreen *s, const WT_TuiTheme *t,
                        const char *title, int width);
+
+/* Appends a dim empty/error placeholder line. */
+void wt_tui_empty_line(WT_TuiScreen *s, const WT_TuiTheme *t, const char *msg);
 
 #endif /* WINTUNE_TUI_WIDGETS_H */
