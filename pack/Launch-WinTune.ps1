@@ -5,6 +5,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Continue'
 Set-Location $PSScriptRoot
 
+& (Join-Path $PSScriptRoot 'Check-Arch.ps1') -Folder $PSScriptRoot
+if ($LASTEXITCODE -ne 0) {
+    Read-Host 'Press Enter to close'
+    exit 1
+}
+
 $exe = Join-Path $PSScriptRoot 'wintune.exe'
 if (-not (Test-Path -LiteralPath $exe)) {
     Write-Host "wintune.exe not found in $PSScriptRoot" -ForegroundColor Red
@@ -14,7 +20,8 @@ if (-not (Test-Path -LiteralPath $exe)) {
 
 Write-Host ''
 Write-Host "  WinTune interactive mode (PowerShell)" -ForegroundColor Cyan
-Write-Host '  Type any wintune command, a number 1-9 for shortcuts, or help.'
+Write-Host '  Recommended first step: press Enter to run doctor.'
+Write-Host '  Or type any wintune command, a number 1-9, or help.'
 Write-Host '  quit | exit | q to leave.'
 Write-Host ''
 Write-Host '  1 doctor   2 scan   3 top   4 startup   5 power'
@@ -33,9 +40,22 @@ $shortcuts = @{
     '9' = 'rollback list'
 }
 
+$firstPrompt = $true
 while ($true) {
-    $line = Read-Host 'wintune'
-    if ([string]::IsNullOrWhiteSpace($line)) { continue }
+    if ($firstPrompt) {
+        $line = Read-Host 'wintune (Enter = doctor)'
+    } else {
+        $line = Read-Host 'wintune'
+    }
+    if ([string]::IsNullOrWhiteSpace($line)) {
+        if ($firstPrompt) {
+            $line = 'doctor'
+            Write-Host '  -> wintune doctor'
+        } else {
+            continue
+        }
+    }
+    $firstPrompt = $false
     $trim = $line.Trim()
     if ($trim -match '^(q|quit|exit)$') { break }
     if ($shortcuts.ContainsKey($trim)) {
