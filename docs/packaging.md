@@ -8,6 +8,8 @@ for service/automation use.
 
 ## Quick start (developers)
 
+**PowerShell:**
+
 ```powershell
 # Build + install layout under dist/
 .\scripts\build.ps1 -Config Release
@@ -20,19 +22,49 @@ for service/automation use.
 .\scripts\release.ps1 -Version 0.1.2
 ```
 
+**Git Bash / WSL** (same flags; do not run `.ps1` with bash):
+
+```bash
+./scripts/build -Config Release
+./scripts/package -Config Release -Arch x64 -Zip
+./scripts/release -Version 0.1.2
+```
+
+See [`shells.md`](shells.md) for the full PowerShell / CMD / Git Bash / WSL matrix.
 Output directory example:
 
 ```text
 dist/WinTune-0.1.2-win-x64/
-  wintune.exe
+  wintune.exe          # icon + VERSIONINFO + manifest embedded
   README.md
   LICENSE
   VERSION.txt
   CHANNEL.txt
+  ARCH.txt
   QUICKSTART.txt
   Launch-WinTune.cmd
+  Add-To-Path.cmd
+  Start-Tray.cmd
   ...
 ```
+
+---
+
+## Phase 21 resources
+
+| File | Role |
+|------|------|
+| `resources/wintune.ico` | Explorer / tray icon |
+| `resources/wintune.manifest` | `asInvoker`, DPI, long paths, Win10/11 |
+| `resources/wintune.rc.in` | VERSIONINFO + icon + manifest (CMake fills version) |
+| `pack/Add-To-Path.ps1` | User PATH helper for portable installs |
+| `scripts/installer/wintune.iss` | Optional Inno Setup installer |
+
+`wintune version` / `WT_VERSION_STRING` should match `-DWINTUNE_VERSION=` used at
+configure time (release CI sets this from the tag).
+
+Checklist: [`release-checklist.md`](release-checklist.md). Signing:
+[`signing.md`](signing.md).
 
 ---
 
@@ -113,29 +145,21 @@ Parent directories are created when possible. Combine with `--verbose` or
 
 ## Code signing (optional)
 
-WinTune is open source; signing is **optional** but recommended for enterprise
-deployment.
+See [`signing.md`](signing.md). Unsigned portable ZIPs remain the default
+open-source artifact.
 
-1. Obtain a code-signing certificate (EV or standard Authenticode).
-2. Sign after build:
+---
 
-```powershell
-signtool sign /fd SHA256 /a /tr http://timestamp.digicert.com /td SHA256 `
-  /d "WinTune" dist\WinTune-0.1.2-win-x64\wintune.exe
-```
+## Optional Inno Setup installer
 
-3. Verify:
+Requires [Inno Setup](https://jrsoftware.org/isinfo.php) (`iscc` on PATH):
 
 ```powershell
-signtool verify /pa wintune.exe
+.\scripts\package.ps1 -Config Release -Arch x64 -Version 0.2.0 -Configure -Build -Zip
+iscc /DMyAppVersion=0.2.0 /DMyAppArch=x64 scripts\installer\wintune.iss
 ```
 
-**Guidelines:**
-
-- Sign **Release** builds only.
-- Timestamp so signatures remain valid after cert expiry.
-- Do not commit private keys or `.pfx` files to the repository.
-- GitHub Actions: store cert in secrets and sign in the release workflow when ready.
+Not built by default CI. Prefer the portable ZIP for most users.
 
 ---
 
@@ -154,5 +178,7 @@ Manual trigger: **Actions → Release → Run workflow**.
 ## Related docs
 
 - [`docs/ci.md`](ci.md) — CI matrix
+- [`docs/release-checklist.md`](release-checklist.md) — pre-tag checklist
+- [`docs/signing.md`](signing.md) — Authenticode guidance
 - [`docs/fleet.md`](fleet.md) — automation over SSH
 - [`README.md`](../README.md) — portable ZIP usage for end users

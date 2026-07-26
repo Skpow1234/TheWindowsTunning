@@ -10,6 +10,9 @@ Measure bottlenecks. Explain impact. Apply safe fixes.
 
 Executable: `wintune.exe` — primary command: `wintune`.
 
+Works from **PowerShell**, **CMD**, **Git Bash**, and **WSL** (Windows interop
+invoking `wintune.exe`). Build/script wrappers: see [`shells.md`](shells.md).
+
 ---
 
 ## Commands at a Glance

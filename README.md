@@ -71,8 +71,11 @@ security tools, deletes system files, or promises magical speedups. See
 
 ## Supported platforms
 
-- Windows 10 and Windows 11, 64-bit (x86_64 / AMD64). ARM64 is planned.
-- Builds with MSVC (Visual Studio 2022 Build Tools). clang-cl is optional.
+- **Runtime:** Windows 10 and Windows 11, 64-bit (**x64** and **ARM64**).
+- **Build:** MSVC (Visual Studio 2022 / 2026 Build Tools). clang-cl optional.
+- **Shells for building/running:** PowerShell, CMD, Git Bash, and WSL (interop).
+  See [`docs/shells.md`](docs/shells.md). WinTune itself is always `wintune.exe`
+  (not a Linux ELF).
 
 ---
 
@@ -87,9 +90,10 @@ Tools or newer).
 | -------- | ------- |
 | **PowerShell** | `.\scripts\build.ps1` |
 | **CMD** | `scripts\build.cmd` |
-| **Git Bash** | `./scripts/build` or `./scripts/build.sh` |
+| **Git Bash** | `./scripts/build` |
+| **WSL** | `./scripts/build` (calls Windows PowerShell via interop) |
 
-Do **not** run `./scripts/build.ps1` from Git Bash — `.ps1` is PowerShell;
+Do **not** run `./scripts/build.ps1` from Git Bash or WSL — `.ps1` is PowerShell;
 Bash will fail on `param(` with a syntax error. Use `./scripts/build` instead.
 
 **PowerShell** (from the repo root):
@@ -99,12 +103,14 @@ Bash will fail on `param(` with a syntax error. Use `./scripts/build` instead.
 .\scripts\build.ps1 -Config Release
 ```
 
-**Git Bash** (from the repo root):
+**Git Bash / WSL** (from the repo root):
 
 ```bash
 ./scripts/build                  # recommended
-./scripts/build.sh               # same
 ./scripts/build -Config Release
+./scripts/test -Config Release
+./scripts/lint
+./build/Release/wintune.exe help
 ```
 
 **CMD:**
@@ -116,6 +122,11 @@ scripts\build.cmd
 The executable is produced at `build\Debug\wintune.exe` (or `Release` when
 built with `-Config Release`).
 
+Full shell matrix (build, test, package, release, running `wintune.exe`):
+[`docs/shells.md`](docs/shells.md).
+
+Testing (unit + full CLI smoke): [`docs/testing.md`](docs/testing.md).
+
 ### Option B — CMake directly
 
 ```powershell
@@ -123,9 +134,16 @@ cmake -S . -B build
 cmake --build build --config Debug
 ```
 
-Other scripts: `scripts\test.ps1`, `scripts\clean.ps1`, `scripts\package.ps1`,
-`scripts\lint.ps1`, `scripts\release.ps1` (PowerShell) or call the matching
-`.cmd` / `.sh` wrappers where provided.
+Other scripts (same names in Bash without `.ps1`):
+
+| Bash | PowerShell |
+|------|------------|
+| `./scripts/test` | `.\scripts\test.ps1` |
+| `./scripts/smoke` | `.\scripts\smoke.ps1` |
+| `./scripts/clean` | `.\scripts\clean.ps1` |
+| `./scripts/package` | `.\scripts\package.ps1` |
+| `./scripts/lint` | `.\scripts\lint.ps1` |
+| `./scripts/release` | `.\scripts\release.ps1` |
 
 ---
 
@@ -135,7 +153,8 @@ GitHub Actions runs on every push and pull request to `main`:
 
 - **Lint** — MSVC `/W4` with warnings as errors (`/WX`)
 - **Build** — Debug and Release on Windows x64
-- **Smoke test** — `wintune version` and `wintune help`
+- **Unit tests** — `scripts/test.ps1`
+- **CLI smoke** — `scripts/smoke.ps1 -SkipSlow` (full command surface)
 
 **Releases:** push a semver tag to publish a portable ZIP to GitHub Releases:
 
@@ -152,7 +171,15 @@ Local equivalents:
 .\scripts\release.ps1 -Version 0.1.2
 ```
 
+```bash
+# Git Bash / WSL
+./scripts/lint
+./scripts/package -Config Release -Arch x64 -Zip
+./scripts/release -Version 0.1.2
+```
+
 Packaging details: [`docs/packaging.md`](docs/packaging.md).
+Shell matrix: [`docs/shells.md`](docs/shells.md).
 
 ### Portable ZIP (GitHub Releases)
 
@@ -162,11 +189,14 @@ immediately.
 
 **To run WinTune from the ZIP:**
 
-1. Extract the ZIP to a folder (e.g. `C:\Tools\WinTune`).
-2. Double-click **`Launch-WinTune.cmd`** for an interactive prompt with the
+1. Extract the ZIP to a folder (e.g. `C:\Tools\WinTune`). Check **`ARCH.txt`**
+   matches your PC (`x64` vs `arm64`).
+2. Optional: run **`Add-To-Path.cmd`**, then open a **new** terminal so
+   `wintune` is on PATH.
+3. Double-click **`Launch-WinTune.cmd`** for an interactive prompt with the
    full CLI, **or** double-click **`wintune.exe`** for the built-in menu, **or**
    **`Start-Tray.cmd`** for the system tray icon, **or**
-3. Open **PowerShell** / **CMD** and run commands directly:
+4. Open **PowerShell**, **CMD**, or **Git Bash** and run commands directly:
 
 ```powershell
 .\wintune.exe doctor
@@ -174,6 +204,11 @@ immediately.
 .\wintune.exe help
 ```
 
+```bash
+# Git Bash
+./wintune.exe doctor
+./wintune.exe scan --json
+```
 At the `wintune>` prompt you can type any command and options (e.g.
 `scan --samples 3`, `top --watch`, `startup --include-tasks`).
 
@@ -432,6 +467,9 @@ exit non-zero.
 - [`docs/blockers.md`](docs/blockers.md) — Restart Manager and reboot blockers (Phase 14)
 - [`docs/metrics.md`](docs/metrics.md) — what is measured and how
 - [`docs/ci.md`](docs/ci.md) — GitHub Actions, lint, and releases
+- [`docs/packaging.md`](docs/packaging.md) — portable ZIP, PATH helper, optional installer
+- [`docs/release-checklist.md`](docs/release-checklist.md) — pre-tag release checklist
+- [`docs/signing.md`](docs/signing.md) — optional Authenticode guidance
 - [`docs/roadmap.md`](docs/roadmap.md) — phased delivery plan
 
 ---

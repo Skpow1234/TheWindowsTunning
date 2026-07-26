@@ -37,7 +37,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 18 | Packaging + ARM64 (developer) | Done |
 | 19 | Optional tray / native GUI (never Electron) | Done |
 | 20 | TUI polish & UX | Done |
-| 21 | Distributable executable (end-user release) | Planned |
+| 21 | Distributable executable (end-user release) | Done |
 
 ---
 
@@ -198,7 +198,7 @@ WinTune v1 is complete when it can:
 
 ## v2+ (Phases 10–21)
 
-Phases 10–20 are **Done**. Phase 21 remains for end-user installer polish.
+Phases 10–21 are **Done**. Optional follow-ups (winget, Authenticode in CI) remain.
 
 These phases extend WinTune from “on-demand doctor” to “measured boot analysis,
 background monitoring, and richer automation” while keeping the same safety
@@ -508,45 +508,36 @@ confirmation, Electron/WebView.
 
 ### Phase 21 — Distributable Executable (End-User Release)
 
+**Status:** Done.
+
 **Goal:** Users download and run WinTune **without** installing Visual Studio,
 CMake, or building from source.
 
 Phase 18 covers **developer** packaging (`cmake --install`, ARM64 builds).
 Phase 21 is the **consumer** release: a shippable product artifact.
 
-**Deliver:**
+**Delivered:**
 
-- **Prebuilt `wintune.exe`** on GitHub Releases (x64 first, ARM64 when Phase 18
-  is ready).
-- **Portable ZIP** — `wintune.exe`, `LICENSE`, `README`, version file.
-- Optional **installer** (Inno Setup, WiX MSI, or equivalent — native, no
-  Electron bootstrapper).
-- **Add to PATH** option during install (or documented manual step).
-- Embedded **version resources** — icon, `FileVersion`, `ProductVersion`,
-  company/name strings.
-- **Application manifest** — `asInvoker` by default, `longPathAware`, compatible
-  Windows 10/11.
-- **`wintune version`** matches release tag; reproducible CI build.
-- **GitHub Actions CI** — `/W4` + `/WX` lint gate, Debug/Release build, smoke
-  tests (see [`docs/ci.md`](ci.md)).
-- **GitHub Releases** — portable ZIP + SHA-256 checksum on `v*` tags (see
-  `scripts/release.ps1`).
-- Release **checklist** — checksums (SHA-256), release notes template.
-- Optional: **winget** / Chocolatey manifest (community or official).
-- Optional: **Authenticode signing** guidance (not required for open source, but
-  documented).
+- Prebuilt `wintune.exe` on GitHub Releases (x64 + ARM64).
+- Portable ZIP with `LICENSE`, `README`, `VERSION.txt`, `CHANNEL.txt`, `ARCH.txt`,
+  launchers, and `Add-To-Path.*`.
+- Embedded **icon**, **VERSIONINFO**, and **application manifest**
+  (`resources/`, linked via `wintune.rc`).
+- Optional **Inno Setup** script: `scripts/installer/wintune.iss` (PATH task).
+- Release checklist: [`release-checklist.md`](release-checklist.md).
+- Signing guidance: [`signing.md`](signing.md).
+- CI build/lint + GitHub Releases ZIPs + SHA-256 (`scripts/release.ps1`).
 
-**Example user flow (target):**
+**Optional / deferred:** winget/Chocolatey; Authenticode signing in CI.
+
+**Example user flow:**
 
 ```text
-1. Download WinTune-0.2.0-x64.zip from Releases
+1. Download WinTune-<ver>-win-x64.zip from Releases
 2. Extract to C:\Tools\WinTune\
-3. Add to PATH (or run full path)
+3. Optional: Add-To-Path.cmd
 4. wintune doctor
 ```
-
-**Depends on:** Stable v1+ CLI; Phase 18 helps but Phase 21 can ship a portable
-ZIP before MSI/winget.
 
 **Never:** Bundled adware, auto-start without consent, silent background install,
 telemetry uploader in the installer.
