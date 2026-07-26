@@ -11,7 +11,17 @@ typedef enum WT_TuiKey {
     WT_TUI_KEY_SERVICES,
     WT_TUI_KEY_DISK,
     WT_TUI_KEY_MEMORY,
-    WT_TUI_KEY_NETWORK
+    WT_TUI_KEY_NETWORK,
+    WT_TUI_KEY_PAUSE,
+    WT_TUI_KEY_SORT_CYCLE,
+    WT_TUI_KEY_SORT_CPU,
+    WT_TUI_KEY_SORT_MEMORY,
+    WT_TUI_KEY_SORT_DISK,
+    WT_TUI_KEY_SCROLL_UP,
+    WT_TUI_KEY_SCROLL_DOWN,
+    WT_TUI_KEY_PAGE_UP,
+    WT_TUI_KEY_PAGE_DOWN,
+    WT_TUI_KEY_EXPORT
 } WT_TuiKey;
 
 /* Non-blocking: returns the next mapped key press, or WT_TUI_KEY_NONE if no key

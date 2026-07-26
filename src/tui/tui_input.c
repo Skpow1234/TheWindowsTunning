@@ -10,9 +10,14 @@ WT_TuiKey wt_tui_poll_key(void)
 
     int c = _getch();
     if (c == 0 || c == 224) {
-        /* Function / arrow key: discard the second byte, ignore. */
-        (void)_getch();
-        return WT_TUI_KEY_NONE;
+        int ext = _getch();
+        switch (ext) {
+        case 72: return WT_TUI_KEY_SCROLL_UP;    /* Up */
+        case 80: return WT_TUI_KEY_SCROLL_DOWN;  /* Down */
+        case 73: return WT_TUI_KEY_PAGE_UP;      /* PgUp */
+        case 81: return WT_TUI_KEY_PAGE_DOWN;    /* PgDn */
+        default: return WT_TUI_KEY_NONE;
+        }
     }
 
     switch (c) {
@@ -25,6 +30,14 @@ WT_TuiKey wt_tui_poll_key(void)
     case 'd': case 'D':                    return WT_TUI_KEY_DISK;
     case 'm': case 'M':                    return WT_TUI_KEY_MEMORY;
     case 'n': case 'N':                    return WT_TUI_KEY_NETWORK;
+    case ' ':                              return WT_TUI_KEY_PAUSE;
+    case 't': case 'T':                    return WT_TUI_KEY_SORT_CYCLE;
+    case '1':                              return WT_TUI_KEY_SORT_CPU;
+    case '2':                              return WT_TUI_KEY_SORT_MEMORY;
+    case '3':                              return WT_TUI_KEY_SORT_DISK;
+    case 'j': case 'J':                    return WT_TUI_KEY_SCROLL_DOWN;
+    case 'k': case 'K':                    return WT_TUI_KEY_SCROLL_UP;
+    case 'e': case 'E':                    return WT_TUI_KEY_EXPORT;
     default:                               return WT_TUI_KEY_NONE;
     }
 }

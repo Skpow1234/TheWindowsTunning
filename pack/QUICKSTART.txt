@@ -1,6 +1,14 @@
 WinTune — Quick start (portable ZIP)
 ====================================
 
+IMPORTANT — pick the ZIP that matches your PC:
+----------------------------------------------
+  WinTune-*-win-x64.zip     most Intel/AMD PCs (AMD64)
+  WinTune-*-win-arm64.zip   Windows on ARM only
+
+  Check ARCH.txt in this folder. Running the wrong architecture shows:
+  "This app can't run on your PC".
+
 WinTune is a command-line tool. Use one of these to get started:
 
 RECOMMENDED — double-click one of these:
@@ -17,6 +25,8 @@ After launching, type any command at the  wintune>  prompt, for example:
 
   doctor
   scan
+  tui
+  tui --theme compact
   top --watch
   startup --include-tasks
   apply WT-POWER-001 --yes
