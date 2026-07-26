@@ -9,15 +9,24 @@ IMPORTANT — pick the ZIP that matches your PC:
   Check ARCH.txt in this folder. Running the wrong architecture shows:
   "This app can't run on your PC".
 
+Optional — add this folder to PATH (new terminals only):
+  Add-To-Path.cmd
+
+Launchers check ARCH.txt against this PC before starting wintune.exe.
+
+From Git Bash in this folder you can also run:
+
+  ./wintune.exe doctor
+  ./wintune.exe help
+
 WinTune is a command-line tool. Use one of these to get started:
 
-RECOMMENDED — double-click one of these:
-----------------------------------------
-  Launch-WinTune.cmd     Full interactive CLI (PowerShell prompt)
-  Launch-WinTune.ps1     Same (if PowerShell is your default)
-  Run-Doctor.cmd         One-shot health check (doctor)
+RECOMMENDED first run:
+----------------------
+  Run-Doctor.cmd         One-shot health check (doctor) — start here
+  Launch-WinTune.cmd     Interactive CLI (Enter runs doctor on first prompt)
   Start-Tray.cmd         System tray icon (native Win32)
-  wintune.exe            Interactive menu (built-in, no PowerShell needed)
+  wintune.exe            Built-in interactive menu (Enter = doctor)
 
 Interactive mode
 ----------------
