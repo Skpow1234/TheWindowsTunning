@@ -4,7 +4,9 @@
 #   .\scripts\build.ps1 -Config Release
 #   .\scripts\build.ps1 -Reconfigure # wipe build/ and reconfigure
 #
-# From Git Bash or CMD, use scripts\build.cmd instead.
+# From Git Bash / WSL use ./scripts/build (not this .ps1 file).
+# From CMD use scripts\build.cmd.
+# See docs/shells.md.
 
 param(
     [ValidateSet("Debug", "Release")]

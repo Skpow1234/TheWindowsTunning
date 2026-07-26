@@ -1,4 +1,6 @@
-# Run tests when the CMake test target is configured.
+# Run unit tests when the CMake test target is configured.
+# For a full CLI smoke pass over every command, see scripts/smoke.ps1
+# and docs/testing.md.
 
 param(
     [ValidateSet("Debug", "Release")]
@@ -16,9 +18,9 @@ if (-not (Test-Path (Join-Path $BuildDir "CMakeCache.txt"))) {
 }
 
 Write-Host "Building test targets ($Config) ..."
-& cmake --build $BuildDir --config $Config --target wintune_unit_tests
+& cmake --build $BuildDir --config $Config --target wintune_tests_all
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to build wintune_unit_tests."
+    Write-Error "Failed to build unit test targets."
     exit $LASTEXITCODE
 }
 
