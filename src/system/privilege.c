@@ -32,12 +32,19 @@ void wt_print_admin_required_message(FILE *out)
 
     fputs("This action requires administrator privileges.\n", out);
     if (wt_session_is_remote()) {
-        fputs("Over SSH, run from an elevated PowerShell or CMD session.\n", out);
-        fputs("Example: connect as an admin user, or start an elevated shell "
-              "before running wintune.\n", out);
+        fputs("Over SSH, run from an elevated PowerShell or CMD session "
+              "(not a normal user shell).\n", out);
+        fputs("Example: start an elevated shell first, then:\n"
+              "  wintune <command>\n", out);
+        fputs("Optional: install the WinTune Windows Service once on the host "
+              "so privileged actions can use --via-service without UAC over SSH.\n",
+              out);
     } else {
-        fputs("Run PowerShell or CMD as Administrator and try again.\n", out);
+        fputs("Right-click PowerShell or CMD → Run as administrator, then retry.\n",
+              out);
+        fputs("Read-only commands (scan, doctor, top, tui) usually work without "
+              "elevation.\n", out);
+        fputs("Optional: wintune service install  (elevated, once) for "
+              "background scans and --via-service.\n", out);
     }
-    fputs("A future WinTune Service-based workflow may support privileged "
-          "actions remotely without an interactive UAC prompt.\n", out);
 }
