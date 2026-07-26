@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <strsafe.h>
 
+#include "resource.h"
+
 #define WT_TRAY_WINDOW_CLASS L"WinTuneTrayHost"
 #define WT_TRAY_CALLBACK_MSG (WM_USER + 1)
 
@@ -20,14 +22,20 @@
 #define IDM_TRAY_TUI         1007
 #define IDM_TRAY_ABOUT       1009
 #define IDM_TRAY_EXIT        1008
+#define IDM_TRAY_AUTOSTART   1010
 
 #define WT_TRAY_SINGLETON_MUTEX L"Global\\WinTuneTray_v1"
+#define WT_TRAY_RUN_VALUE       L"WinTuneTray"
+#define WT_TRAY_TIP_TIMER_ID    1
+#define WT_TRAY_TIP_INTERVAL_MS 30000u
 
 typedef struct WT_TrayState {
     NOTIFYICONDATAW nid;
     HMENU menu;
     HICON icon;
+    int icon_owned; /* 1 when DestroyIcon is required */
     HWND status_wnd;
+    HWND hwnd;
 } WT_TrayState;
 
 static WT_TrayState g_tray;
@@ -222,10 +230,97 @@ static void wt_tray_show_about(void)
         L"WinTune\n"
         L"Native Windows performance diagnostics.\n\n"
         L"The tray app is read-only by default.\n"
-        L"System changes always require confirmation in the CLI.\n\n"
+        L"System changes always require confirmation in the CLI.\n"
+        L"\"Start with Windows\" is optional and uses your user Run key only.\n\n"
         L"No Electron. No WebView.",
         L"About WinTune",
         MB_OK | MB_ICONINFORMATION);
+}
+
+static int wt_tray_autostart_is_enabled(void)
+{
+    HKEY key = NULL;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER,
+                      L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0,
+                      KEY_READ, &key) != ERROR_SUCCESS) {
+        return 0;
+    }
+    wchar_t value[MAX_PATH * 2];
+    DWORD type = 0;
+    DWORD size = sizeof(value);
+    LONG rc = RegQueryValueExW(key, WT_TRAY_RUN_VALUE, NULL, &type,
+                               (LPBYTE)value, &size);
+    RegCloseKey(key);
+    return rc == ERROR_SUCCESS && type == REG_SZ && value[0] != L'\0';
+}
+
+static int wt_tray_autostart_set(int enable)
+{
+    HKEY key = NULL;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER,
+                      L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0,
+                      KEY_SET_VALUE, &key) != ERROR_SUCCESS) {
+        return 0;
+    }
+    if (!enable) {
+        LONG rc = RegDeleteValueW(key, WT_TRAY_RUN_VALUE);
+        RegCloseKey(key);
+        return rc == ERROR_SUCCESS || rc == ERROR_FILE_NOT_FOUND;
+    }
+
+    wchar_t exe[MAX_PATH];
+    wt_tray_get_exe_path(exe, ARRAYSIZE(exe));
+    if (exe[0] == L'\0') {
+        RegCloseKey(key);
+        return 0;
+    }
+
+    wchar_t cmd[MAX_PATH + 48];
+    if (FAILED(StringCchPrintfW(cmd, ARRAYSIZE(cmd), L"\"%s\" tray", exe))) {
+        RegCloseKey(key);
+        return 0;
+    }
+
+    LONG rc = RegSetValueExW(key, WT_TRAY_RUN_VALUE, 0, REG_SZ,
+                             (const BYTE *)cmd,
+                             (DWORD)((wcslen(cmd) + 1) * sizeof(wchar_t)));
+    RegCloseKey(key);
+    return rc == ERROR_SUCCESS;
+}
+
+static void wt_tray_toggle_autostart(void)
+{
+    int enabled = wt_tray_autostart_is_enabled();
+    if (!wt_tray_autostart_set(!enabled)) {
+        MessageBoxW(NULL,
+                    L"Could not update the Start with Windows setting.\r\n"
+                    L"Check that your user Run key is writable.",
+                    L"WinTune", MB_OK | MB_ICONWARNING);
+        return;
+    }
+    if (!enabled) {
+        MessageBoxW(
+            NULL,
+            L"WinTune tray will start automatically at sign-in "
+            L"(current user only).\r\n\r\n"
+            L"Toggle the menu item again to remove it.",
+            L"WinTune", MB_OK | MB_ICONINFORMATION);
+    }
+}
+
+static void wt_tray_update_tip(void)
+{
+    if (g_tray.nid.hWnd == NULL) {
+        return;
+    }
+    WT_TrayStatusSummary summary;
+    wt_tray_status_refresh(&summary);
+    wchar_t tip[128];
+    wt_tray_status_format_tip(&summary, tip, ARRAYSIZE(tip));
+    StringCchCopyW(g_tray.nid.szTip, ARRAYSIZE(g_tray.nid.szTip), tip);
+    g_tray.nid.uFlags = NIF_TIP;
+    Shell_NotifyIconW(NIM_MODIFY, &g_tray.nid);
+    g_tray.nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
 }
 
 static void wt_tray_show_status(void)
@@ -239,6 +334,12 @@ static void wt_tray_show_status(void)
 
 static void wt_tray_show_context_menu(HWND hwnd)
 {
+    if (g_tray.menu != NULL) {
+        CheckMenuItem(g_tray.menu, IDM_TRAY_AUTOSTART,
+                      MF_BYCOMMAND |
+                          (wt_tray_autostart_is_enabled() ? MF_CHECKED
+                                                          : MF_UNCHECKED));
+    }
     POINT pt;
     GetCursorPos(&pt);
     SetForegroundWindow(hwnd);
@@ -272,6 +373,9 @@ static void wt_tray_handle_menu(UINT id)
     case IDM_TRAY_TUI:
         wt_tray_run_tui();
         break;
+    case IDM_TRAY_AUTOSTART:
+        wt_tray_toggle_autostart();
+        break;
     case IDM_TRAY_ABOUT:
         wt_tray_show_about();
         break;
@@ -285,6 +389,9 @@ static void wt_tray_handle_menu(UINT id)
 
 static void wt_tray_remove_icon(void)
 {
+    if (g_tray.hwnd != NULL) {
+        KillTimer(g_tray.hwnd, WT_TRAY_TIP_TIMER_ID);
+    }
     if (g_tray.nid.hWnd != NULL) {
         g_tray.nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
         Shell_NotifyIconW(NIM_DELETE, &g_tray.nid);
@@ -293,10 +400,11 @@ static void wt_tray_remove_icon(void)
         DestroyMenu(g_tray.menu);
         g_tray.menu = NULL;
     }
-    if (g_tray.icon != NULL) {
+    if (g_tray.icon != NULL && g_tray.icon_owned) {
         DestroyIcon(g_tray.icon);
-        g_tray.icon = NULL;
     }
+    g_tray.icon = NULL;
+    g_tray.icon_owned = 0;
 }
 
 static int wt_tray_add_icon(HWND hwnd)
@@ -307,7 +415,23 @@ static int wt_tray_add_icon(HWND hwnd)
     g_tray.nid.uID = 1;
     g_tray.nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     g_tray.nid.uCallbackMessage = WT_TRAY_CALLBACK_MSG;
-    g_tray.icon = LoadIconW(NULL, IDI_APPLICATION);
+
+    g_tray.icon_owned = 0;
+    g_tray.icon = (HICON)LoadImageW(GetModuleHandleW(NULL),
+                                    MAKEINTRESOURCEW(IDI_WINTUNE), IMAGE_ICON,
+                                    GetSystemMetrics(SM_CXSMICON),
+                                    GetSystemMetrics(SM_CYSMICON),
+                                    LR_DEFAULTCOLOR);
+    if (g_tray.icon != NULL) {
+        g_tray.icon_owned = 1;
+    } else {
+        g_tray.icon = LoadIconW(GetModuleHandleW(NULL),
+                                MAKEINTRESOURCEW(IDI_WINTUNE));
+    }
+    if (g_tray.icon == NULL) {
+        g_tray.icon = LoadIconW(NULL, IDI_APPLICATION);
+        g_tray.icon_owned = 0;
+    }
     g_tray.nid.hIcon = g_tray.icon;
     StringCchCopyW(g_tray.nid.szTip, ARRAYSIZE(g_tray.nid.szTip),
                    L"WinTune - performance diagnostics");
@@ -332,8 +456,13 @@ static int wt_tray_add_icon(HWND hwnd)
     AppendMenuW(g_tray.menu, MF_STRING, IDM_TRAY_CLI, L"Open CLI menu...");
     AppendMenuW(g_tray.menu, MF_STRING, IDM_TRAY_TUI, L"Live dashboard (TUI)...");
     AppendMenuW(g_tray.menu, MF_SEPARATOR, 0, NULL);
+    AppendMenuW(g_tray.menu, MF_STRING, IDM_TRAY_AUTOSTART,
+              L"Start with Windows");
     AppendMenuW(g_tray.menu, MF_STRING, IDM_TRAY_ABOUT, L"About WinTune");
     AppendMenuW(g_tray.menu, MF_STRING, IDM_TRAY_EXIT, L"Exit");
+
+    SetTimer(hwnd, WT_TRAY_TIP_TIMER_ID, WT_TRAY_TIP_INTERVAL_MS, NULL);
+    wt_tray_update_tip();
     return 1;
 }
 
@@ -348,6 +477,12 @@ static LRESULT CALLBACK wt_tray_wnd_proc(HWND hwnd, UINT msg, WPARAM wparam,
         }
         if (lparam == WM_RBUTTONUP || lparam == WM_CONTEXTMENU) {
             wt_tray_show_context_menu(hwnd);
+            return 0;
+        }
+        break;
+    case WM_TIMER:
+        if (wparam == WT_TRAY_TIP_TIMER_ID) {
+            wt_tray_update_tip();
             return 0;
         }
         break;
@@ -396,6 +531,7 @@ WT_Result wt_tray_run(void)
     wc.lpfnWndProc = wt_tray_wnd_proc;
     wc.hInstance = GetModuleHandleW(NULL);
     wc.lpszClassName = WT_TRAY_WINDOW_CLASS;
+    wc.hIcon = LoadIconW(GetModuleHandleW(NULL), MAKEINTRESOURCEW(IDI_WINTUNE));
     if (RegisterClassExW(&wc) == 0) {
         return WT_ERR_WIN32;
     }
@@ -406,6 +542,7 @@ WT_Result wt_tray_run(void)
     if (hwnd == NULL) {
         return WT_ERR_WIN32;
     }
+    g_tray.hwnd = hwnd;
 
     if (!wt_tray_add_icon(hwnd)) {
         DestroyWindow(hwnd);
