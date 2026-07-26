@@ -81,7 +81,7 @@ jobs:
 
       - name: Build Release
         shell: pwsh
-        run: .\scripts\cmake-build.ps1 -BuildDir build-arm64 -Config Release
+        run: .\scripts\cmake-build.ps1 -BuildDir build-arm64 -Config Release -Target wintune
 
       - name: Smoke test
         shell: pwsh

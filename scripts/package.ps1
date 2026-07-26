@@ -100,7 +100,8 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 
 if ($Build -and -not $SkipBuild) {
     Write-Host "Building wintune ($Config, $Arch) ..."
-    & (Join-Path $PSScriptRoot "cmake-build.ps1") -BuildDir $BuildDir -Config $Config
+    & (Join-Path $PSScriptRoot "cmake-build.ps1") -BuildDir $BuildDir -Config $Config `
+        -Target wintune
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 

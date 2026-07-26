@@ -192,7 +192,9 @@ target_link_libraries(wintune PRIVATE
 enable_testing()
 
 function(wt_add_unit_test name)
-    add_executable(${name} ${ARGN})
+    # Keep unit tests out of the default ALL_BUILD so Release packaging
+    # (cmake --build without --target) is not blocked by test-only /WX noise.
+    add_executable(${name} EXCLUDE_FROM_ALL ${ARGN})
     target_include_directories(${name} PRIVATE src ${CMAKE_BINARY_DIR})
     target_compile_definitions(${name} PRIVATE
         WIN32_LEAN_AND_MEAN UNICODE _UNICODE
