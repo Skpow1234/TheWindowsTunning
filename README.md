@@ -470,6 +470,7 @@ exit non-zero.
 - [`docs/packaging.md`](docs/packaging.md) — portable ZIP, PATH helper, optional installer
 - [`docs/release-checklist.md`](docs/release-checklist.md) — pre-tag release checklist
 - [`docs/signing.md`](docs/signing.md) — optional Authenticode guidance
+- [`docs/winget.md`](docs/winget.md) — draft winget package (optional publish)
 - [`docs/roadmap.md`](docs/roadmap.md) — phased delivery plan
 
 ---

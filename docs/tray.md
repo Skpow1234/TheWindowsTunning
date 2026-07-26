@@ -37,22 +37,39 @@ in the background.
 | **Open reports folder** | Opens `%USERPROFILE%\Documents\WinTune\Reports` |
 | **Open CLI menu…** | Launches `Launch-WinTune.cmd` (interactive CLI) |
 | **Live dashboard (TUI)…** | Opens a console with `wintune tui` |
+| **Start with Windows** | Opt-in: adds/removes `HKCU\...\Run\WinTuneTray` (current user only; off by default) |
 | **About WinTune** | Version and safety notice |
 | **Exit** | Removes the tray icon and stops the process |
+
+Hover tip shows a short live summary (`CPU` / `RAM` / power plan) and refreshes
+about every 30 seconds.
 
 ## Status window
 
 The status window shows:
 
 - Whether the **WinTune Windows Service** is reachable (named pipe `\\.\pipe\WinTune`)
-- CPU and memory from `%ProgramData%\WinTune\last_scan.json` when the service has
-  cached a scan
-- Host and OS lines parsed from that cache
+- **Live** CPU and memory sample (short PDH + `GlobalMemoryStatusEx`)
+- Power plan and AC/battery when available
+- Host and OS identity
+- Cached scan path when `%ProgramData%\WinTune\last_scan.json` exists
 
-**Refresh** re-reads the cache file. It does not mutate the system.
+**Refresh** re-samples live metrics and re-reads the cache. It does not mutate the system.
 
 If the service is not installed, status shows “CLI-only mode” and doctor/report
 still work by spawning the CLI directly.
+
+## Start with Windows
+
+Off by default. When enabled, WinTune writes only:
+
+```text
+HKCU\Software\Microsoft\Windows\CurrentVersion\Run
+  WinTuneTray = "C:\path\to\wintune.exe" tray
+```
+
+No machine-wide Run key, no Task Scheduler persistence, and no silent install.
+Toggle the menu item again to remove the value.
 
 ## Service integration
 

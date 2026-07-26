@@ -92,9 +92,9 @@ bumping versions.
 Not in default CI yet:
 
 - Authenticode signing (see [`signing.md`](signing.md))
-- winget / Chocolatey manifests
+- Publishing the draft winget manifests under `packaging/winget/` to winget-pkgs
 - Inno Setup installer build (`scripts/installer/wintune.iss`)
 
 x64 CI already runs the full `scripts/smoke.ps1` suite. Version resources and
 icon embedding are part of the normal CMake build (`resources/`). See
-[roadmap.md](roadmap.md) Phase 21.
+[roadmap.md](roadmap.md) Phase 21 and [`winget.md`](winget.md).

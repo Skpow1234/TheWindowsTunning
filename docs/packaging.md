@@ -180,5 +180,6 @@ Manual trigger: **Actions → Release → Run workflow**.
 - [`docs/ci.md`](ci.md) — CI matrix
 - [`docs/release-checklist.md`](release-checklist.md) — pre-tag checklist
 - [`docs/signing.md`](signing.md) — Authenticode guidance
+- [`docs/winget.md`](winget.md) — optional winget package drafts
 - [`docs/fleet.md`](fleet.md) — automation over SSH
 - [`README.md`](../README.md) — portable ZIP usage for end users

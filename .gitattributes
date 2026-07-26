@@ -1,0 +1,10 @@
+# Keep Bash wrappers LF so Git Bash / WSL execute them reliably.
+scripts/_invoke-ps1.sh text eol=lf
+scripts/build text eol=lf
+scripts/build.sh text eol=lf
+scripts/clean text eol=lf
+scripts/test text eol=lf
+scripts/package text eol=lf
+scripts/lint text eol=lf
+scripts/release text eol=lf
+scripts/smoke text eol=lf

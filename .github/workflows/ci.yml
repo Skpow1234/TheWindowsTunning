@@ -37,12 +37,10 @@ jobs:
         shell: pwsh
         run: .\scripts\test.ps1 -Config Release
 
-      - name: Smoke test
+      - name: CLI smoke tests
         shell: pwsh
         run: |
-          $exe = ".\build\Release\wintune.exe"
-          & $exe version
-          & $exe help | Out-Null
+          .\scripts\smoke.ps1 -Config Release -SkipSlow
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   build-arm64:

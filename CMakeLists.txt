@@ -7,6 +7,30 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(WINTUNE_VERSION "0.1.0" CACHE STRING "WinTune version string (release CI may override)")
 option(WINTUNE_WARNINGS_AS_ERRORS "Treat compiler warnings as errors (CI lint)" OFF)
 
+# Parse semver for VERSIONINFO (strip pre-release suffix like -beta).
+string(REGEX REPLACE "^([0-9]+)\\.([0-9]+)\\.([0-9]+).*" "\\1" WINTUNE_VERSION_MAJOR "${WINTUNE_VERSION}")
+string(REGEX REPLACE "^([0-9]+)\\.([0-9]+)\\.([0-9]+).*" "\\2" WINTUNE_VERSION_MINOR "${WINTUNE_VERSION}")
+string(REGEX REPLACE "^([0-9]+)\\.([0-9]+)\\.([0-9]+).*" "\\3" WINTUNE_VERSION_PATCH "${WINTUNE_VERSION}")
+if(WINTUNE_VERSION_MAJOR STREQUAL "" OR WINTUNE_VERSION_MAJOR STREQUAL "${WINTUNE_VERSION}")
+    set(WINTUNE_VERSION_MAJOR 0)
+    set(WINTUNE_VERSION_MINOR 1)
+    set(WINTUNE_VERSION_PATCH 0)
+endif()
+set(WINTUNE_VERSION_FULL "${WINTUNE_VERSION_MAJOR}.${WINTUNE_VERSION_MINOR}.${WINTUNE_VERSION_PATCH}.0")
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/resources/wintune.rc.in
+    ${CMAKE_BINARY_DIR}/wintune.rc
+    @ONLY
+)
+# Copy icon/manifest/header next to generated .rc (RC paths are relative to the .rc file).
+configure_file(${CMAKE_SOURCE_DIR}/resources/wintune.ico
+               ${CMAKE_BINARY_DIR}/wintune.ico COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/resources/wintune.manifest
+               ${CMAKE_BINARY_DIR}/wintune.manifest COPYONLY)
+configure_file(${CMAKE_SOURCE_DIR}/resources/resource.h
+               ${CMAKE_BINARY_DIR}/resource.h COPYONLY)
+
 # Source list grows per phase as modules are implemented.
 add_executable(wintune
     src/main.c
@@ -77,6 +101,7 @@ add_executable(wintune
 
     # cli
     src/cli/cli.c
+    src/cli/cli_parse.c
     src/cli/cli_exit.c
     src/cli/cli_launcher.c
     src/cli/exit_codes.c
@@ -100,9 +125,12 @@ add_executable(wintune
     src/tray/tray.c
     src/tray/tray_status.c
     src/cli/commands_tray.c
+
+    # Phase 21 resources (icon, VERSIONINFO, manifest)
+    ${CMAKE_BINARY_DIR}/wintune.rc
 )
 
-target_include_directories(wintune PRIVATE src)
+target_include_directories(wintune PRIVATE src ${CMAKE_BINARY_DIR})
 
 target_compile_definitions(wintune PRIVATE
     WIN32_LEAN_AND_MEAN
@@ -116,6 +144,8 @@ target_compile_definitions(wintune PRIVATE
 
 if(MSVC)
     target_compile_options(wintune PRIVATE /W4 /permissive-)
+    # Prefer our embedded manifest over the default linker-generated one.
+    target_link_options(wintune PRIVATE "/MANIFEST:NO")
     if(WINTUNE_WARNINGS_AS_ERRORS)
         target_compile_options(wintune PRIVATE /WX)
     endif()
@@ -130,6 +160,9 @@ install(FILES
     pack/Launch-WinTune.cmd
     pack/Launch-WinTune.ps1
     pack/Start-Tray.cmd
+    pack/Add-To-Path.cmd
+    pack/Add-To-Path.ps1
+    pack/Check-Arch.ps1
     DESTINATION .
     OPTIONAL
 )
@@ -158,16 +191,83 @@ target_link_libraries(wintune PRIVATE
 
 enable_testing()
 
-add_executable(wintune_unit_tests
+function(wt_add_unit_test name)
+    add_executable(${name} ${ARGN})
+    target_include_directories(${name} PRIVATE src ${CMAKE_BINARY_DIR})
+    target_compile_definitions(${name} PRIVATE
+        WIN32_LEAN_AND_MEAN UNICODE _UNICODE
+        WT_VERSION_STRING="${WINTUNE_VERSION}"
+        _WIN32_WINNT=0x0A00 WINVER=0x0A00
+    )
+    if(MSVC)
+        target_compile_options(${name} PRIVATE /W4 /permissive-)
+        if(WINTUNE_WARNINGS_AS_ERRORS)
+            target_compile_options(${name} PRIVATE /WX)
+        endif()
+    endif()
+    add_test(NAME ${name} COMMAND ${name})
+endfunction()
+
+wt_add_unit_test(wintune_unit_tests
     tests/test_exit_codes.c
     src/cli/exit_codes.c
     src/common/error.c
 )
-target_include_directories(wintune_unit_tests PRIVATE src)
-if(MSVC)
-    target_compile_options(wintune_unit_tests PRIVATE /W4 /permissive-)
-    if(WINTUNE_WARNINGS_AS_ERRORS)
-        target_compile_options(wintune_unit_tests PRIVATE /WX)
-    endif()
-endif()
-add_test(NAME exit_codes COMMAND wintune_unit_tests)
+
+wt_add_unit_test(test_units
+    tests/test_units.c
+    src/common/units.c
+    src/common/error.c
+)
+
+wt_add_unit_test(test_cli_parser
+    tests/test_cli_parser.c
+    src/cli/cli_parse.c
+    src/cli/exit_codes.c
+    src/common/error.c
+    src/system/power.c
+)
+target_link_libraries(test_cli_parser PRIVATE powrprof)
+
+wt_add_unit_test(test_json
+    tests/test_json.c
+    tests/json_link_stubs.c
+    src/output/json.c
+    src/common/error.c
+    src/common/units.c
+    src/platform/time.c
+    src/platform/console.c
+    src/system/privilege.c
+    src/system/power.c
+)
+target_link_libraries(test_json PRIVATE powrprof)
+
+wt_add_unit_test(test_recommendations
+    tests/test_recommendations.c
+    src/core/recommendations.c
+    src/core/report_model.c
+    src/common/error.c
+    src/common/log.c
+    src/platform/paths.c
+    src/platform/time.c
+    src/system/power.c
+    src/system/boot.c
+    src/system/boot_etw.c
+    src/system/updates.c
+    src/system/blockers.c
+    src/system/startup.c
+    src/system/tasks.c
+    src/system/os_info.c
+)
+target_link_libraries(test_recommendations PRIVATE
+    powrprof advapi32 wevtapi taskschd ole32 oleaut32 wuguid rstrtmgr
+)
+
+add_custom_target(wintune_tests_all
+    DEPENDS
+        wintune_unit_tests
+        test_units
+        test_cli_parser
+        test_json
+        test_recommendations
+)

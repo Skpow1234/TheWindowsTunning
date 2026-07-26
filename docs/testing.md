@@ -21,8 +21,17 @@ WinTune has two layers of tests:
 ./scripts/test -Config Release
 ```
 
-Today this runs `wintune_unit_tests` (stable exit-code mapping). More unit
-targets can be added under `tests/` and wired in `CMakeLists.txt`.
+Today this runs:
+
+| Target | Coverage |
+|--------|----------|
+| `wintune_unit_tests` | Exit-code mapping |
+| `test_units` | Byte / duration formatting |
+| `test_cli_parser` | `wt_cli_parse_argv`, JSON mode, power tokens |
+| `test_json` | Compact JSON writer escaping |
+| `test_recommendations` | Memory / disk / power threshold IDs |
+
+`.\scripts\test.ps1` builds `wintune_tests_all` then runs `ctest`.
 
 ---
 
