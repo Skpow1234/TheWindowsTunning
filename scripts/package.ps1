@@ -134,6 +134,8 @@ Set-Content -LiteralPath (Join-Path $StageDir "VERSION.txt") -Value $Version `
     -NoNewline -Encoding utf8
 Set-Content -LiteralPath (Join-Path $StageDir "CHANNEL.txt") -Value $Channel `
     -NoNewline -Encoding utf8
+Set-Content -LiteralPath (Join-Path $StageDir "ARCH.txt") -Value $Arch `
+    -NoNewline -Encoding utf8
 
 Write-Host ""
 Write-Host "Package directory: $StageDir"

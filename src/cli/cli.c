@@ -78,7 +78,8 @@ static void wt_print_usage(void)
         "  --json-errors     Emit machine-readable JSON on failure\n"
         "  --compact-json    Minified JSON (no pretty-printing)\n"
         "  --ndjson          One JSON document per line (e.g. top --watch --json)\n"
-        "  --log-file <path> Append verbose/debug logs to a file (also stderr)\n",
+        "  --log-file <path> Append verbose/debug logs to a file (also stderr)\n"
+        "  --theme <name>    TUI theme: default | compact | mono\n",
         WT_VERSION_STRING);
 }
 
@@ -322,6 +323,14 @@ int wt_cli_run(int argc, wchar_t **argv)
         else if (wcscmp(t, L"--format") == 0) {
             if (i + 1 < argc) opts.format = argv[++i];
             else { fprintf(stderr, "wintune: --format requires text or json\n"); return WT_EXIT_USAGE; }
+        }
+        else if (wcscmp(t, L"--theme") == 0) {
+            if (i + 1 < argc) opts.theme = argv[++i];
+            else {
+                fprintf(stderr,
+                        "wintune: --theme requires a name (default|compact|mono)\n");
+                return WT_EXIT_USAGE;
+            }
         }
         else if (t[0] == L'-') {
             fwprintf(stderr, L"wintune: unknown option '%ls'\n", t);
