@@ -1,0 +1,6 @@
+#ifndef WINTUNE_RESOURCE_H
+#define WINTUNE_RESOURCE_H
+
+#define IDI_WINTUNE 101
+
+#endif /* WINTUNE_RESOURCE_H */
