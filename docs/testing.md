@@ -63,7 +63,7 @@ Against a packaged binary:
 | Meta | `help`, `version`, `--help`, `--version` | exit 0, known banners |
 | Core scan | `scan`, `doctor`, `recommend`, `report`, `top` (+ `--json` / `--sort`) | exit 0; JSON looks like JSON |
 | Inventory | `startup`, `tasks`, `services`, `power`, `blockers`, `rollback list` | exit 0 |
-| Privileged reads | `updates`, `boot analyze` | exit 0 **or** soft-pass on access denied |
+| Privileged / env-sensitive | `updates`, `boot analyze` | exit 0 **or** soft-pass on access denied / missing Diagnostic-Performance channel (common on CI VMs) |
 | Service agent | `service status` | exit 0 (installed or not) |
 | Mutating (safe) | `apply` without id / without `--yes`; bogus `power --set`; bad rollback id | non-zero or cancel; **no silent change** |
 | Interactive | `tui` without a console | exit “not supported” |

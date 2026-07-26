@@ -1,4 +1,6 @@
 #include "cli/commands_boot.h"
+#include "cli/cli_exit.h"
+#include "cli/exit_codes.h"
 #include "system/boot.h"
 #include "system/privilege.h"
 #include "output/json.h"
@@ -164,19 +166,22 @@ static int wt_boot_cmd_analyze(const WT_CliOptions *opts)
     WT_Result r = wt_collect_boot_report(&boot, etl);
     if (r == WT_ERR_ACCESS_DENIED) {
         wt_print_admin_required_message(stderr);
-        return 1;
+        return wt_cli_exit_from_result(opts, r, L"boot",
+                                       "boot analyze requires administrator privileges");
     }
     if (r == WT_ERR_NOT_FOUND) {
         fprintf(stderr,
                 "wintune: no boot performance data found.\n"
                 "Ensure the Diagnostic-Performance event log is enabled.\n"
                 "You may need to reboot once so Windows records boot metrics.\n");
-        return 1;
+        return wt_cli_exit_from_result(
+            opts, r, L"boot",
+            "Diagnostic-Performance channel or boot events not found");
     }
     if (r != WT_OK) {
         fprintf(stderr, "wintune: boot analyze failed (%s)\n",
                 wt_result_to_string(r));
-        return 1;
+        return wt_cli_exit_from_result(opts, r, L"boot", NULL);
     }
 
     if (opts != NULL && opts->json) {

@@ -312,17 +312,23 @@ WT_Result wt_collect_boot_from_event_log(WT_BootReport *report)
                         StringCchCopyW(report->source, ARRAYSIZE(report->source),
                                        L"event_log_file");
                     } else {
-                        WT_LOGW("EvtQuery evtx fallback failed (err=%lu)",
-                                GetLastError());
+                        err = GetLastError();
+                        WT_LOGW("EvtQuery evtx fallback failed (err=%lu)", err);
                     }
                 }
             }
         }
 
         if (query == NULL) {
-            err = GetLastError();
             if (err == ERROR_ACCESS_DENIED) {
                 return WT_ERR_ACCESS_DENIED;
+            }
+            /* Common on fresh VMs / CI images where the Diagnostic-Performance
+             * channel was never created. */
+            if (err == ERROR_EVT_CHANNEL_NOT_FOUND ||
+                err == ERROR_FILE_NOT_FOUND ||
+                err == ERROR_PATH_NOT_FOUND) {
+                return WT_ERR_NOT_FOUND;
             }
             return WT_ERR_WIN32;
         }

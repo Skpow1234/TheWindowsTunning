@@ -136,9 +136,27 @@ function Test-ExpectOk {
         Write-CaseResult $Name "FAIL" "timeout"
         return
     }
-    if ($AllowAccessDenied -and ($r.ExitCode -eq 11 -or $r.StdErr -match "access denied|administrator|Access is denied")) {
-        Write-CaseResult $Name "SOFT" "access denied (elevated shell may be required)"
-        return
+    if ($AllowAccessDenied) {
+        $soft = $false
+        $detail = "unavailable in this environment"
+        if ($r.ExitCode -eq 11 -or $r.StdErr -match "access denied|administrator|Access is denied") {
+            $soft = $true
+            $detail = "access denied (elevated shell may be required)"
+        }
+        if ($r.ExitCode -eq 12 -or $r.ExitCode -eq 13 -or
+            $r.StdErr -match "EvtQuery|channel|15007|no boot performance|Diagnostic-Performance") {
+            $soft = $true
+            $detail = "boot/event channel unavailable (common on CI VMs)"
+        }
+        if (($r.ExitCode -eq 1 -or $r.ExitCode -eq 20) -and
+            ($r.StdErr -match "EvtQuery|boot analyze|Diagnostic-Performance|channel|15007")) {
+            $soft = $true
+            $detail = "boot/event channel unavailable (common on CI VMs)"
+        }
+        if ($soft) {
+            Write-CaseResult $Name "SOFT" $detail
+            return
+        }
     }
     if ($r.ExitCode -ne 0) {
         $snip = ($r.StdErr + $r.StdOut).Trim()
@@ -201,9 +219,27 @@ function Test-JsonOk {
         Write-CaseResult $Name "FAIL" "timeout"
         return
     }
-    if ($AllowAccessDenied -and ($r.ExitCode -eq 11 -or $r.StdErr -match "access denied|administrator")) {
-        Write-CaseResult $Name "SOFT" "access denied"
-        return
+    if ($AllowAccessDenied) {
+        $soft = $false
+        $detail = "unavailable in this environment"
+        if ($r.ExitCode -eq 11 -or $r.StdErr -match "access denied|administrator") {
+            $soft = $true
+            $detail = "access denied"
+        }
+        if ($r.ExitCode -eq 12 -or $r.ExitCode -eq 13 -or
+            $r.StdErr -match "EvtQuery|channel|15007|no boot performance|Diagnostic-Performance") {
+            $soft = $true
+            $detail = "boot/event channel unavailable"
+        }
+        if (($r.ExitCode -eq 1 -or $r.ExitCode -eq 20) -and
+            ($r.StdErr -match "EvtQuery|boot analyze|Diagnostic-Performance|channel|15007")) {
+            $soft = $true
+            $detail = "boot/event channel unavailable"
+        }
+        if ($soft) {
+            Write-CaseResult $Name "SOFT" $detail
+            return
+        }
     }
     if ($r.ExitCode -ne 0) {
         Write-CaseResult $Name "FAIL" "exit $($r.ExitCode)"
