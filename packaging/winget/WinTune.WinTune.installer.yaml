@@ -20,9 +20,9 @@ ReleaseDate: 2026-07-26
 Installers:
   - Architecture: x64
     InstallerUrl: https://github.com/Skpow1234/TheWindowsTunning/releases/download/v0.2.0/WinTune-0.2.0-win-x64.zip
-    InstallerSha256: REPLACE_WITH_SHA256_X64
+    InstallerSha256: e74ff6dd72018fb46bfb1bf7bcac993604154fadeb4139f6531eaedbec282aff
   - Architecture: arm64
     InstallerUrl: https://github.com/Skpow1234/TheWindowsTunning/releases/download/v0.2.0/WinTune-0.2.0-win-arm64.zip
-    InstallerSha256: REPLACE_WITH_SHA256_ARM64
+    InstallerSha256: e66141ea44b340ae6b1fb57e6ea9590f8cf317cdc7112482603413b7431ef8ec
 ManifestType: installer
 ManifestVersion: 1.6.0
