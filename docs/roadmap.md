@@ -32,11 +32,11 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 13 | Windows Update & reboot readiness (`updates`, WT-UPDATE-*) | Done |
 | 14 | Restart Manager integration (`blockers`, WT-BLOCKER-001) | Done |
 | 15 | Metrics depth (per-process CPU, disk rates, multi-sample scan) | Done |
-| 16 | Apply actions v2 + rollback completeness | Planned |
-| 17 | Fleet / automation hardening | Planned |
-| 18 | Packaging + ARM64 (developer) | Planned |
+| 16 | Apply actions v2 + rollback completeness | Done |
+| 17 | Fleet / automation hardening | Done |
+| 18 | Packaging + ARM64 (developer) | Done |
 | 19 | Optional tray / native GUI (never Electron) | Done |
-| 20 | TUI polish & UX | Planned |
+| 20 | TUI polish & UX | Done |
 | 21 | Distributable executable (end-user release) | Planned |
 
 ---
@@ -196,7 +196,9 @@ WinTune v1 is complete when it can:
 
 ---
 
-## v2+ (Phases 10–19) — Planned
+## v2+ (Phases 10–21)
+
+Phases 10–20 are **Done**. Phase 21 remains for end-user installer polish.
 
 These phases extend WinTune from “on-demand doctor” to “measured boot analysis,
 background monitoring, and richer automation” while keeping the same safety
@@ -465,7 +467,7 @@ interface.
 
 ---
 
-### Phase 20 — TUI Polish & UX
+### Phase 20 — TUI Polish & UX — **Done**
 
 **Goal:** Make `wintune tui` feel production-quality — not just functional.
 
@@ -482,17 +484,20 @@ and readability across Windows Terminal, CMD, SSH, and narrow consoles.
 - **Sparkline or mini trend** for CPU/RAM/disk (last N samples, lightweight).
 - Optional **`--theme`** or config file for colors/glyphs (still no-color/safe
   fallbacks).
-- Optional **snapshot export** (`s` key → write report to `%USERPROFILE%\Documents\WinTune\Reports\`).
+- Optional **snapshot export** (`e` key → write report to `%USERPROFILE%\Documents\WinTune\Reports\`).
 - Improved **help overlay** and key hints for SSH/ASCII mode.
 - Documented **minimum terminal size** and degraded layout below it.
 
-**Example commands (target):**
+**Commands:**
 
 ```bash
 wintune tui
 wintune tui --theme compact
 wintune tui --safe-terminal --interval 500
+wintune tui --sort cpu
 ```
+
+See [`tui.md`](tui.md).
 
 **Depends on:** Phase 6 (TUI exists). Per-process columns depend on Phase 15.
 

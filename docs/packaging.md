@@ -71,6 +71,9 @@ CI builds **x64** on `windows-latest` and **ARM64** on `windows-11-vs2026-arm`
 (native ARM64 + VS 2026). Cross-compiling ARM64 on an x64 PC requires the MSVC
 ARM64 workload in Visual Studio Installer.
 
+Each ZIP includes `VERSION.txt`, `CHANNEL.txt`, and `ARCH.txt` so the architecture
+is obvious before double-clicking `wintune.exe`.
+
 GitHub Releases upload both ZIPs on `v*` tags.
 
 Verify architecture:

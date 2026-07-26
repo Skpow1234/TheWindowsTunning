@@ -16,10 +16,28 @@ wintune tui --interval 1000
 wintune tui --no-color
 wintune tui --no-unicode
 wintune tui --safe-terminal
+wintune tui --theme compact
+wintune tui --theme mono
+wintune tui --sort cpu
 ```
 
 The TUI must work in Windows Terminal, PowerShell, CMD (with VT enabled), the
 VS Code terminal, and SSH sessions.
+
+**Minimum size:** 48 columns × 14 rows. Below that, WinTune shows a short
+“terminal too small” message instead of a cramped layout.
+
+---
+
+## Themes (`--theme`)
+
+| Theme     | Behavior                                      |
+| --------- | --------------------------------------------- |
+| `default` | Full gauges + CPU/RAM/disk sparklines         |
+| `compact` | Shorter gauges, fewer process rows, no sparks |
+| `mono`    | No ANSI colors (same as `--no-color` intent)  |
+
+`--safe-terminal` / remote sessions still force conservative ASCII + no-color.
 
 ---
 
@@ -27,9 +45,9 @@ VS Code terminal, and SSH sessions.
 
 | Mode             | Trigger                | Behavior                                  |
 | ---------------- | ---------------------- | ----------------------------------------- |
-| Unicode          | default                | Box-drawing glyphs, block bars            |
+| Unicode          | default                | Box-drawing glyphs, block bars, sparks    |
 | ASCII fallback   | `--no-unicode`         | `+`, `-`, `|`, `#` characters             |
-| No-color         | `--no-color`           | No ANSI color sequences                   |
+| No-color         | `--no-color` / `mono`  | No ANSI color sequences                   |
 | Safe terminal    | `--safe-terminal`      | Conservative output for SSH/unknown terms |
 | Non-interactive  | auto-detected          | Refuses TUI; suggests `scan`/`top`        |
 
@@ -38,43 +56,23 @@ VS Code terminal, and SSH sessions.
 ## Layout (Unicode)
 
 ```text
-┌────────────────────────────── WinTune Live ──────────────────────────────┐
-│ Host: DESKTOP-9KD2       Uptime: 3d 04h       Power: Balanced            │
-├──────────────────────────────────────────────────────────────────────────┤
-│ CPU  ███████████░░░░░░░░░░░░░░░░  38%                                    │
-│ RAM  ██████████████████░░░░░░░░░  72%   23.1 GB / 32 GB                  │
-│ DISK ███████████████████████░░░░  84%   C: 141 GB free                   │
-│ NET  ↓ 12.4 MB/s   ↑ 1.1 MB/s                                           │
-├──────────────────────────────────────────────────────────────────────────┤
-│ Top Processes                                                            │
-│ PID     Name                 CPU%     Memory       Disk                   │
-│ 8420    chrome.exe           21.4     2.4 GB       8 MB/s                 │
-│ 9921    docker.exe           14.0     1.7 GB       2 MB/s                 │
-│ 5312    MsMpEng.exe          8.2      640 MB       51 MB/s                │
-├──────────────────────────────────────────────────────────────────────────┤
-│ Keys: q quit | r refresh | p power | s services | d disk | ? help         │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-## Layout (ASCII fallback)
-
-```text
-+---------------------------- WinTune Live ----------------------------+
-| Host: DESKTOP-9KD2      Uptime: 3d 04h      Power: Balanced          |
-+---------------------------------------------------------------------+
-| CPU  [###########-------------------] 38%                            |
-| RAM  [##################------------] 72%  23.1 GB / 32 GB           |
-| DISK [#######################-------] 84%  C: 141 GB free            |
-| NET  Down: 12.4 MB/s  Up: 1.1 MB/s                                  |
-+---------------------------------------------------------------------+
-| Top Processes                                                       |
-| PID     Name                 CPU%     Memory       Disk              |
-| 8420    chrome.exe           21.4     2.4 GB       8 MB/s            |
-| 9921    docker.exe           14.0     1.7 GB       2 MB/s            |
-| 5312    MsMpEng.exe          8.2      640 MB       51 MB/s           |
-+---------------------------------------------------------------------+
-| Keys: q quit | r refresh | p power | s services | d disk | ? help    |
-+---------------------------------------------------------------------+
+WinTune Live   Host: DESKTOP-9KD2   Up: 3d 04h   Power: Balanced (AC)
+──────────────────────────────────────────────────────────────────────
+CPU   [███████████░░░░░░░░░░░░░░░░░]  38.0%
+RAM   [██████████████████░░░░░░░░░░]  72.0%  23.1 GB / 32 GB
+DISK  [███████████████████████░░░░░]  84.0%  active
+cpu~  ▃▅▇▅▃▂▄▆▇▅▄▃▂▁▂▃▄▅▆▇▅▃
+ram~  ▆▆▇▇▇▆▆▆▇▇▇▆▅▅▆▆▇▇▇▆▆▅
+dsk~  ▁▂▃▅▇▅▃▂▁▂▃▄▅▃▂▁▂▃▄▅▃▂
+NET   down 12.4 MB/s     up 1.1 MB/s
+──────────────────────────────────────────────────────────────────────
+── Top Processes ─────────────────────────────────────────────────────
+sort: cpu  scroll: 1/64
+PID    Process               CPU%     Memory       Disk
+8420   chrome.exe            21.4%    2.4 GB       8.0 MB/s
+...
+──────────────────────────────────────────────────────────────────────
+Keys: q quit | Space pause | t sort | j/k scroll | e export | ...
 ```
 
 ---
@@ -82,17 +80,44 @@ VS Code terminal, and SSH sessions.
 ## Controls
 
 ```text
-q     quit
-r     refresh
-p     power view
-s     services view
-d     disk view
-m     memory view
-n     network view
-?     help
+q / Esc / Ctrl+C   quit
+Space              pause / resume refresh (freeze frame)
+r                  refresh now (also resumes if paused)
+o                  overview
+d / m / n / p / s  disk / memory / network / power / services
+t                  cycle sort: cpu → memory → disk
+1 / 2 / 3          sort by CPU / memory / disk
+j / k or arrows    scroll process or service list
+PgUp / PgDn        page scroll
+e                  export snapshot to Documents\WinTune\Reports\
+? / h              help
 ```
 
+Services stay on `s`. Snapshot export uses `e` so the keys do not conflict.
+
 The TUI must **never** apply system changes without confirmation.
+
+---
+
+## Performance notes
+
+- Process CPU/disk rates use a short **250 ms** sample (not a full refresh
+  interval), so the dashboard stays responsive.
+- While **paused**, metrics and process lists are frozen; gauges stop updating.
+- Resize is detected each poll tick and redraws immediately.
+
+---
+
+## Snapshot export
+
+Press `e` to write a text snapshot:
+
+```text
+%USERPROFILE%\Documents\WinTune\Reports\wintune-tui-YYYYMMDD-HHMMSS.txt
+```
+
+Contents: CPU/RAM/disk summary plus the current process table. Read-only; no
+system changes.
 
 ---
 
@@ -118,15 +143,6 @@ WT_Result wt_console_move_cursor(int row, int col);
 WT_Result wt_console_hide_cursor(void);
 WT_Result wt_console_show_cursor(void);
 int       wt_console_is_interactive(void);
-int       wt_console_supports_color(void);
 ```
 
----
-
-## Terminal State Safety
-
-- Always restore terminal state on exit.
-- If the TUI crashes or exits for any reason, the cursor must become visible
-  again and the main screen buffer must be restored.
-- Default refresh interval is 1000 ms; TUI CPU overhead must stay low enough to
-  avoid distorting the measurements it displays.
+Always restore the cursor and leave the alternate screen on exit.

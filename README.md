@@ -367,7 +367,7 @@ WinTune is under active, phased development.
 | 17 | Fleet / automation hardening | Done |
 | 18 | Packaging + ARM64 (`package.ps1`, `--log-file`, dual-arch releases) | Done |
 | 19 | Optional tray / native GUI (never Electron) | Done |
-| 20 | TUI polish & UX | Planned |
+| 20 | TUI polish & UX | Done |
 | 21 | Distributable executable (end-user release) | Planned |
 
 **v1 (Phases 0–9) is complete.** Phases 10–11 add boot/login analysis and an

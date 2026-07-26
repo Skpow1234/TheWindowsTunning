@@ -149,7 +149,7 @@ PID     Process             CPU%     Memory       Disk       Impact
 
 ## `wintune tui`
 
-Starts the live terminal dashboard. See `tui.md` for layout and controls.
+Starts the live terminal dashboard. See [`tui.md`](tui.md) for layout and controls.
 
 ```bash
 wintune tui
@@ -157,8 +157,13 @@ wintune tui --interval 1000
 wintune tui --no-color
 wintune tui --no-unicode
 wintune tui --safe-terminal
+wintune tui --theme compact
+wintune tui --theme mono
+wintune tui --sort cpu
 ```
 
+Keys (Phase 20): Space pause, `t`/`1`/`2`/`3` sort, `j`/`k` scroll, `e` export
+snapshot, `?` help.
 ---
 
 ## `wintune startup`
