@@ -103,7 +103,7 @@ jobs:
           merge-multiple: true
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', needs.resolve-version.outputs.value) || github.ref_name }}
           name: WinTune ${{ needs.resolve-version.outputs.value }}
