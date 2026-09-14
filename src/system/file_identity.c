@@ -41,10 +41,39 @@ const char *wt_publisher_origin_name(WT_PublisherOrigin origin)
     }
 }
 
+const char *wt_install_location_name(WT_InstallLocation location)
+{
+    switch (location) {
+    case WT_LOC_WINDOWS:           return "windows";
+    case WT_LOC_PROGRAM_FILES:     return "program-files";
+    case WT_LOC_PROGRAM_FILES_X86: return "program-files-x86";
+    case WT_LOC_USER_APP_DATA:     return "user-appdata";
+    case WT_LOC_TEMP:              return "temp";
+    case WT_LOC_DOWNLOADS:         return "downloads";
+    case WT_LOC_OTHER:             return "other";
+    case WT_LOC_UNKNOWN:
+    default:                       return "unknown";
+    }
+}
+
 static int wt_wcs_ieq_prefix(const wchar_t *s, const wchar_t *prefix)
 {
     size_t n = wcslen(prefix);
     return _wcsnicmp(s, prefix, n) == 0;
+}
+
+static int wt_path_contains_ci(const wchar_t *path, const wchar_t *needle)
+{
+    if (path == NULL || needle == NULL || needle[0] == L'\0') {
+        return 0;
+    }
+    size_t nlen = wcslen(needle);
+    for (const wchar_t *p = path; *p != L'\0'; ++p) {
+        if (_wcsnicmp(p, needle, nlen) == 0) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 static int wt_publisher_looks_microsoft(const wchar_t *publisher)
@@ -52,11 +81,7 @@ static int wt_publisher_looks_microsoft(const wchar_t *publisher)
     if (publisher == NULL || publisher[0] == L'\0') {
         return 0;
     }
-    /* Calm substring match — version CompanyName and catalog subjects vary. */
     if (wcsstr(publisher, L"Microsoft") != NULL) {
-        return 1;
-    }
-    if (_wcsicmp(publisher, L"Microsoft Corporation") == 0) {
         return 1;
     }
     return 0;
@@ -67,6 +92,8 @@ static void wt_identity_clear(WT_FileIdentity *out)
     memset(out, 0, sizeof(*out));
     out->signature = WT_SIG_UNAVAILABLE;
     out->origin = WT_ORIGIN_UNKNOWN;
+    out->location = WT_LOC_UNKNOWN;
+    out->unusual_location = 0;
 }
 
 static int wt_cache_lookup(const wchar_t *path, WT_FileIdentity *out)
@@ -90,6 +117,126 @@ static void wt_cache_store(const wchar_t *path, const WT_FileIdentity *id)
     e->used = 1;
     StringCchCopyW(e->path, MAX_PATH, path);
     e->identity = *id;
+}
+
+WT_InstallLocation wt_identity_classify_location(const wchar_t *path)
+{
+    if (path == NULL || path[0] == L'\0') {
+        return WT_LOC_UNKNOWN;
+    }
+
+    wchar_t windir[MAX_PATH];
+    wchar_t pf[MAX_PATH];
+    wchar_t pf86[MAX_PATH];
+    wchar_t local[MAX_PATH];
+    wchar_t roaming[MAX_PATH];
+    wchar_t temp[MAX_PATH];
+    wchar_t profile[MAX_PATH];
+
+    windir[0] = pf[0] = pf86[0] = local[0] = roaming[0] = temp[0] = profile[0] = L'\0';
+    GetEnvironmentVariableW(L"SystemRoot", windir, MAX_PATH);
+    GetEnvironmentVariableW(L"ProgramFiles", pf, MAX_PATH);
+    GetEnvironmentVariableW(L"ProgramFiles(x86)", pf86, MAX_PATH);
+    GetEnvironmentVariableW(L"LOCALAPPDATA", local, MAX_PATH);
+    GetEnvironmentVariableW(L"APPDATA", roaming, MAX_PATH);
+    GetEnvironmentVariableW(L"TEMP", temp, MAX_PATH);
+    GetEnvironmentVariableW(L"USERPROFILE", profile, MAX_PATH);
+
+    if (windir[0] != L'\0') {
+        wchar_t prefix[MAX_PATH];
+        if (SUCCEEDED(StringCchPrintfW(prefix, MAX_PATH, L"%s\\", windir)) &&
+            wt_wcs_ieq_prefix(path, prefix)) {
+            return WT_LOC_WINDOWS;
+        }
+    }
+    if (wt_path_contains_ci(path, L"\\Windows\\System32\\") ||
+        wt_path_contains_ci(path, L"\\Windows\\SysWOW64\\") ||
+        wt_path_contains_ci(path, L"\\Windows\\WinSxS\\")) {
+        return WT_LOC_WINDOWS;
+    }
+
+    if (pf[0] != L'\0') {
+        wchar_t prefix[MAX_PATH];
+        if (SUCCEEDED(StringCchPrintfW(prefix, MAX_PATH, L"%s\\", pf)) &&
+            wt_wcs_ieq_prefix(path, prefix)) {
+            return WT_LOC_PROGRAM_FILES;
+        }
+    }
+    if (pf86[0] != L'\0') {
+        wchar_t prefix[MAX_PATH];
+        if (SUCCEEDED(StringCchPrintfW(prefix, MAX_PATH, L"%s\\", pf86)) &&
+            wt_wcs_ieq_prefix(path, prefix)) {
+            return WT_LOC_PROGRAM_FILES_X86;
+        }
+    }
+    if (wt_path_contains_ci(path, L"\\Program Files (x86)\\")) {
+        return WT_LOC_PROGRAM_FILES_X86;
+    }
+    if (wt_path_contains_ci(path, L"\\Program Files\\")) {
+        return WT_LOC_PROGRAM_FILES;
+    }
+
+    if (temp[0] != L'\0') {
+        wchar_t prefix[MAX_PATH];
+        if (SUCCEEDED(StringCchPrintfW(prefix, MAX_PATH, L"%s\\", temp)) &&
+            wt_wcs_ieq_prefix(path, prefix)) {
+            return WT_LOC_TEMP;
+        }
+    }
+    if (wt_path_contains_ci(path, L"\\Temp\\") ||
+        wt_path_contains_ci(path, L"\\Windows\\Temp\\")) {
+        return WT_LOC_TEMP;
+    }
+
+    if (profile[0] != L'\0') {
+        wchar_t downloads[MAX_PATH];
+        if (SUCCEEDED(StringCchPrintfW(downloads, MAX_PATH, L"%s\\Downloads\\",
+                                       profile)) &&
+            wt_wcs_ieq_prefix(path, downloads)) {
+            return WT_LOC_DOWNLOADS;
+        }
+    }
+    if (wt_path_contains_ci(path, L"\\Downloads\\")) {
+        return WT_LOC_DOWNLOADS;
+    }
+
+    if (local[0] != L'\0') {
+        wchar_t prefix[MAX_PATH];
+        if (SUCCEEDED(StringCchPrintfW(prefix, MAX_PATH, L"%s\\", local)) &&
+            wt_wcs_ieq_prefix(path, prefix)) {
+            return WT_LOC_USER_APP_DATA;
+        }
+    }
+    if (roaming[0] != L'\0') {
+        wchar_t prefix[MAX_PATH];
+        if (SUCCEEDED(StringCchPrintfW(prefix, MAX_PATH, L"%s\\", roaming)) &&
+            wt_wcs_ieq_prefix(path, prefix)) {
+            return WT_LOC_USER_APP_DATA;
+        }
+    }
+    if (wt_path_contains_ci(path, L"\\AppData\\Local\\") ||
+        wt_path_contains_ci(path, L"\\AppData\\Roaming\\")) {
+        return WT_LOC_USER_APP_DATA;
+    }
+
+    return WT_LOC_OTHER;
+}
+
+static int wt_location_is_unusual(WT_PublisherOrigin origin,
+                                  WT_InstallLocation location)
+{
+    /* Calm review cues only — never framed as malware. */
+    if (location == WT_LOC_TEMP || location == WT_LOC_DOWNLOADS) {
+        return 1;
+    }
+    if (origin == WT_ORIGIN_MICROSOFT &&
+        location != WT_LOC_WINDOWS &&
+        location != WT_LOC_PROGRAM_FILES &&
+        location != WT_LOC_PROGRAM_FILES_X86 &&
+        location != WT_LOC_UNKNOWN) {
+        return 1;
+    }
+    return 0;
 }
 
 WT_Result wt_identity_extract_path(const wchar_t *command_or_path,
@@ -118,7 +265,6 @@ WT_Result wt_identity_extract_path(const wchar_t *command_or_path,
             buf[n++] = *p++;
         }
     } else {
-        /* Unquoted: take until whitespace, but keep drive paths like C:\... */
         while (*p != L'\0' && *p != L' ' && *p != L'\t' && n + 1 < MAX_PATH) {
             buf[n++] = *p++;
         }
@@ -128,7 +274,6 @@ WT_Result wt_identity_extract_path(const wchar_t *command_or_path,
         return WT_ERR_NOT_FOUND;
     }
 
-    /* Expand %ENV% if present. */
     wchar_t expanded[MAX_PATH];
     DWORD exp = ExpandEnvironmentStringsW(buf, expanded, MAX_PATH);
     const wchar_t *src = (exp > 0 && exp < MAX_PATH) ? expanded : buf;
@@ -139,9 +284,31 @@ WT_Result wt_identity_extract_path(const wchar_t *command_or_path,
     return WT_OK;
 }
 
-static WT_Result wt_read_company_name(const wchar_t *path, wchar_t *out, size_t out_count)
+static void wt_read_version_string(BYTE *block, WORD language, WORD codepage,
+                                   const wchar_t *key, wchar_t *out,
+                                   size_t out_count)
 {
     out[0] = L'\0';
+    wchar_t sub[80];
+    if (FAILED(StringCchPrintfW(sub, 80, L"\\StringFileInfo\\%04x%04x\\%s",
+                                language, codepage, key))) {
+        return;
+    }
+    wchar_t *value = NULL;
+    UINT value_len = 0;
+    if (VerQueryValueW(block, sub, (LPVOID *)&value, &value_len) &&
+        value != NULL && value_len > 0) {
+        StringCchCopyW(out, out_count, value);
+    }
+}
+
+static WT_Result wt_read_version_identity(const wchar_t *path,
+                                          wchar_t *company, size_t company_count,
+                                          wchar_t *product, size_t product_count)
+{
+    company[0] = L'\0';
+    product[0] = L'\0';
+
     DWORD dummy = 0;
     DWORD size = GetFileVersionInfoSizeW(path, &dummy);
     if (size == 0) {
@@ -163,14 +330,13 @@ static WT_Result wt_read_company_name(const wchar_t *path, wchar_t *out, size_t 
         if (VerQueryValueW(block, L"\\VarFileInfo\\Translation",
                            (LPVOID *)&translate, &translate_len) &&
             translate != NULL && translate_len >= sizeof(*translate)) {
-            wchar_t sub[64];
-            StringCchPrintfW(sub, 64, L"\\StringFileInfo\\%04x%04x\\CompanyName",
-                             translate[0].language, translate[0].codepage);
-            wchar_t *company = NULL;
-            UINT company_len = 0;
-            if (VerQueryValueW(block, sub, (LPVOID *)&company, &company_len) &&
-                company != NULL && company_len > 0) {
-                StringCchCopyW(out, out_count, company);
+            wt_read_version_string(block, translate[0].language,
+                                   translate[0].codepage, L"CompanyName",
+                                   company, company_count);
+            wt_read_version_string(block, translate[0].language,
+                                   translate[0].codepage, L"ProductName",
+                                   product, product_count);
+            if (company[0] != L'\0' || product[0] != L'\0') {
                 result = WT_OK;
             }
         }
@@ -179,14 +345,8 @@ static WT_Result wt_read_company_name(const wchar_t *path, wchar_t *out, size_t 
     return result;
 }
 
-static WT_SignatureStatus wt_verify_authenticode(const wchar_t *path,
-                                                 wchar_t *signer_out,
-                                                 size_t signer_count)
+static WT_SignatureStatus wt_verify_authenticode(const wchar_t *path)
 {
-    if (signer_out != NULL && signer_count > 0) {
-        signer_out[0] = L'\0';
-    }
-
     WINTRUST_FILE_INFO file_info;
     memset(&file_info, 0, sizeof(file_info));
     file_info.cbStruct = sizeof(file_info);
@@ -207,7 +367,6 @@ static WT_SignatureStatus wt_verify_authenticode(const wchar_t *path,
 
     LONG status = WinVerifyTrust(NULL, &action, &data);
 
-    /* Always close the state regardless of result. */
     data.dwStateAction = WTD_STATEACTION_CLOSE;
     WinVerifyTrust(NULL, &action, &data);
 
@@ -217,10 +376,6 @@ static WT_SignatureStatus wt_verify_authenticode(const wchar_t *path,
     if (status == TRUST_E_NOSIGNATURE) {
         return WT_SIG_UNSIGNED;
     }
-    /* Other trust failures (revoked, bad cert, etc.) — report unavailable,
-     * not "unsigned", to avoid alarming false cues. */
-    (void)signer_out;
-    (void)signer_count;
     return WT_SIG_UNAVAILABLE;
 }
 
@@ -240,19 +395,22 @@ WT_Result wt_identity_from_path(const wchar_t *path, WT_FileIdentity *out)
     }
 
     StringCchCopyW(out->path, MAX_PATH, path);
+    out->location = wt_identity_classify_location(path);
 
     DWORD attrs = GetFileAttributesW(path);
     if (attrs == INVALID_FILE_ATTRIBUTES || (attrs & FILE_ATTRIBUTE_DIRECTORY)) {
         out->signature = WT_SIG_UNAVAILABLE;
         out->available = 0;
+        out->unusual_location = wt_location_is_unusual(out->origin, out->location);
         wt_cache_store(path, out);
         return WT_OK;
     }
 
     out->available = 1;
-    (void)wt_read_company_name(path, out->publisher, 128);
+    (void)wt_read_version_identity(path, out->publisher, 128, out->product_name,
+                                   128);
 
-    WT_SignatureStatus sig = wt_verify_authenticode(path, NULL, 0);
+    WT_SignatureStatus sig = wt_verify_authenticode(path);
     out->signature = sig;
 
     if (wt_publisher_looks_microsoft(out->publisher)) {
@@ -263,25 +421,19 @@ WT_Result wt_identity_from_path(const wchar_t *path, WT_FileIdentity *out)
     } else if (out->publisher[0] != L'\0') {
         out->origin = WT_ORIGIN_THIRD_PARTY;
     } else if (sig == WT_SIG_SIGNED) {
-        /* Signed but no CompanyName — still third-party cue, not "unknown malware". */
         out->origin = WT_ORIGIN_THIRD_PARTY;
     } else {
         out->origin = WT_ORIGIN_UNKNOWN;
     }
 
-    /* Heuristic: binaries under Windows\System32 / WinSxS without version info
-     * are usually Microsoft components. */
-    if (out->origin == WT_ORIGIN_UNKNOWN) {
-        if (wt_wcs_ieq_prefix(path, L"C:\\Windows\\System32\\") ||
-            wt_wcs_ieq_prefix(path, L"C:\\Windows\\SysWOW64\\") ||
-            wcsstr(path, L"\\Windows\\System32\\") != NULL ||
-            wcsstr(path, L"\\Windows\\SysWOW64\\") != NULL) {
-            out->origin = WT_ORIGIN_MICROSOFT;
-            if (sig == WT_SIG_SIGNED) {
-                out->signature = WT_SIG_SIGNED_MICROSOFT;
-            }
+    if (out->origin == WT_ORIGIN_UNKNOWN && out->location == WT_LOC_WINDOWS) {
+        out->origin = WT_ORIGIN_MICROSOFT;
+        if (sig == WT_SIG_SIGNED) {
+            out->signature = WT_SIG_SIGNED_MICROSOFT;
         }
     }
+
+    out->unusual_location = wt_location_is_unusual(out->origin, out->location);
 
     wt_cache_store(path, out);
     return WT_OK;
