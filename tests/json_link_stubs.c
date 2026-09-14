@@ -79,3 +79,9 @@ const char *wt_publisher_origin_name(WT_PublisherOrigin origin)
     (void)origin;
     return "unknown";
 }
+
+const char *wt_install_location_name(WT_InstallLocation location)
+{
+    (void)location;
+    return "unknown";
+}
