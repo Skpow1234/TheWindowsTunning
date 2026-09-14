@@ -95,8 +95,8 @@ x64 smoke:
 ```
 
 `-SkipSlow` tightens timeouts; coverage is the same. ARM64 CI now runs the same
-smoke suite against the ARM64 binary. See [`ci.md`](ci.md) for caching,
-Dependabot, and how to set the required status check.
+smoke suite against the ARM64 binary. See [`ci.md`](ci.md) for caching and how
+to set the required status check.
 
 ### What smoke does **not** do
 

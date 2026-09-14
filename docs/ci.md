@@ -9,7 +9,6 @@ integration and release packaging.
 |----------|------|---------|
 | **CI** | `.github/workflows/ci.yml` | Push/PR to `main`; tags `v*`; manual dispatch |
 | **Release** | `.github/workflows/release.yml` | Tag `v*` or manual dispatch |
-| **Dependabot** | `.github/dependabot.yml` | Weekly GitHub Actions updates |
 
 ### CI jobs
 
