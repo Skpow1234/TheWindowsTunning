@@ -1,4 +1,5 @@
 #include "system/services.h"
+#include "system/file_identity.h"
 
 #include <windows.h>
 #include <winsvc.h>
@@ -57,29 +58,38 @@ static WT_ServiceStartType wt_map_start_type(DWORD t)
     }
 }
 
-/* Reads a single service's configured start type. Failure (e.g. access denied)
- * is non-fatal and reported as "unknown". */
-static WT_ServiceStartType wt_query_start_type(SC_HANDLE scm, const wchar_t *name)
+/* Reads start type and ImagePath. Failure is non-fatal. */
+static void wt_query_service_config(SC_HANDLE scm, const wchar_t *name,
+                                    WT_ServiceStartType *out_start,
+                                    wchar_t *image_path, size_t image_path_count)
 {
-    SC_HANDLE svc = OpenServiceW(scm, name, SERVICE_QUERY_CONFIG);
-    if (svc == NULL) {
-        return WT_SVC_START_UNKNOWN;
+    *out_start = WT_SVC_START_UNKNOWN;
+    if (image_path != NULL && image_path_count > 0) {
+        image_path[0] = L'\0';
     }
 
-    WT_ServiceStartType result = WT_SVC_START_UNKNOWN;
+    SC_HANDLE svc = OpenServiceW(scm, name, SERVICE_QUERY_CONFIG);
+    if (svc == NULL) {
+        return;
+    }
+
     DWORD needed = 0;
     QueryServiceConfigW(svc, NULL, 0, &needed);
     if (needed > 0) {
         QUERY_SERVICE_CONFIGW *cfg = (QUERY_SERVICE_CONFIGW *)malloc(needed);
         if (cfg != NULL) {
             if (QueryServiceConfigW(svc, cfg, needed, &needed)) {
-                result = wt_map_start_type(cfg->dwStartType);
+                *out_start = wt_map_start_type(cfg->dwStartType);
+                if (image_path != NULL && image_path_count > 0 &&
+                    cfg->lpBinaryPathName != NULL) {
+                    StringCchCopyW(image_path, image_path_count,
+                                   cfg->lpBinaryPathName);
+                }
             }
             free(cfg);
         }
     }
     CloseServiceHandle(svc);
-    return result;
 }
 
 WT_Result wt_collect_services(WT_ServiceInfo *out,
@@ -135,7 +145,24 @@ WT_Result wt_collect_services(WT_ServiceInfo *out,
                        s->lpDisplayName ? s->lpDisplayName : L"");
         info->state = wt_map_state(s->ServiceStatusProcess.dwCurrentState);
         info->pid = s->ServiceStatusProcess.dwProcessId;
-        info->start_type = wt_query_start_type(scm, info->name);
+        wt_query_service_config(scm, info->name, &info->start_type,
+                                info->image_path, ARRAYSIZE(info->image_path));
+
+        /* Identity is best-effort. Prefer ImagePath; fall back to PID image. */
+        if (info->image_path[0] != L'\0') {
+            if (wt_identity_from_command(info->image_path, &info->identity) != WT_OK) {
+                ZeroMemory(&info->identity, sizeof(info->identity));
+                info->identity.signature = WT_SIG_UNAVAILABLE;
+            }
+        } else if (info->pid != 0) {
+            if (wt_identity_from_pid(info->pid, &info->identity) != WT_OK) {
+                ZeroMemory(&info->identity, sizeof(info->identity));
+                info->identity.signature = WT_SIG_UNAVAILABLE;
+            }
+        } else {
+            ZeroMemory(&info->identity, sizeof(info->identity));
+            info->identity.signature = WT_SIG_UNAVAILABLE;
+        }
 
         (*out_count)++;
     }

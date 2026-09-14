@@ -5,6 +5,7 @@
 #include <wchar.h>
 
 #include "common/error.h"
+#include "system/file_identity.h"
 
 typedef enum WT_ServiceState {
     WT_SVC_STATE_UNKNOWN = 0,
@@ -29,9 +30,11 @@ typedef enum WT_ServiceStartType {
 typedef struct WT_ServiceInfo {
     wchar_t name[256];          /* service (key) name */
     wchar_t display_name[256];  /* friendly display name */
+    wchar_t image_path[MAX_PATH]; /* configured ImagePath when readable */
     WT_ServiceState state;
     WT_ServiceStartType start_type;
     unsigned long pid;          /* 0 if not running / unknown */
+    WT_FileIdentity identity;   /* publisher / Authenticode (best-effort) */
 } WT_ServiceInfo;
 
 #define WT_MAX_SERVICES 1024

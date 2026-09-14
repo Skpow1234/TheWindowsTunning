@@ -1,5 +1,6 @@
 #include "system/startup.h"
 #include "system/boot.h"
+#include "system/file_identity.h"
 
 #include <windows.h>
 #include <strsafe.h>
@@ -68,6 +69,11 @@ static void wt_startup_add(WT_StartupEntry *out, size_t capacity, size_t *count,
     StringCchPrintfW(e->id, ARRAYSIZE(e->id), L"%S:%s",
                      wt_startup_source_name(source), e->name);
     e->impact = wt_estimate_impact(e->name, e->command);
+    if (wt_identity_from_command(e->command, &e->identity) != WT_OK) {
+        ZeroMemory(&e->identity, sizeof(e->identity));
+        e->identity.signature = WT_SIG_UNAVAILABLE;
+        e->identity.origin = WT_ORIGIN_UNKNOWN;
+    }
     (*count)++;
 }
 

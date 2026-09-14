@@ -5,6 +5,7 @@
 #include <wchar.h>
 
 #include "common/error.h"
+#include "system/file_identity.h"
 
 typedef enum WT_StartupSource {
     WT_STARTUP_SRC_HKCU_RUN = 0,
@@ -33,6 +34,7 @@ typedef struct WT_StartupEntry {
     WT_StartupImpact impact;
     unsigned long measured_ms;   /* from boot analysis; 0 if unknown */
     int measured_available;      /* 1 when matched to boot event data */
+    WT_FileIdentity identity;    /* publisher / Authenticode (best-effort) */
 } WT_StartupEntry;
 
 #define WT_MAX_STARTUP_ENTRIES 256

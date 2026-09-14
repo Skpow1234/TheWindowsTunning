@@ -419,6 +419,10 @@ static int wt_startup_is_systemish(const WT_StartupEntry *e)
     if (e == NULL) {
         return 1;
     }
+    if (e->identity.origin == WT_ORIGIN_MICROSOFT ||
+        e->identity.signature == WT_SIG_SIGNED_MICROSOFT) {
+        return 1;
+    }
     const wchar_t *cmd = e->command;
     if (cmd[0] == L'\0') {
         return 0;
@@ -466,17 +470,20 @@ static void wt_check_startup_actions(const WT_ScanReport *report,
                    "Review disabling a high-impact startup entry");
         if (e->measured_available) {
             snprintf(r->reason, sizeof(r->reason),
-                     "Startup entry '%ls' is enabled and had about %lu ms "
+                     "Startup entry '%ls' (%s) is enabled and had about %lu ms "
                      "measured delay during the last boot/login. Disabling it "
                      "can reduce login time; you can re-enable it from Task "
                      "Manager or WinTune rollback.",
-                     e->name, e->measured_ms);
+                     e->name,
+                     wt_publisher_origin_name(e->identity.origin),
+                     e->measured_ms);
         } else {
             snprintf(r->reason, sizeof(r->reason),
-                     "Startup entry '%ls' is enabled and estimated as high "
+                     "Startup entry '%ls' (%s) is enabled and estimated as high "
                      "impact. Disabling it can reduce login overhead; you can "
                      "re-enable it from Task Manager or WinTune rollback.",
-                     e->name);
+                     e->name,
+                     wt_publisher_origin_name(e->identity.origin));
         }
         snprintf(r->action, sizeof(r->action),
                  "wintune apply WT-STARTUP-DISABLE \"%ls\"", e->id);
