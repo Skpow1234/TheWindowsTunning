@@ -48,6 +48,8 @@ array is empty on a clean host):
 - `startup --json` → same + `impact_score`, `impact_confidence`
 - `tasks list --json` → `impact_score`, `impact_confidence`
 - `services --json` → `publisher`, `origin`, `signature`, `location`
+- `scan --json` → `disk.read_bytes_per_sec` / `write_bytes_per_sec` /
+  `throughput_available` (Phase 25)
 
 ### Package dry-run
 

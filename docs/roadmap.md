@@ -42,7 +42,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 22 | Publisher & signature metadata | Done |
 | 23 | Binary provenance | Done |
 | 24 | Smart impact scoring v2 | Done |
-| 25 | Disk counters in scan model | Planned |
+| 25 | Disk counters in scan model | Done |
 | 26 | Per-volume disk activity | Planned |
 | 27 | Per-process network (ETW) | Planned |
 | 28 | GPU / display readiness (read-only) | Planned |
@@ -672,13 +672,20 @@ wintune top --json
 
 #### Phase 25 — Disk Counters in Scan Model
 
+**Status:** Done
+
 **Goal:** First-class disk throughput in scan/JSON, not only `% Disk Time`.
 
 **Deliver:**
 
-- PhysicalDisk read/write bytes/sec (and related PDH counters as available).
-- Fields in `scan` / `doctor` / `report` JSON.
-- Recommendations that cite throughput when relevant.
+- `wt_collect_disk_io`: one PDH sample for `% Disk Time`, Read/Write Bytes/sec,
+  and Avg. Disk Queue Length (`PhysicalDisk(_Total)`).
+- Scan report fields: `disk_read_bytes_per_sec`, `disk_write_bytes_per_sec`,
+  `disk_avg_queue_length` (+ availability flags); averaged across multi-sample
+  scans.
+- Text/JSON in `scan` / `doctor` / `report`.
+- `WT-DISK-001` cites MB/s when available; `WT-DISK-003` for high throughput
+  without extreme active %.
 
 **Depends on:** Phase 15.
 

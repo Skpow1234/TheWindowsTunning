@@ -110,6 +110,7 @@ Memory:
 Disk:
   C: 141.2 GB free / 512.0 GB
   Active time: 82%
+  Throughput: 12.4 MB/s read, 3.1 MB/s write
 
 Top Processes:
 PID     Process              CPU%     Memory      Disk I/O

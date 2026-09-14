@@ -334,7 +334,7 @@ $scanTimeout = if ($SkipSlow) { 30 } else { 120 }
 Test-ExpectOk "scan" @("scan", "--samples", "1", "--interval", "200") `
     -StdoutContains @("WinTune System Scan", "CPU:", "Memory:") -TimeoutSec $scanTimeout
 Test-JsonOk "scan --json" @("scan", "--json", "--samples", "1", "--interval", "200") `
-    -MustContain @("schema_version", "cpu", "memory") -TimeoutSec $scanTimeout
+    -MustContain @("schema_version", "cpu", "memory", "disk", "read_bytes_per_sec", "write_bytes_per_sec", "throughput_available") -TimeoutSec $scanTimeout
 
 Test-ExpectOk "top" @("top", "--limit", "5") -StdoutRegex @("PID|Process")
 Test-ExpectOk "top --sort cpu" @("top", "--sort", "cpu", "--limit", "5")

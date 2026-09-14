@@ -97,13 +97,18 @@ GetProcessIoCounters
 \PhysicalDisk(_Total)\% Disk Time
 \PhysicalDisk(_Total)\Disk Read Bytes/sec
 \PhysicalDisk(_Total)\Disk Write Bytes/sec
+\PhysicalDisk(_Total)\Avg. Disk Queue Length
 ```
 
 **Collect:**
 - Disk free space per volume.
-- Disk active time.
-- Disk read/write bytes per second.
-- Top disk-heavy processes where practical.
+- Disk active time (`% Disk Time`).
+- Disk read/write bytes per second (`PhysicalDisk(_Total)`, Phase 25).
+- Avg. disk queue length when available.
+- Top disk-heavy processes where practical (per-process I/O deltas).
+
+One PDH sample window (`wt_collect_disk_io`) gathers active % + throughput +
+queue so scan does not pay the sample interval twice.
 
 WinTune never deletes user files, cleans temporary files (v1), or manually
 removes WinSxS / System32 / Windows Update cache / browser cache / app data.
@@ -115,7 +120,20 @@ typedef struct WT_DiskVolumeMetrics {
     unsigned long long free_bytes;
     double free_percent;
 } WT_DiskVolumeMetrics;
+
+typedef struct WT_DiskIoMetrics {
+    double active_percent;
+    double read_bytes_per_sec;
+    double write_bytes_per_sec;
+    double avg_queue_length; /* -1 if unavailable */
+    int active_ok;
+    int throughput_ok;
+    int queue_ok;
+} WT_DiskIoMetrics;
 ```
+
+Scan JSON `disk` object includes `read_bytes_per_sec`, `write_bytes_per_sec`,
+`avg_queue_length`, and matching `*_available` / `throughput_available` flags.
 
 ---
 

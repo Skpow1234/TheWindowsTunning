@@ -7,7 +7,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-blue.svg)](docs/roadmap.md)
-[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9324%20Done%20%7C%20v3%20Planned-brightgreen.svg)](#project-status)
+[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9325%20Done%20%7C%20v3%20Planned-brightgreen.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -408,7 +408,8 @@ end-user release polish).
 | 22 | Publisher & signature metadata | Done |
 | 23 | Binary provenance | Done |
 | 24 | Smart impact scoring v2 | Done |
-| 25–53 | v3 depth (metrics, boot v2, apply UX, fleet, signing) | Planned |
+| 25 | Disk counters in scan model | Done |
+| 26–53 | v3 depth (per-volume disk, boot v2, apply UX, fleet, signing) | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.
