@@ -5,6 +5,7 @@
 #include <wchar.h>
 
 #include "common/error.h"
+#include "system/file_identity.h"
 
 #define WT_PROCESS_NAME_MAX 260
 
@@ -24,7 +25,11 @@ typedef struct WT_ProcessInfo {
     double cpu_percent;                  /* -1.0 when not measured */
     double disk_read_bytes_per_sec;      /* -1.0 when not measured */
     double disk_write_bytes_per_sec;     /* -1.0 when not measured */
+    WT_FileIdentity identity;            /* publisher / Authenticode (top only) */
 } WT_ProcessInfo;
+
+/* Best-effort publisher/signature fill for an existing process list. */
+void wt_enrich_process_identity(WT_ProcessInfo *items, size_t count);
 
 /* Enumerates running processes (Tool Help) and collects per-process memory and
  * I/O counters (PSAPI). Processes that cannot be opened are still listed with

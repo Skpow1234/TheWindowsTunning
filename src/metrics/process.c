@@ -1,6 +1,7 @@
 #include "metrics/process.h"
 
 #include "metrics/pdh_utils.h"
+#include "system/file_identity.h"
 
 #include <windows.h>
 #include <tlhelp32.h>
@@ -466,6 +467,23 @@ static int wt_compare_by_disk_desc(const void *a, const void *b)
     return 0;
 }
 
+void wt_enrich_process_identity(WT_ProcessInfo *items, size_t count)
+{
+    if (items == NULL) {
+        return;
+    }
+    for (size_t i = 0; i < count; ++i) {
+        if (items[i].pid == 0) {
+            continue;
+        }
+        if (wt_identity_from_pid(items[i].pid, &items[i].identity) != WT_OK) {
+            ZeroMemory(&items[i].identity, sizeof(items[i].identity));
+            items[i].identity.signature = WT_SIG_UNAVAILABLE;
+            items[i].identity.origin = WT_ORIGIN_UNKNOWN;
+        }
+    }
+}
+
 WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
                                    size_t limit,
                                    WT_ProcessSort sort,
@@ -500,6 +518,7 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
         CloseHandle(snapshot);
         if (result == WT_OK) {
             wt_sort_processes(out, *out_count, sort);
+            wt_enrich_process_identity(out, *out_count);
         }
         return result;
     }
@@ -628,6 +647,7 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
 
     if (result == WT_OK) {
         wt_sort_processes(out, *out_count, sort);
+        wt_enrich_process_identity(out, *out_count);
     }
     return result;
 }
