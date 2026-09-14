@@ -32,6 +32,8 @@ typedef struct WT_StartupEntry {
     WT_StartupSource source;
     int enabled;            /* read-only: present entries are treated as enabled */
     WT_StartupImpact impact;
+    int impact_score;            /* 0–100 evidence-based item impact (Phase 24) */
+    int impact_confidence;       /* 0–95 how much evidence contributed */
     unsigned long measured_ms;   /* from boot analysis; 0 if unknown */
     int measured_available;      /* 1 when matched to boot event data */
     WT_FileIdentity identity;    /* publisher / Authenticode (best-effort) */

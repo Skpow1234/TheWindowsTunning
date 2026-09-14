@@ -1,6 +1,7 @@
 #include "system/startup.h"
 #include "system/boot.h"
 #include "system/file_identity.h"
+#include "core/impact_score.h"
 
 #include <windows.h>
 #include <strsafe.h>
@@ -28,29 +29,14 @@ const char *wt_startup_impact_name(WT_StartupImpact impact)
     }
 }
 
-/* Heuristic baseline when measured boot data is unavailable. When measured
- * data exists (Phase 10), wt_startup_apply_measured() overrides impact. */
-static WT_StartupImpact wt_estimate_impact(const wchar_t *name,
-                                           const wchar_t *command)
+/* Evidence-based impact (Phase 24). Measured boot data refreshes the score. */
+static void wt_startup_rescore(WT_StartupEntry *e)
 {
-    static const wchar_t *heavy[] = {
-        L"docker", L"teams", L"onedrive", L"steam", L"epicgames",
-        L"discord", L"spotify", L"adobe", L"creative cloud", L"dropbox",
-        L"slack", L"java", L"razer", L"nvidia", L"asus", L"icloud"
-    };
-    wchar_t haystack[1200];
-    haystack[0] = L'\0';
-    StringCchCatW(haystack, ARRAYSIZE(haystack), name ? name : L"");
-    StringCchCatW(haystack, ARRAYSIZE(haystack), L" ");
-    StringCchCatW(haystack, ARRAYSIZE(haystack), command ? command : L"");
-    CharLowerW(haystack);
-
-    for (size_t i = 0; i < ARRAYSIZE(heavy); ++i) {
-        if (wcsstr(haystack, heavy[i]) != NULL) {
-            return WT_STARTUP_IMPACT_MEDIUM;
-        }
-    }
-    return WT_STARTUP_IMPACT_UNKNOWN;
+    WT_ImpactInput in;
+    WT_ImpactScore score;
+    wt_impact_input_from_startup(e, &in);
+    wt_impact_score_compute(&in, &score);
+    wt_impact_apply_to_startup(e, &score);
 }
 
 static void wt_startup_add(WT_StartupEntry *out, size_t capacity, size_t *count,
@@ -68,12 +54,12 @@ static void wt_startup_add(WT_StartupEntry *out, size_t capacity, size_t *count,
     StringCchCopyW(e->command, ARRAYSIZE(e->command), command ? command : L"");
     StringCchPrintfW(e->id, ARRAYSIZE(e->id), L"%S:%s",
                      wt_startup_source_name(source), e->name);
-    e->impact = wt_estimate_impact(e->name, e->command);
     if (wt_identity_from_command(e->command, &e->identity) != WT_OK) {
         ZeroMemory(&e->identity, sizeof(e->identity));
         e->identity.signature = WT_SIG_UNAVAILABLE;
         e->identity.origin = WT_ORIGIN_UNKNOWN;
     }
+    wt_startup_rescore(e);
     (*count)++;
 }
 
@@ -218,13 +204,6 @@ void wt_startup_apply_measured(WT_StartupEntry *entries, size_t count,
 
         e->measured_ms = ms;
         e->measured_available = 1;
-
-        if (ms >= 10000) {
-            e->impact = WT_STARTUP_IMPACT_HIGH;
-        } else if (ms >= 3000) {
-            e->impact = WT_STARTUP_IMPACT_MEDIUM;
-        } else if (ms > 0) {
-            e->impact = WT_STARTUP_IMPACT_LOW;
-        }
+        wt_startup_rescore(e);
     }
 }
