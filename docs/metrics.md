@@ -203,8 +203,37 @@ typedef struct WT_ProcessInfo {
 
 **Per item:** id, name, source, command/path, product name, publisher,
 signature status, origin, install location, unusual-location review flag,
-enabled state, estimated or measured impact. Unsigned alone is never treated as
-malware; unusual location is a calm review cue only.
+enabled state, `impact` band, `impact_score` (0–100), `impact_confidence`.
+Unsigned alone is never treated as malware; unusual location is a calm review
+cue only.
+
+### Impact scoring v2
+
+Per-item impact (startup / task), **not** a whole-PC health percentage.
+
+Implementation: `src/core/impact_score.c`.
+
+| Evidence | Points (additive, then clamp 0–100) |
+| -------- | ----------------------------------- |
+| Measured boot delay ≥ 10s | +60 |
+| Measured 3–10s | +45 |
+| Measured 1–3s | +25 |
+| Measured > 0 | +10 |
+| Known heavy name heuristic | +20 (+8 if measured already present) |
+| Third-party publisher | +5 |
+| Microsoft / protected | −15 |
+| Unusual install location | +10 |
+| Matched process CPU ≥ 15% / ≥ 5% | +20 / +10 |
+| Working set ≥ 500 MB / ≥ 200 MB | +20 / +10 |
+| Disk I/O ≥ 5 MB/s / ≥ 1 MB/s | +15 / +10 |
+
+**Bands:** unknown (no evidence); low (1–34); medium (35–64); high (≥ 65).
+
+**Confidence:** measured +50, heuristic +10, publisher +10, location +10,
+runtime +20 (clamp 0–95).
+
+**Recommend disable/delay** when `impact_score ≥ 65` and
+`impact_confidence ≥ 50`.
 
 ---
 

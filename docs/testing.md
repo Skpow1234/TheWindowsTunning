@@ -29,9 +29,17 @@ Today this runs:
 | `test_units` | Byte / duration formatting |
 | `test_cli_parser` | `wt_cli_parse_argv`, JSON mode, power tokens |
 | `test_json` | Compact JSON writer escaping |
-| `test_recommendations` | Memory / disk / power threshold IDs |
+| `test_file_identity` | Path extract, location classify, name strings |
+| `test_impact_score` | Deterministic impact scoring bands/thresholds |
+| `test_recommendations` | Memory / disk / power threshold IDs (+ startup/impact deps) |
 
 `.\scripts\test.ps1` builds `wintune_tests_all` then runs `ctest`.
+
+Unit-test executables are `EXCLUDE_FROM_ALL` so a plain `cmake --build`
+(package path) is not blocked by test `/WX` noise. **Always** build them via
+`wintune_tests_all` / `test.ps1`. When a production `.c` file gains new link
+deps (e.g. `file_identity`, `wintrust`), update the matching `wt_add_unit_test`
+source list and `target_link_libraries` or CI will fail with `LNK2019`.
 
 ---
 

@@ -85,6 +85,7 @@ add_executable(wintune
     src/core/report_model.c
     src/core/scan.c
     src/core/recommendations.c
+    src/core/impact_score.c
 
     # output
     src/output/table.c
@@ -258,6 +259,7 @@ target_link_libraries(test_file_identity PRIVATE wintrust version crypt32)
 wt_add_unit_test(test_recommendations
     tests/test_recommendations.c
     src/core/recommendations.c
+    src/core/impact_score.c
     src/core/report_model.c
     src/common/error.c
     src/common/log.c
@@ -270,11 +272,21 @@ wt_add_unit_test(test_recommendations
     src/system/blockers.c
     src/system/startup.c
     src/system/tasks.c
+    src/system/file_identity.c
     src/system/os_info.c
 )
 target_link_libraries(test_recommendations PRIVATE
     powrprof advapi32 wevtapi taskschd ole32 oleaut32 wuguid rstrtmgr
+    wintrust version crypt32
 )
+
+wt_add_unit_test(test_impact_score
+    tests/test_impact_score.c
+    src/core/impact_score.c
+    src/system/file_identity.c
+    src/common/error.c
+)
+target_link_libraries(test_impact_score PRIVATE wintrust version crypt32)
 
 add_custom_target(wintune_tests_all
     DEPENDS
@@ -283,4 +295,6 @@ add_custom_target(wintune_tests_all
         test_cli_parser
         test_json
         test_recommendations
+        test_file_identity
+        test_impact_score
 )

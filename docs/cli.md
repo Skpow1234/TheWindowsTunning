@@ -196,9 +196,9 @@ wintune startup delay "<id>" --seconds 30
 Microsoft and security startup items are not disabled by default.
 
 Text and JSON include best-effort **publisher**, **product_name**,
-**signature** status, **origin**, **location**, and **unusual_location**.
-Unsigned alone is never treated as malware; unusual location means calm review
-only (for example Temp/Downloads).
+**signature** status, **origin**, **location**, **unusual_location**, plus
+evidence-based **impact_score** / **impact_confidence** (Phase 24). Unsigned
+alone is never treated as malware; unusual location means calm review only.
 
 ---
 

@@ -41,7 +41,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 21 | Distributable executable (end-user release) | Done |
 | 22 | Publisher & signature metadata | Done |
 | 23 | Binary provenance | Done |
-| 24 | Smart impact scoring v2 | Planned |
+| 24 | Smart impact scoring v2 | Done |
 | 25 | Disk counters in scan model | Planned |
 | 26 | Per-volume disk activity | Planned |
 | 27 | Per-process network (ETW) | Planned |
@@ -647,13 +647,20 @@ wintune top --json
 
 #### Phase 24 — Smart Impact Scoring v2
 
+**Status:** Done
+
 **Goal:** Replace crude HIGH/MED heuristics with evidence-based scores.
 
 **Deliver:**
 
-- Combine measured boot delay, CPU/RAM/disk samples, and publisher context.
-- Deterministic scoring documented in `docs/metrics.md`.
-- Update startup/task recommendation thresholds accordingly.
+- Deterministic `wt_impact_score_compute` (`src/core/impact_score.c`) combining
+  measured boot delay, name heuristic, publisher/origin, unusual location, and
+  optional matched process CPU/RAM/disk samples.
+- Per-item `impact_score` (0–100) + `impact_confidence` on startup/tasks — not a
+  fake whole-PC score.
+- Recommendation thresholds: score ≥ 65 and confidence ≥ 50
+  (`WT-STARTUP-002`, `WT-TASK-001`).
+- Documented formula in `docs/metrics.md`.
 
 **Depends on:** Phases 10, 15, 22.
 
