@@ -3,8 +3,18 @@ name: CI
 on:
   push:
     branches: [main, master]
+    tags:
+      - "v*"
   pull_request:
     branches: [main, master]
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+    inputs:
+      package_dry_run:
+        description: "Run x64 package dry-run (ZIP)"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -12,6 +22,7 @@ concurrency:
 
 jobs:
   lint-and-build:
+    # Stable name — set this as a required status check on main/master.
     name: Lint and build (Windows x64)
     runs-on: windows-latest
 
@@ -19,11 +30,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache CMake build (x64)
+        id: cache-build
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: wintune-x64-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'resources/**', 'tests/**', 'scripts/cmake-configure.ps1') }}
+          restore-keys: |
+            wintune-x64-${{ runner.os }}-
+
       - name: Configure (warnings as errors)
         shell: pwsh
         run: |
-          .\scripts\cmake-configure.ps1 -BuildDir build -Arch x64 -Clean `
-            -DefineArg "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
+          $clean = ($env:CACHE_HIT -ne "true")
+          if ($clean) {
+            .\scripts\cmake-configure.ps1 -BuildDir build -Arch x64 -Clean `
+              -DefineArg "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
+          } else {
+            Write-Host "Cache hit — incremental configure (no -Clean)"
+            .\scripts\cmake-configure.ps1 -BuildDir build -Arch x64 `
+              -DefineArg "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
+          }
+        env:
+          CACHE_HIT: ${{ steps.cache-build.outputs.cache-hit }}
 
       - name: Build Debug
         shell: pwsh
@@ -35,7 +64,7 @@ jobs:
 
       - name: Unit tests
         shell: pwsh
-        run: .\scripts\test.ps1 -Config Release
+        run: .\scripts\test.ps1 -Config Release -BuildDir build
 
       - name: CLI smoke tests
         shell: pwsh
@@ -58,6 +87,15 @@ jobs:
         with:
           cmakeVersion: "4.3.3"
 
+      - name: Cache CMake build (ARM64)
+        id: cache-build-arm
+        uses: actions/cache@v4
+        with:
+          path: build-arm64
+          key: wintune-arm64-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'resources/**', 'tests/**', 'scripts/cmake-configure.ps1') }}
+          restore-keys: |
+            wintune-arm64-${{ runner.os }}-
+
       - name: Environment diagnostics
         shell: pwsh
         run: |
@@ -76,14 +114,27 @@ jobs:
       - name: Configure ARM64
         shell: pwsh
         run: |
-          .\scripts\cmake-configure.ps1 -BuildDir build-arm64 -Arch arm64 -Clean `
-            -DefineArg "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
+          $clean = ($env:CACHE_HIT -ne "true")
+          if ($clean) {
+            .\scripts\cmake-configure.ps1 -BuildDir build-arm64 -Arch arm64 -Clean `
+              -DefineArg "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
+          } else {
+            Write-Host "Cache hit — incremental configure (no -Clean)"
+            .\scripts\cmake-configure.ps1 -BuildDir build-arm64 -Arch arm64 `
+              -DefineArg "-DWINTUNE_WARNINGS_AS_ERRORS=ON"
+          }
+        env:
+          CACHE_HIT: ${{ steps.cache-build-arm.outputs.cache-hit }}
 
       - name: Build Release
         shell: pwsh
         run: .\scripts\cmake-build.ps1 -BuildDir build-arm64 -Config Release -Target wintune
 
-      - name: Smoke test
+      - name: Unit tests
+        shell: pwsh
+        run: .\scripts\test.ps1 -Config Release -BuildDir build-arm64
+
+      - name: Smoke tests
         shell: pwsh
         run: |
           $exe = ".\build-arm64\Release\wintune.exe"
@@ -93,3 +144,83 @@ jobs:
           if ((& $exe version 2>&1 | Out-String) -notmatch "arm64") {
             Write-Warning "Expected arm64 in version output"
           }
+          .\scripts\smoke.ps1 -Config Release -Exe $exe -SkipSlow
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  package-dry-run:
+    name: Package dry-run (x64)
+    runs-on: windows-latest
+    # Tags, PRs labeled "release", or manual workflow_dispatch with package_dry_run.
+    if: >
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.package_dry_run == true) ||
+      (github.event_name == 'pull_request' &&
+       contains(join(github.event.pull_request.labels.*.name, ','), 'release'))
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache CMake build (x64 package)
+        id: cache-pkg
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: wintune-x64-pkg-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'resources/**', 'pack/**', 'scripts/package.ps1', 'scripts/cmake-configure.ps1') }}
+          restore-keys: |
+            wintune-x64-pkg-${{ runner.os }}-
+            wintune-x64-${{ runner.os }}-
+
+      - name: Package x64 ZIP (dry-run)
+        shell: pwsh
+        run: |
+          $ver = "0.0.0-ci"
+          if ($env:GITHUB_REF_TYPE -eq "tag") {
+            $ver = $env:GITHUB_REF_NAME.TrimStart("v", "V")
+          }
+          $configure = ($env:CACHE_HIT -ne "true")
+          if ($configure) {
+            .\scripts\package.ps1 -Config Release -Arch x64 -Version $ver `
+              -Channel stable -Configure -Build -Zip
+          } else {
+            .\scripts\package.ps1 -Config Release -Arch x64 -Version $ver `
+              -Channel stable -Build -Zip
+          }
+        env:
+          CACHE_HIT: ${{ steps.cache-pkg.outputs.cache-hit }}
+
+      - name: Verify package layout
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -Path dist -Filter "WinTune-*-win-x64.zip" | Select-Object -First 1
+          if ($null -eq $zip) { throw "ZIP not found under dist/" }
+          Write-Host "ZIP: $($zip.FullName) ($([math]::Round($zip.Length/1KB)) KB)"
+          $sha = "$($zip.FullName).sha256"
+          if (-not (Test-Path $sha)) { throw "Missing checksum: $sha" }
+          $stage = Get-ChildItem -Path dist -Directory -Filter "WinTune-*-win-x64" | Select-Object -First 1
+          if ($null -eq $stage) { throw "Stage directory missing" }
+          foreach ($f in @("wintune.exe", "VERSION.txt", "ARCH.txt", "QUICKSTART.txt")) {
+            $p = Join-Path $stage.FullName $f
+            if (-not (Test-Path $p)) {
+              # install may put exe under bin/ — accept either
+              $alt = Join-Path $stage.FullName "bin\$f"
+              if ($f -eq "wintune.exe" -and (Test-Path $alt)) { continue }
+              if ($f -eq "wintune.exe") {
+                $found = Get-ChildItem -Path $stage.FullName -Recurse -Filter "wintune.exe" -ErrorAction SilentlyContinue |
+                  Select-Object -First 1
+                if ($null -eq $found) { throw "Missing $f in package stage" }
+              } elseif (-not (Test-Path $p)) {
+                throw "Missing $f in package stage"
+              }
+            }
+          }
+          Write-Host "Package dry-run OK"
+
+      - name: Upload dry-run artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wintune-x64-dry-run
+          path: |
+            dist/WinTune-*-win-x64.zip
+            dist/WinTune-*-win-x64.zip.sha256
+          if-no-files-found: error
+          retention-days: 7

@@ -7,31 +7,80 @@ integration and release packaging.
 
 | Workflow | File | Trigger |
 |----------|------|---------|
-| **CI** | `.github/workflows/ci.yml` | Push/PR to `main` |
+| **CI** | `.github/workflows/ci.yml` | Push/PR to `main`; tags `v*`; manual dispatch |
 | **Release** | `.github/workflows/release.yml` | Tag `v*` or manual dispatch |
+| **Dependabot** | `.github/dependabot.yml` | Weekly GitHub Actions updates |
 
-### CI (lint + build)
+### CI jobs
+
+| Job | Runner | What it does |
+|-----|--------|--------------|
+| **Lint and build (Windows x64)** | `windows-latest` | `/WX` configure, Debug+Release build, `test.ps1`, `smoke.ps1 -SkipSlow` |
+| **Build (Windows ARM64)** | `windows-11-vs2026-arm` | `/WX` configure, Release build, `test.ps1`, full `smoke.ps1 -SkipSlow` |
+| **Package dry-run (x64)** | `windows-latest` | `package.ps1 -Zip` when tag `v*`, PR labeled `release`, or dispatch with `package_dry_run` |
+
+### Required status check (repo setting)
+
+Make this check **required** on `main` / `master` so link/test breaks cannot merge:
+
+1. GitHub → **Settings → Branches → Branch protection rules** (or Rulesets).
+2. Require status checks to pass before merging.
+3. Add exactly: **`Lint and build (Windows x64)`**  
+   (optional: also require **`Build (Windows ARM64)`** if that runner is always available).
+
+The job `name:` in `ci.yml` must stay stable — renaming it breaks the required check.
+
+### Caching
+
+Both architecture jobs cache the CMake build directory (`actions/cache`):
+
+- **Cache hit:** configure without `-Clean` (incremental rebuild).
+- **Cache miss:** configure with `-Clean` (fresh tree).
+
+Cache keys hash `CMakeLists.txt`, `src/**`, `resources/**`, `tests/**`, and
+`scripts/cmake-configure.ps1`.
+
+### Smoke coverage (provenance / scoring)
+
+`scripts/smoke.ps1` asserts JSON field presence (not values) for:
+
+- `top --json` → `publisher`, `product_name`, `location`, `unusual_location`, …
+- `startup --json` → same + `impact_score`, `impact_confidence`
+- `tasks list --json` → `impact_score`, `impact_confidence`
+- `services --json` → `publisher`, `origin`, `signature`, `location`
+
+### Package dry-run
+
+```text
+# PR: add label "release"
+# or: Actions → CI → Run workflow → package_dry_run = true
+# or: push tag v*
+```
+
+Runs `scripts/package.ps1 -Configure -Build -Zip`, verifies ZIP + checksum +
+stage layout, uploads artifacts (7-day retention). Full GitHub Release publishing
+stays in `release.yml`.
+
+### CI (lint + build) detail
 
 On every push and pull request to `main`:
 
 1. Configure with **MSVC `/W4`** and **`/WX`** (warnings as errors).
 2. Build **Debug** and **Release** (x64).
-3. Unit tests (`wintune_unit_tests` via `scripts/test.ps1`).
+3. Unit tests via `scripts/test.ps1` (`wintune_tests_all` + `ctest`), including
+   `test_file_identity` and `test_impact_score`.
 4. Full CLI smoke (`scripts/smoke.ps1 -SkipSlow`) — soft (admin) failures OK;
    hard failures fail the job. Tray remains SKIP (interactive).
 
 A separate **ARM64** job runs on **`windows-11-vs2026-arm`** (native ARM64 with
-Visual Studio 2026). Cross-compiling ARM64 on `windows-latest` (x64) fails unless
-the MSVC ARM64 workload is installed; CI uses a native runner instead.
-
-The job configures `build-arm64` with `-A ARM64`, builds Release, and
-smoke-tests `wintune version` (expects `Arch: arm64`). Full smoke stays on x64
-to keep ARM64 CI focused and faster.
+Visual Studio 2026). It builds Release, runs the same unit-test target set, and
+runs full smoke against the ARM64 binary.
 
 **Run locally:**
 
 ```powershell
 .\scripts\lint.ps1
+.\scripts\test.ps1 -Config Release
 .\scripts\smoke.ps1 -Config Release
 ```
 
@@ -78,7 +127,7 @@ The release workflow:
 
 The version shown by `wintune version` and JSON output comes from CMake
 (`WINTUNE_VERSION`). Release builds set it from the git tag. Local developer
-builds default to `0.1.0` unless overridden:
+builds default to the `CMakeLists.txt` cache default unless overridden:
 
 ```powershell
 cmake -S . -B build -DWINTUNE_VERSION=0.2.0-dev
@@ -95,6 +144,6 @@ Not in default CI yet:
 - Publishing the draft winget manifests under `packaging/winget/` to winget-pkgs
 - Inno Setup installer build (`scripts/installer/wintune.iss`)
 
-x64 CI already runs the full `scripts/smoke.ps1` suite. Version resources and
-icon embedding are part of the normal CMake build (`resources/`). See
-[roadmap.md](roadmap.md) Phase 21 and [`winget.md`](winget.md).
+x64 and ARM64 CI run the full `scripts/smoke.ps1` suite (with `-SkipSlow`).
+Version resources and icon embedding are part of the normal CMake build
+(`resources/`). See [roadmap.md](roadmap.md) Phase 21 and [`winget.md`](winget.md).
