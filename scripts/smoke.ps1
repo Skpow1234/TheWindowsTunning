@@ -340,9 +340,10 @@ Test-ExpectOk "top" @("top", "--limit", "5") -StdoutRegex @("PID|Process")
 Test-ExpectOk "top --sort cpu" @("top", "--sort", "cpu", "--limit", "5")
 Test-ExpectOk "top --sort memory" @("top", "--sort", "memory", "--limit", "5")
 Test-ExpectOk "top --sort disk" @("top", "--sort", "disk", "--limit", "5")
-# Provenance (Phase 22–23): publisher/product/location fields on process rows.
-Test-JsonOk "top --json" @("top", "--json", "--limit", "5") `
-    -MustContain @("processes", "publisher", "product_name", "location", "unusual_location", "image_path", "origin", "signature")
+Test-JsonOk "top --json" @("top", "--json", "--limit", "5") -MustContain @("processes")
+Test-JsonArrayItemFields "top --json provenance" @("top", "--json", "--limit", "5") `
+    -ArrayKey "processes" `
+    -ItemFields @("publisher", "product_name", "location", "unusual_location", "image_path", "origin", "signature")
 
 Test-ExpectOk "doctor" @("doctor", "--samples", "1", "--interval", "200") `
     -StdoutContains @("WinTune") -TimeoutSec $scanTimeout
@@ -366,21 +367,26 @@ Test-ExpectOk "report --format json" @("report", "--format", "json", "--output",
 
 # --- System inventory ---
 Test-ExpectOk "startup" @("startup")
-# Provenance + impact scoring (Phases 22–24).
-Test-JsonOk "startup --json" @("startup", "--json") `
-    -MustContain @("startup", "publisher", "product_name", "location", "unusual_location", "impact_score", "impact_confidence", "origin", "signature")
+Test-JsonOk "startup --json" @("startup", "--json") -MustContain @("startup")
+Test-JsonArrayItemFields "startup --json provenance+score" @("startup", "--json") `
+    -ArrayKey "startup" `
+    -ItemFields @("publisher", "product_name", "location", "unusual_location", "impact_score", "impact_confidence", "origin", "signature")
 Test-ExpectOk "startup --include-services" @("startup", "--include-services")
 Test-ExpectOk "startup --include-tasks" @("startup", "--include-tasks")
 
 Test-ExpectOk "tasks list" @("tasks", "list")
-Test-JsonOk "tasks list --json" @("tasks", "list", "--json") `
-    -MustContain @("tasks", "impact_score", "impact_confidence")
+Test-JsonOk "tasks list --json" @("tasks", "list", "--json") -MustContain @("tasks")
+Test-JsonArrayItemFields "tasks list --json impact score" @("tasks", "list", "--json") `
+    -ArrayKey "tasks" `
+    -ItemFields @("impact_score", "impact_confidence")
 Test-ExpectOk "tasks list --logon" @("tasks", "list", "--logon")
 
 Test-ExpectOk "services" @("services")
 Test-ExpectOk "services --running" @("services", "--running")
-Test-JsonOk "services --json" @("services", "--json") `
-    -MustContain @("services", "publisher", "origin", "signature", "location")
+Test-JsonOk "services --json" @("services", "--json") -MustContain @("services")
+Test-JsonArrayItemFields "services --json provenance" @("services", "--json") `
+    -ArrayKey "services" `
+    -ItemFields @("publisher", "origin", "signature", "location")
 
 Test-ExpectOk "power" @("power") -StdoutRegex @("plan|Power|Balanced|performance|saver")
 Test-JsonOk "power --json" @("power", "--json") -MustContain @("power")
