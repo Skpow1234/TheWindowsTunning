@@ -29,11 +29,11 @@ static void wt_print_tasks_text(const WT_ScheduledTask *tasks, size_t count,
     }
 
     if (measured_mode) {
-        printf("%-8s %-8s %-6s %-6s %ls\n",
-               "Impact", "Trigger", "Delay", "Meas.", L"Id / Command");
+        printf("%-8s %-5s %-8s %-6s %-6s %ls\n",
+               "Impact", "Score", "Trigger", "Delay", "Meas.", L"Id / Command");
     } else {
-        printf("%-8s %-8s %-6s %ls\n",
-               "Impact", "Trigger", "Delay", L"Id / Command");
+        printf("%-8s %-5s %-8s %-6s %ls\n",
+               "Impact", "Score", "Trigger", "Delay", L"Id / Command");
     }
 
     for (size_t i = 0; i < count; ++i) {
@@ -48,13 +48,13 @@ static void wt_print_tasks_text(const WT_ScheduledTask *tasks, size_t count,
         if (measured_mode && t->measured_available) {
             wchar_t ms[32];
             wt_format_duration_ms(t->measured_ms, ms, ARRAYSIZE(ms));
-            printf("%-8s %-8s %-6s %-6ls %ls\n",
-                   wt_startup_impact_name(t->impact),
+            printf("%-8s %-5d %-8s %-6s %-6ls %ls\n",
+                   wt_startup_impact_name(t->impact), t->impact_score,
                    wt_task_trigger_name(t->trigger_kind),
                    delay, ms, t->id);
         } else {
-            printf("%-8s %-8s %-6s %ls\n",
-                   wt_startup_impact_name(t->impact),
+            printf("%-8s %-5d %-8s %-6s %ls\n",
+                   wt_startup_impact_name(t->impact), t->impact_score,
                    wt_task_trigger_name(t->trigger_kind),
                    delay, t->id);
         }

@@ -42,10 +42,11 @@ static void wt_print_startup_text(const WT_StartupEntry *entries, size_t count,
     }
 
     if (measured_mode) {
-        printf("%-8s %-10s %-11s %ls\n", "Impact", "Measured", "Origin",
-               L"Id / Command");
+        printf("%-8s %-5s %-10s %-11s %ls\n", "Impact", "Score", "Measured",
+               "Origin", L"Id / Command");
     } else {
-        printf("%-8s %-11s %ls\n", "Impact", "Origin", L"Id / Command");
+        printf("%-8s %-5s %-11s %ls\n", "Impact", "Score", "Origin",
+               L"Id / Command");
     }
     for (size_t i = 0; i < count; ++i) {
         const WT_StartupEntry *e = &entries[i];
@@ -53,11 +54,13 @@ static void wt_print_startup_text(const WT_StartupEntry *entries, size_t count,
         if (measured_mode && e->measured_available) {
             wchar_t ms[32];
             wt_format_duration_ms(e->measured_ms, ms, 32);
-            printf("%-8s %-10ls %-11s %ls\n",
-                   wt_startup_impact_name(e->impact), ms, origin, e->id);
+            printf("%-8s %-5d %-10ls %-11s %ls\n",
+                   wt_startup_impact_name(e->impact), e->impact_score, ms,
+                   origin, e->id);
         } else {
-            printf("%-8s %-11s %ls\n",
-                   wt_startup_impact_name(e->impact), origin, e->id);
+            printf("%-8s %-5d %-11s %ls\n",
+                   wt_startup_impact_name(e->impact), e->impact_score, origin,
+                   e->id);
         }
         if (e->identity.product_name[0] != L'\0' ||
             e->identity.publisher[0] != L'\0') {
@@ -101,13 +104,13 @@ static void wt_print_startup_tasks_text(const WT_ScheduledTask *tasks, size_t co
         if (measured_mode && t->measured_available) {
             wchar_t ms[32];
             wt_format_duration_ms(t->measured_ms, ms, ARRAYSIZE(ms));
-            printf("  [%s] %ls  (%s, delay %lus, measured %ls)\n",
-                   wt_startup_impact_name(t->impact), t->id,
+            printf("  [%s/%d] %ls  (%s, delay %lus, measured %ls)\n",
+                   wt_startup_impact_name(t->impact), t->impact_score, t->id,
                    wt_task_trigger_name(t->trigger_kind),
                    t->delay_seconds, ms);
         } else {
-            printf("  [%s] %ls  (%s)\n",
-                   wt_startup_impact_name(t->impact), t->id,
+            printf("  [%s/%d] %ls  (%s)\n",
+                   wt_startup_impact_name(t->impact), t->impact_score, t->id,
                    wt_task_trigger_name(t->trigger_kind));
         }
         wprintf(L"           %.72ls\n", t->command);
