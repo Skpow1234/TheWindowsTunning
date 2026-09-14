@@ -1,10 +1,11 @@
 # WinTune Roadmap
 
 WinTune ships in phases. Each phase builds on a stable core scanner. **v1**
-(Phases 0–9) is CLI-first, native, safe-by-default, and SSH-friendly. Later
-phases add measured boot diagnostics, a background service, deeper metrics,
-update/reboot helpers, fleet automation, and optional local UI — without
-Electron, cloud telemetry, or “PC cleaner” behavior.
+(Phases 0–9) is CLI-first, native, safe-by-default, and SSH-friendly. **v2**
+(Phases 10–21) adds measured boot diagnostics, a background service, deeper
+metrics, update/reboot helpers, fleet automation, and optional local UI.
+**v3** (Phases 22–53) deepens attribution, metrics, boot analysis, apply UX,
+and distribution — without Electron, cloud telemetry, or “PC cleaner” behavior.
 
 Initial version: **0.1.0** (semantic versioning).
 
@@ -38,6 +39,38 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 19 | Optional tray / native GUI (never Electron) | Done |
 | 20 | TUI polish & UX | Done |
 | 21 | Distributable executable (end-user release) | Done |
+| 22 | Publisher & signature metadata | Planned |
+| 23 | Binary provenance | Planned |
+| 24 | Smart impact scoring v2 | Planned |
+| 25 | Disk counters in scan model | Planned |
+| 26 | Per-volume disk activity | Planned |
+| 27 | Per-process network (ETW) | Planned |
+| 28 | GPU / display readiness (read-only) | Planned |
+| 29 | Thermal & power budget (read-only) | Planned |
+| 30 | Multi-sample disk smoothing | Planned |
+| 31 | Reboot-spanning boot ETW | Planned |
+| 32 | Cold vs warm boot profiles | Planned |
+| 33 | Driver / service start waterfall | Planned |
+| 34 | Startup delay orchestration | Planned |
+| 35 | Recommendation confidence engine | Planned |
+| 36 | Apply preview / dry-run | Planned |
+| 37 | Service restart rollback metadata | Planned |
+| 38 | Guided doctor plan | Planned |
+| 39 | Uninstall advisor (read-only) | Planned |
+| 40 | TUI historical sparklines | Planned |
+| 41 | TUI before/after compare | Planned |
+| 42 | Tray mini-doctor | Planned |
+| 43 | Accessibility & SSH TUI | Planned |
+| 44 | Service policy profiles | Planned |
+| 45 | Named-pipe ACL hardening | Planned |
+| 46 | Fleet report pack | Planned |
+| 47 | JSON schema v2 + compatibility | Planned |
+| 48 | Storage health (read-only) | Planned |
+| 49 | Memory dump / WER signals | Planned |
+| 50 | Pagefile & commit charge depth | Planned |
+| 51 | Scheduled maintenance windows | Planned |
+| 52 | Authenticode CI + release signing | Planned |
+| 53 | Installer & channel maturity | Planned |
 
 ---
 
@@ -196,13 +229,14 @@ WinTune v1 is complete when it can:
 
 ---
 
-## v2+ (Phases 10–21)
+## v2+ (Phases 10–21) — Complete
 
-Phases 10–21 are **Done**. Optional follow-ups (winget, Authenticode in CI) remain.
+Phases 10–21 are **Done**. They extended WinTune from “on-demand doctor” to
+“measured boot analysis, background monitoring, and richer automation” while
+keeping the same safety model.
 
-These phases extend WinTune from “on-demand doctor” to “measured boot analysis,
-background monitoring, and richer automation” while keeping the same safety
-model.
+Winget package submission (`WinTune.WinTune`) and Authenticode-in-CI remain
+optional distribution work (see Phases 52–53).
 
 ### Phase 10 — ETW Boot / Login Analysis
 
@@ -544,7 +578,503 @@ telemetry uploader in the installer.
 
 ---
 
-## Recommended Implementation Order (Post-v1)
+## v3 (Phases 22–53) — Planned
+
+These phases deepen WinTune **inside the existing product identity**: native C,
+measure → explain → optional confirmed apply → rollback, CLI/TUI/SSH-first.
+
+They mostly package capabilities that specialists can already find in Task
+Manager, Sysinternals, WPT, or `powercfg`. The value is a calmer, scriptable,
+safe **performance doctor** workflow — not inventing secret Windows features.
+
+**Never (all v3 phases):** cleaners, FPS boosters, debloaters, security bypasses,
+Electron/WebView, cloud telemetry, kernel drivers, silent uninstall, UAC bypass.
+
+### Attribution & trust
+
+#### Phase 22 — Publisher & Signature Metadata
+
+**Goal:** Show who owns high-impact processes, startups, and services.
+
+**Deliver:**
+
+- Publisher / company strings where available.
+- Authenticode or catalog signature status for binaries behind startups/services.
+- Clearer “Microsoft vs third-party” cues in `startup`, `services`, `top`, and
+  recommendations.
+
+**Example:**
+
+```bash
+wintune startup --json
+wintune services --json
+```
+
+**Depends on:** Phases 5, 12, 15.
+
+**Never:** Treat unsigned alone as malware; scareware language.
+
+---
+
+#### Phase 23 — Binary Provenance
+
+**Goal:** Map running impact back to on-disk identity.
+
+**Deliver:**
+
+- Resolve process/startup path → ProductName / CompanyName (version resources).
+- Flag unexpected install locations when useful for review.
+- Surface provenance in scan/top/report JSON.
+
+**Depends on:** Phase 22.
+
+**Never:** Quarantine, delete, or block binaries.
+
+---
+
+#### Phase 24 — Smart Impact Scoring v2
+
+**Goal:** Replace crude HIGH/MED heuristics with evidence-based scores.
+
+**Deliver:**
+
+- Combine measured boot delay, CPU/RAM/disk samples, and publisher context.
+- Deterministic scoring documented in `docs/metrics.md`.
+- Update startup/task recommendation thresholds accordingly.
+
+**Depends on:** Phases 10, 15, 22.
+
+**Never:** Fake “PC score” or fear-based percentages.
+
+---
+
+### Metrics depth
+
+#### Phase 25 — Disk Counters in Scan Model
+
+**Goal:** First-class disk throughput in scan/JSON, not only `% Disk Time`.
+
+**Deliver:**
+
+- PhysicalDisk read/write bytes/sec (and related PDH counters as available).
+- Fields in `scan` / `doctor` / `report` JSON.
+- Recommendations that cite throughput when relevant.
+
+**Depends on:** Phase 15.
+
+---
+
+#### Phase 26 — Per-Volume Disk Activity
+
+**Goal:** Separate C: vs D: (etc.) disk pressure.
+
+**Deliver:**
+
+- Per-volume PDH activity where practical (not only `_Total`).
+- Volume-aware tips in `doctor` / `WT-DISK-*`.
+
+**Depends on:** Phase 25.
+
+---
+
+#### Phase 27 — Per-Process Network (ETW)
+
+**Goal:** Optional top send/receive by process.
+
+**Deliver:**
+
+- Opt-in ETW (or equivalent official) sampling for per-process network rates.
+- Off by default; clear overhead note in help/docs.
+- Columns in `top` / TUI when enabled.
+
+**Depends on:** Phases 10, 15.
+
+**Never:** Packet capture of payloads; credential sniffing.
+
+---
+
+#### Phase 28 — GPU / Display Readiness (Read-Only)
+
+**Goal:** High-level GPU/display utilization when official APIs allow.
+
+**Deliver:**
+
+- Read-only GPU/engine busy hints suitable for explaining desktop lag.
+- Optional section in `scan` / TUI.
+
+**Never:** Overclocking, undervolt, driver install/update, FPS “boost.”
+
+---
+
+#### Phase 29 — Thermal & Power Budget (Read-Only)
+
+**Goal:** Tie “feels slow” to power source and battery drain.
+
+**Deliver:**
+
+- Battery discharge rate, AC/DC transitions, basic throttling hints.
+- Link recommendations to existing power plans (no custom extreme plans required).
+
+**Depends on:** Phase 7 power APIs.
+
+**Never:** Fan curve hacking or firmware flashes.
+
+---
+
+#### Phase 30 — Multi-Sample Disk Smoothing
+
+**Goal:** Reduce one-spike false alarms for disk active time.
+
+**Deliver:**
+
+- Average / sustained disk active % across `scan --samples`.
+- Confidence-aware `WT-DISK-001` (ties to Phase 35).
+
+**Depends on:** Phases 4, 15.
+
+---
+
+### Boot & startup v2
+
+#### Phase 31 — Reboot-Spanning Boot ETW
+
+**Goal:** Measure the *next* boot, not only post-boot event logs.
+
+**Deliver:**
+
+- Arm ETW for next reboot; analyze after login.
+- Summarized timeline in `boot analyze` / `doctor`.
+
+**Depends on:** Phase 10.
+
+**Never:** Raw unreadable `.etl` dumps as the primary UX.
+
+---
+
+#### Phase 32 — Cold vs Warm Boot Profiles
+
+**Goal:** Classify recent boots and recommend from patterns.
+
+**Deliver:**
+
+- Cold vs warm labels; multi-boot history summary.
+- Avoid single-boot noise in boot recommendations.
+
+**Depends on:** Phase 31 (or Phase 10 event history where enough).
+
+---
+
+#### Phase 33 — Driver / Service Start Waterfall
+
+**Goal:** Ordered timeline of slow SCM/driver starts during boot.
+
+**Deliver:**
+
+- Waterfall summary in `boot analyze`.
+- Correlate with services list when PIDs/names match.
+
+**Depends on:** Phases 10, 31.
+
+---
+
+#### Phase 34 — Startup Delay Orchestration
+
+**Goal:** Safe staggered delays for user-approved items.
+
+**Deliver:**
+
+- Preview of a delay plan; per-item confirmation; rollback.
+- CLI support building on existing `startup delay` / `tasks delay`.
+
+**Depends on:** Phases 12, 16.
+
+**Never:** Blind delay-all; delay Microsoft security startups by default.
+
+---
+
+### Recommendations & apply
+
+#### Phase 35 — Recommendation Confidence Engine
+
+**Goal:** Confidence from sample count, variance, and duration.
+
+**Deliver:**
+
+- Suppress noisy single-sample recommendations.
+- Expose confidence clearly in text + JSON.
+
+**Depends on:** Phase 4.
+
+---
+
+#### Phase 36 — Apply Preview / Dry-Run
+
+**Goal:** Show exact change + rollback payload before mutating.
+
+**Deliver:**
+
+```bash
+wintune apply WT-POWER-001 --dry-run
+wintune startup disable <id> --dry-run
+```
+
+**Depends on:** Phase 16.
+
+**Never:** Dry-run that still writes system state.
+
+---
+
+#### Phase 37 — Service Restart Rollback Metadata
+
+**Goal:** Record pre-restart service state for audit/rollback notes.
+
+**Deliver:**
+
+- Rollback/audit record for confirmed `services restart`.
+- Still refuse critical/security denylist services.
+
+**Depends on:** Phases 7, 16.
+
+**Never:** Auto-restart loops; restart Defender/WU/firewall/etc.
+
+---
+
+#### Phase 38 — Guided Doctor Plan
+
+**Goal:** Ordered checklist of safe applies with dependencies.
+
+**Deliver:**
+
+- `doctor` (or `doctor --plan`) prints a sequenced plan.
+- User still confirms each mutating step (no blind apply-all).
+
+**Depends on:** Phases 4, 35, 36.
+
+**Never:** One-shot “fix everything” with `--yes` for dangerous sets.
+
+---
+
+#### Phase 39 — Uninstall Advisor (Read-Only)
+
+**Goal:** Point humans at official uninstall paths for high-impact leftovers.
+
+**Deliver:**
+
+- Detect candidates from uninstall registry metadata when useful.
+- Print Settings / `winget list` / ARP guidance only.
+
+**Never:** Silent uninstall; force-remove Program Files.
+
+---
+
+### TUI / tray / UX
+
+#### Phase 40 — TUI Historical Sparklines
+
+**Goal:** Short in-session history for CPU/RAM/disk/net.
+
+**Deliver:**
+
+- Ring buffers in TUI; export CSV/JSON snapshot including history.
+
+**Depends on:** Phase 20.
+
+---
+
+#### Phase 41 — TUI Before/After Compare
+
+**Goal:** Side-by-side snapshots after a confirmed apply.
+
+**Deliver:**
+
+- Store/load two snapshots; show deltas in TUI or `report`.
+
+**Depends on:** Phases 20, 8.
+
+**Never:** Imply magical gains without measured deltas.
+
+---
+
+#### Phase 42 — Tray Mini-Doctor
+
+**Goal:** Tray runs a short local scan into the status window.
+
+**Deliver:**
+
+- Optional “Quick scan” from tray; still read-only unless user opens CLI apply.
+
+**Depends on:** Phase 19.
+
+**Never:** Silent mutating actions from the tray.
+
+---
+
+#### Phase 43 — Accessibility & SSH TUI
+
+**Goal:** Better narrow-TTY, high-contrast, and clearer labels.
+
+**Deliver:**
+
+- High-contrast theme; screen-reader-oriented labels where practical.
+- Stronger SSH/`--safe-terminal` layouts.
+
+**Depends on:** Phases 9, 20.
+
+**Never:** Require mouse or Windows Terminal-only features.
+
+---
+
+### Service / fleet / automation
+
+#### Phase 44 — Service Policy Profiles
+
+**Goal:** Named configs for interval, counters, retention of `last_scan.json`.
+
+**Deliver:**
+
+```bash
+wintune service install --profile balanced
+```
+
+**Depends on:** Phase 11.
+
+**Never:** Hidden persistence; profiles must be explicit and removable.
+
+---
+
+#### Phase 45 — Named-Pipe ACL Hardening
+
+**Goal:** Tighten local IPC trust boundaries.
+
+**Deliver:**
+
+- Documented ACLs; optional local-admin-only pipe mode.
+- Clear errors when ACL denies callers.
+
+**Depends on:** Phase 11.
+
+---
+
+#### Phase 46 — Fleet Report Pack
+
+**Goal:** Bundle multi-host JSON scans locally for review.
+
+**Deliver:**
+
+```bash
+wintune fleet pack --input reports/ --output fleet-pack.zip
+```
+
+- Checksums; no upload.
+
+**Depends on:** Phase 17.
+
+**Never:** Cloud sync or mandatory phone-home.
+
+---
+
+#### Phase 47 — JSON Schema v2 + Compatibility
+
+**Goal:** Evolve JSON without breaking automation casually.
+
+**Deliver:**
+
+- Schema bump with changelog; deprecation window.
+- Compatibility notes in `docs/json-schema.md` / fleet docs.
+
+**Depends on:** Phase 17.
+
+---
+
+### Windows platform diagnostics (read-heavy)
+
+#### Phase 48 — Storage Health (Read-Only)
+
+**Goal:** Reliability / failure-prediction signals when available.
+
+**Deliver:**
+
+- Read-only health summary; recommend backup / vendor tools when degraded.
+
+**Never:** Disk wipe, format, “repair” that deletes user data.
+
+---
+
+#### Phase 49 — Memory Dump / WER Signals
+
+**Goal:** Explain slowness after crashes via recent WER / unexpected shutdowns.
+
+**Deliver:**
+
+- Summarize recent reliability signals (not full dump upload).
+
+**Never:** Exfiltrate dumps; claim to “fix” corruption automatically.
+
+---
+
+#### Phase 50 — Pagefile & Commit Charge Depth
+
+**Goal:** Explain memory pressure without a RAM cleaner.
+
+**Deliver:**
+
+- Commit limit/peak, hard faults; tips to close/delay heavy apps.
+
+**Never:** Force-empty working sets as an “optimization.”
+
+---
+
+#### Phase 51 — Scheduled Maintenance Windows
+
+**Goal:** Detect Defender/WU/optimization activity overlapping high samples.
+
+**Deliver:**
+
+- Correlate high disk/CPU samples with known maintenance tasks.
+- Recommend scheduling outside work hours — not disabling security.
+
+**Depends on:** Phases 12, 13, 15.
+
+**Never:** Disable Defender or Windows Update.
+
+---
+
+### Distribution & quality
+
+#### Phase 52 — Authenticode CI + Release Signing
+
+**Goal:** Optional signed Release artifacts with verify-in-smoke.
+
+**Deliver:**
+
+- CI/OIDC or documented signing path; `signtool verify` in release checks.
+- See [`signing.md`](signing.md).
+
+**Depends on:** Phase 21.
+
+**Never:** Commit private keys to the repo.
+
+---
+
+#### Phase 53 — Installer & Channel Maturity
+
+**Goal:** First-class installer + channels beyond portable ZIP.
+
+**Deliver:**
+
+- Wire Inno (or MSI) into release workflow when ready.
+- Stable/beta channel docs; optional Chocolatey later.
+- Keep portable ZIP as the primary artifact.
+
+**Depends on:** Phases 21, 52 (signing recommended before wide installer push).
+
+**Never:** Bundled adware; silent auto-start without consent.
+
+---
+
+## Recommended Implementation Order
+
+### Historical (Phases 10–21) — complete
 
 ```text
 10  ETW boot/login analysis
@@ -561,10 +1091,45 @@ telemetry uploader in the installer.
 19  Tray / optional native GUI
 ```
 
-Phases 12–16 can be partially reordered, but **10 before 12** (measured
-startup) and **11 before 16** (service-based remote apply) are strong
-dependencies. **21 after 18** is recommended but a portable ZIP release can
-ship before MSI/winget.
+### Suggested (Phases 22–53)
+
+```text
+35  Recommendation confidence
+30  Multi-sample disk smoothing
+25  Disk counters in scan model
+26  Per-volume disk activity
+22  Publisher & signature metadata
+23  Binary provenance
+24  Smart impact scoring v2
+31  Reboot-spanning boot ETW
+32  Cold vs warm boot profiles
+33  Driver/service start waterfall
+36  Apply dry-run
+37  Service restart rollback metadata
+38  Guided doctor plan
+34  Startup delay orchestration
+40  TUI historical sparklines
+41  TUI before/after compare
+42  Tray mini-doctor
+43  Accessibility & SSH TUI
+27  Per-process network (ETW)        # optional / overhead-sensitive
+28  GPU readiness (read-only)        # if APIs are clean enough
+29  Thermal & power budget
+48  Storage health
+49  WER / unexpected shutdown signals
+50  Pagefile & commit depth
+51  Maintenance window correlation
+39  Uninstall advisor (read-only)
+44  Service policy profiles
+45  Named-pipe ACL hardening
+46  Fleet report pack
+47  JSON schema v2
+52  Authenticode CI
+53  Installer & channel maturity
+```
+
+Strong dependencies: **22 before 23/24**; **25 before 26**; **10 before 31–33**;
+**16 before 36–38**; **21 before 52–53**.
 
 ---
 

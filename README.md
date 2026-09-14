@@ -7,7 +7,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-blue.svg)](docs/roadmap.md)
-[![Status: Phases 0–21 Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9321%20Done-brightgreen.svg)](#project-status)
+[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9321%20Done%20%7C%20v3%20Planned-brightgreen.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -378,9 +378,8 @@ Full details: [`docs/safety.md`](docs/safety.md).
 
 ## Project status
 
-WinTune **v0.2.0** ships Phases **0–21** (CLI/TUI, service, packaging, tray, and
-end-user release polish). Optional follow-ups (winget publish, Authenticode in
-CI) are documented but not required to use the tool.
+WinTune **v0.2.0** ships(CLI/TUI, service, packaging, tray, and
+end-user release polish).
 
 | Phase | Scope | Status |
 | ----- | ----- | ------ |
@@ -406,9 +405,7 @@ CI) are documented but not required to use the tool.
 | 19 | Optional tray / native GUI (never Electron) | Done |
 | 20 | TUI polish & UX | Done |
 | 21 | Distributable executable (end-user release) | Done |
-
-**v1 (Phases 0–9)** and **v2+ roadmap through Phase 21** are complete. Details:
-[`docs/roadmap.md`](docs/roadmap.md).
+| 22–53 | v3 depth (attribution, metrics, boot v2, apply UX, fleet, signing)
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.
