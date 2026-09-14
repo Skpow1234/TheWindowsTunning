@@ -2,6 +2,7 @@
 #include "output/table.h"
 #include "common/units.h"
 #include "system/power.h"
+#include "system/file_identity.h"
 #include "platform/time.h"
 
 #include <stdio.h>
@@ -188,18 +189,23 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
             }
         }
         if (show_cpu) {
-            fwprintf(out, L"  %-6s  %-28.28ls  %8s  %ls\n", L"PID", L"Process",
-                     L"CPU%", L"Memory");
+            fprintf(out, "  %-6s  %-22s  %-11s  %8s  %s\n", "PID", "Process",
+                    "Origin", "CPU%", "Memory");
+        } else {
+            fprintf(out, "  %-6s  %-26s  %-11s  %s\n", "PID", "Process",
+                    "Origin", "Memory");
         }
         for (size_t i = 0; i < report->top_process_count; ++i) {
             const WT_ProcessInfo *p = &report->top_processes[i];
             wchar_t mem[32];
             wt_format_bytes(p->working_set_bytes, mem, 32);
+            const char *origin = wt_publisher_origin_name(p->identity.origin);
             if (show_cpu && p->cpu_percent >= 0.0) {
-                fwprintf(out, L"  %6lu  %-28.28ls  %7.1f%%  %ls\n",
-                         p->pid, p->name, p->cpu_percent, mem);
+                fprintf(out, "  %6lu  %-22.22ls  %-11s  %7.1f%%  %ls\n",
+                        p->pid, p->name, origin, p->cpu_percent, mem);
             } else {
-                fwprintf(out, L"  %6lu  %-32.32ls  %ls\n", p->pid, p->name, mem);
+                fprintf(out, "  %6lu  %-26.26ls  %-11s  %ls\n",
+                        p->pid, p->name, origin, mem);
             }
         }
     } else {

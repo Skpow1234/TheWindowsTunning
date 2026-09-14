@@ -3,6 +3,7 @@
 #include "common/units.h"
 #include "platform/time.h"
 #include "system/power.h"
+#include "system/file_identity.h"
 
 #include <stdio.h>
 
@@ -187,7 +188,9 @@ void wt_print_performance_report_text(FILE *out,
             const WT_ProcessInfo *p = &report->top_processes[i];
             wchar_t mem[32];
             wt_format_bytes(p->working_set_bytes, mem, 32);
-            fwprintf(out, L"  %6lu  %-32.32ls  %ls\n", p->pid, p->name, mem);
+            fprintf(out, "  %6lu  %-28.28ls  %-11s  %ls\n",
+                    p->pid, p->name,
+                    wt_publisher_origin_name(p->identity.origin), mem);
         }
     } else {
         fputs("  Process data unavailable.\n", out);
