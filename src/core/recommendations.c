@@ -1,10 +1,12 @@
 #include "core/recommendations.h"
+#include "core/impact_score.h"
 #include "system/power.h"
 #include "system/boot.h"
 #include "system/updates.h"
 #include "system/blockers.h"
 #include "system/startup.h"
 #include "system/tasks.h"
+#include "system/file_identity.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -449,12 +451,25 @@ static void wt_check_startup_actions(const WT_ScanReport *report,
     }
 
     for (size_t i = 0; i < count; ++i) {
+        WT_StartupEntry *e = &entries[i];
+        WT_ImpactInput in;
+        WT_ImpactScore score;
+        wt_impact_input_from_startup(e, &in);
+        if (report != NULL && report->processes_ok) {
+            wt_impact_attach_runtime(&in, report->top_processes,
+                                     report->top_process_count);
+        }
+        wt_impact_score_compute(&in, &score);
+        wt_impact_apply_to_startup(e, &score);
+    }
+
+    for (size_t i = 0; i < count; ++i) {
         const WT_StartupEntry *e = &entries[i];
         if (!e->enabled) {
             continue;
         }
-        if (e->impact != WT_STARTUP_IMPACT_HIGH &&
-            !(e->measured_available && e->measured_ms >= WT_BOOT_APP_SLOW_MS)) {
+        if (e->impact_score < WT_IMPACT_RECOMMEND_SCORE_MIN ||
+            e->impact_confidence < WT_IMPACT_RECOMMEND_CONF_MIN) {
             continue;
         }
         if (wt_startup_is_systemish(e)) {
@@ -470,20 +485,22 @@ static void wt_check_startup_actions(const WT_ScanReport *report,
                    "Review disabling a high-impact startup entry");
         if (e->measured_available) {
             snprintf(r->reason, sizeof(r->reason),
-                     "Startup entry '%ls' (%s) is enabled and had about %lu ms "
-                     "measured delay during the last boot/login. Disabling it "
-                     "can reduce login time; you can re-enable it from Task "
+                     "Startup entry '%ls' (%s) scored %d/100 impact "
+                     "(confidence %d%%) with about %lu ms measured login delay. "
+                     "Disabling it can reduce login time; re-enable via Task "
                      "Manager or WinTune rollback.",
                      e->name,
                      wt_publisher_origin_name(e->identity.origin),
-                     e->measured_ms);
+                     e->impact_score, e->impact_confidence, e->measured_ms);
         } else {
             snprintf(r->reason, sizeof(r->reason),
-                     "Startup entry '%ls' (%s) is enabled and estimated as high "
-                     "impact. Disabling it can reduce login overhead; you can "
-                     "re-enable it from Task Manager or WinTune rollback.",
+                     "Startup entry '%ls' (%s) scored %d/100 impact "
+                     "(confidence %d%%) from publisher/heuristic/runtime "
+                     "evidence. Disabling it can reduce login overhead; "
+                     "re-enable via Task Manager or WinTune rollback.",
                      e->name,
-                     wt_publisher_origin_name(e->identity.origin));
+                     wt_publisher_origin_name(e->identity.origin),
+                     e->impact_score, e->impact_confidence);
         }
         snprintf(r->action, sizeof(r->action),
                  "wintune apply WT-STARTUP-DISABLE \"%ls\"", e->id);
@@ -491,7 +508,7 @@ static void wt_check_startup_actions(const WT_ScanReport *report,
         r->risk = WT_RISK_LOW;
         r->requires_admin = (wcsstr(e->id, L"HKLM") != NULL) ? 1 : 0;
         r->rollback_available = 1;
-        r->confidence_percent = 70;
+        r->confidence_percent = e->impact_confidence;
         break;
     }
 }
@@ -510,6 +527,19 @@ static void wt_check_task_actions(const WT_ScanReport *report,
     }
 
     for (size_t i = 0; i < count; ++i) {
+        WT_ScheduledTask *t = &tasks[i];
+        WT_ImpactInput in;
+        WT_ImpactScore score;
+        wt_impact_input_from_task(t, &in);
+        if (report != NULL && report->processes_ok) {
+            wt_impact_attach_runtime(&in, report->top_processes,
+                                     report->top_process_count);
+        }
+        wt_impact_score_compute(&in, &score);
+        wt_impact_apply_to_task(t, &score);
+    }
+
+    for (size_t i = 0; i < count; ++i) {
         const WT_ScheduledTask *t = &tasks[i];
         if (!t->enabled) {
             continue;
@@ -517,8 +547,8 @@ static void wt_check_task_actions(const WT_ScanReport *report,
         if (wt_task_is_protected(t)) {
             continue;
         }
-        if (t->impact != WT_STARTUP_IMPACT_HIGH &&
-            !(t->measured_available && t->measured_ms >= WT_BOOT_APP_SLOW_MS)) {
+        if (t->impact_score < WT_IMPACT_RECOMMEND_SCORE_MIN ||
+            t->impact_confidence < WT_IMPACT_RECOMMEND_CONF_MIN) {
             continue;
         }
         if (t->delay_seconds > 0) {
@@ -534,16 +564,17 @@ static void wt_check_task_actions(const WT_ScanReport *report,
                    "Consider delaying a logon scheduled task");
         if (t->measured_available) {
             snprintf(r->reason, sizeof(r->reason),
-                     "Logon task '%ls' is enabled and added about %lu ms "
-                     "during the last login. Delaying it by 30 seconds can "
-                     "spread login work without removing the task.",
-                     t->name, t->measured_ms);
+                     "Logon task '%ls' scored %d/100 impact (confidence %d%%) "
+                     "with about %lu ms measured login delay. Delaying it by "
+                     "30 seconds can spread login work without removing the task.",
+                     t->name, t->impact_score, t->impact_confidence,
+                     t->measured_ms);
         } else {
             snprintf(r->reason, sizeof(r->reason),
-                     "Logon task '%ls' is enabled and estimated as high "
-                     "impact. Delaying it by 30 seconds can spread login work "
-                     "without removing the task.",
-                     t->name);
+                     "Logon task '%ls' scored %d/100 impact (confidence %d%%). "
+                     "Delaying it by 30 seconds can spread login work without "
+                     "removing the task.",
+                     t->name, t->impact_score, t->impact_confidence);
         }
         snprintf(r->action, sizeof(r->action),
                  "wintune apply WT-TASK-DELAY \"%ls\" --seconds 30", t->id);
@@ -551,7 +582,7 @@ static void wt_check_task_actions(const WT_ScanReport *report,
         r->risk = WT_RISK_LOW;
         r->requires_admin = 0;
         r->rollback_available = 1;
-        r->confidence_percent = 65;
+        r->confidence_percent = t->impact_confidence;
         break;
     }
 }

@@ -42,7 +42,8 @@ Cache keys hash `CMakeLists.txt`, `src/**`, `resources/**`, `tests/**`, and
 
 ### Smoke coverage (provenance / scoring)
 
-`scripts/smoke.ps1` asserts JSON field presence (not values) for:
+`scripts/smoke.ps1` asserts JSON field presence on array items (soft-pass if the
+array is empty on a clean host):
 
 - `top --json` → `publisher`, `product_name`, `location`, `unusual_location`, …
 - `startup --json` → same + `impact_score`, `impact_confidence`

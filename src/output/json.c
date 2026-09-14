@@ -631,6 +631,9 @@ void wt_print_startup_json(const WT_StartupEntry *items, size_t count, FILE *out
         wt_json_key(&w, "command"); wt_json_wstring(&w, e->command);
         wt_json_key(&w, "enabled"); wt_json_bool(&w, e->enabled);
         wt_json_key(&w, "impact");  wt_json_string(&w, wt_startup_impact_name(e->impact));
+        wt_json_key(&w, "impact_score"); wt_json_uint64(&w, (unsigned long long)e->impact_score);
+        wt_json_key(&w, "impact_confidence");
+        wt_json_uint64(&w, (unsigned long long)e->impact_confidence);
         wt_json_key(&w, "measured_available"); wt_json_bool(&w, e->measured_available);
         wt_json_key(&w, "measured_ms");
         if (e->measured_available) {
@@ -667,6 +670,9 @@ void wt_print_tasks_json(const WT_ScheduledTask *items, size_t count, FILE *out)
         wt_json_key(&w, "trigger");      wt_json_string(&w, wt_task_trigger_name(t->trigger_kind));
         wt_json_key(&w, "delay_seconds"); wt_json_uint64(&w, t->delay_seconds);
         wt_json_key(&w, "impact");       wt_json_string(&w, wt_startup_impact_name(t->impact));
+        wt_json_key(&w, "impact_score"); wt_json_uint64(&w, (unsigned long long)t->impact_score);
+        wt_json_key(&w, "impact_confidence");
+        wt_json_uint64(&w, (unsigned long long)t->impact_confidence);
         wt_json_key(&w, "protected");    wt_json_bool(&w, t->is_microsoft);
         wt_json_key(&w, "measured_available"); wt_json_bool(&w, t->measured_available);
         wt_json_key(&w, "measured_ms");
