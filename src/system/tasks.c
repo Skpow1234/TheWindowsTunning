@@ -1,5 +1,6 @@
 #include "system/tasks.h"
 #include "system/boot.h"
+#include "core/impact_score.h"
 
 #include <windows.h>
 #include <taskschd.h>
@@ -77,26 +78,13 @@ static unsigned long wt_parse_iso8601_delay_seconds(BSTR delay)
     return total;
 }
 
-static WT_StartupImpact wt_task_estimate_impact(const wchar_t *name,
-                                                const wchar_t *command)
+static void wt_task_rescore(WT_ScheduledTask *t)
 {
-    static const wchar_t *heavy[] = {
-        L"update", L"backup", L"sync", L"index", L"google", L"adobe",
-        L"steam", L"docker", L"onedrive", L"dropbox", L"java"
-    };
-    wchar_t haystack[900];
-    haystack[0] = L'\0';
-    StringCchCatW(haystack, ARRAYSIZE(haystack), name ? name : L"");
-    StringCchCatW(haystack, ARRAYSIZE(haystack), L" ");
-    StringCchCatW(haystack, ARRAYSIZE(haystack), command ? command : L"");
-    CharLowerW(haystack);
-
-    for (size_t i = 0; i < ARRAYSIZE(heavy); ++i) {
-        if (wcsstr(haystack, heavy[i]) != NULL) {
-            return WT_STARTUP_IMPACT_MEDIUM;
-        }
-    }
-    return WT_STARTUP_IMPACT_UNKNOWN;
+    WT_ImpactInput in;
+    WT_ImpactScore score;
+    wt_impact_input_from_task(t, &in);
+    wt_impact_score_compute(&in, &score);
+    wt_impact_apply_to_task(t, &score);
 }
 
 static int wt_task_path_is_microsoft(const wchar_t *path, const wchar_t *author)
@@ -304,8 +292,8 @@ static void wt_task_add(WT_ScheduledTask *out, size_t capacity, size_t *count,
     t->enabled = enabled;
     t->trigger_kind = trigger_kind;
     t->delay_seconds = delay_seconds;
-    t->impact = wt_task_estimate_impact(t->name, t->command);
     t->is_microsoft = wt_task_path_is_microsoft(path, author);
+    wt_task_rescore(t);
     (*count)++;
 }
 
@@ -855,12 +843,6 @@ void wt_tasks_apply_measured(WT_ScheduledTask *tasks, size_t count,
 
         t->measured_ms = ms;
         t->measured_available = 1;
-        if (ms >= 10000) {
-            t->impact = WT_STARTUP_IMPACT_HIGH;
-        } else if (ms >= 3000) {
-            t->impact = WT_STARTUP_IMPACT_MEDIUM;
-        } else if (ms > 0) {
-            t->impact = WT_STARTUP_IMPACT_LOW;
-        }
+        wt_task_rescore(t);
     }
 }

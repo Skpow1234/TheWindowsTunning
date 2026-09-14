@@ -26,6 +26,8 @@ typedef struct WT_ScheduledTask {
     WT_TaskTriggerKind trigger_kind;
     unsigned long delay_seconds; /* existing logon delay, 0 if none */
     WT_StartupImpact impact;
+    int impact_score;
+    int impact_confidence;
     int is_microsoft;         /* protected from automatic/mutating actions */
     unsigned long measured_ms;
     int measured_available;
