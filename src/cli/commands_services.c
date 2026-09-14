@@ -1,6 +1,7 @@
 #include "cli/commands_services.h"
 #include "cli/cli.h"
 #include "system/services.h"
+#include "system/file_identity.h"
 #include "system/privilege.h"
 #include "actions/safe_actions.h"
 #include "output/json.h"
@@ -66,29 +67,37 @@ static void wt_print_services_text(const WT_ServiceInfo *svcs, size_t count,
         return;
     }
 
-    printf("%-34.34ls %-9s %-9s %-7s %ls\n",
-           L"Name", "State", "Start", "PID", L"Display name");
+    printf("%-28.28ls %-9s %-8s %-6s %-11s %ls\n",
+           L"Name", "State", "Start", "PID", "Origin", L"Publisher / Display");
     for (size_t i = 0; i < count; ++i) {
         const WT_ServiceInfo *s = &svcs[i];
+        const char *origin = wt_publisher_origin_name(s->identity.origin);
+        const wchar_t *pub = s->identity.publisher[0] != L'\0'
+                                 ? s->identity.publisher
+                                 : s->display_name;
         if (s->pid == 0) {
-            printf("%-34.34ls %-9s %-9s %-7s %.44ls\n",
+            printf("%-28.28ls %-9s %-8s %-6s %-11s %.40ls\n",
                    s->name,
                    wt_service_state_name(s->state),
                    wt_service_start_type_name(s->start_type),
                    "-",
-                   s->display_name);
+                   origin,
+                   pub);
         } else {
-            printf("%-34.34ls %-9s %-9s %-7lu %.44ls\n",
+            printf("%-28.28ls %-9s %-8s %-6lu %-11s %.40ls\n",
                    s->name,
                    wt_service_state_name(s->state),
                    wt_service_start_type_name(s->start_type),
                    s->pid,
-                   s->display_name);
+                   origin,
+                   pub);
         }
     }
 
     printf("\nSummary: %zu running, %zu stopped, %zu auto-start\n",
            running, stopped, autostart);
+    printf("Origin is metadata only (microsoft / third-party / unknown); "
+           "unsigned alone is not treated as malware.\n");
 }
 
 static int wt_services_restart(const WT_CliOptions *opts)

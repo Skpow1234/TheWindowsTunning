@@ -1,6 +1,7 @@
 #include "cli/commands_startup.h"
 #include "cli/cli.h"
 #include "system/startup.h"
+#include "system/file_identity.h"
 #include "system/services.h"
 #include "system/boot.h"
 #include "actions/safe_actions.h"
@@ -41,19 +42,30 @@ static void wt_print_startup_text(const WT_StartupEntry *entries, size_t count,
     }
 
     if (measured_mode) {
-        printf("%-8s %-10s %ls\n", "Impact", "Measured", L"Id / Command");
+        printf("%-8s %-10s %-11s %ls\n", "Impact", "Measured", "Origin",
+               L"Id / Command");
     } else {
-        printf("%-8s %ls\n", "Impact", L"Id / Command");
+        printf("%-8s %-11s %ls\n", "Impact", "Origin", L"Id / Command");
     }
     for (size_t i = 0; i < count; ++i) {
         const WT_StartupEntry *e = &entries[i];
+        const char *origin = wt_publisher_origin_name(e->identity.origin);
         if (measured_mode && e->measured_available) {
             wchar_t ms[32];
             wt_format_duration_ms(e->measured_ms, ms, 32);
-            printf("%-8s %-10ls %ls\n",
-                   wt_startup_impact_name(e->impact), ms, e->id);
+            printf("%-8s %-10ls %-11s %ls\n",
+                   wt_startup_impact_name(e->impact), ms, origin, e->id);
         } else {
-            printf("%-8s %ls\n", wt_startup_impact_name(e->impact), e->id);
+            printf("%-8s %-11s %ls\n",
+                   wt_startup_impact_name(e->impact), origin, e->id);
+        }
+        if (e->identity.publisher[0] != L'\0') {
+            printf("%-8s   Publisher: %.60ls (%s)\n", "",
+                   e->identity.publisher,
+                   wt_signature_status_name(e->identity.signature));
+        } else {
+            printf("%-8s   Signature: %s\n", "",
+                   wt_signature_status_name(e->identity.signature));
         }
         printf("%-8s   %.88ls\n", "", e->command);
     }
