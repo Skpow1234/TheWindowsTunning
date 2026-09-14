@@ -7,7 +7,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-blue.svg)](docs/roadmap.md)
-[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9322%20Done%20%7C%20v3%20Planned-brightgreen.svg)](#project-status)
+[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9323%20Done%20%7C%20v3%20Planned-brightgreen.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -406,7 +406,8 @@ end-user release polish).
 | 20 | TUI polish & UX | Done |
 | 21 | Distributable executable (end-user release) | Done |
 | 22 | Publisher & signature metadata | Done |
-| 23–53 | v3 depth (provenance, metrics, boot v2, apply UX, fleet, signing) | Planned |
+| 23 | Binary provenance | Done |
+| 24–53 | v3 depth (scoring, metrics, boot v2, apply UX, fleet, signing) | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.

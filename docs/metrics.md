@@ -164,10 +164,10 @@ CloseHandle
 - I/O counters.
 - Session ID.
 - Is-elevated / is-system if possible.
-- For top-process lists: publisher (`CompanyName`), Authenticode status, and
-  origin cue (`microsoft` / `third-party` / `unknown`) via
-  `src/system/file_identity.c` (`WinVerifyTrust` + version resources). Path
-  results are cached for the process lifetime.
+- For top-process lists: publisher (`CompanyName`), product (`ProductName`),
+  Authenticode status, origin cue, install-location class, and
+  `unusual_location` (calm review only) via `src/system/file_identity.c`.
+  Path results are cached for the process lifetime.
 
 Full command line is **not** collected by default (it may contain secrets). It
 can be enabled behind `--include-command-line`, with a warning.
@@ -181,7 +181,7 @@ typedef struct WT_ProcessInfo {
     unsigned long long read_bytes;
     unsigned long long write_bytes;
     double cpu_percent;
-    WT_FileIdentity identity; /* publisher / signature / origin */
+    WT_FileIdentity identity; /* product, publisher, location, signature */
 } WT_ProcessInfo;
 ```
 
@@ -201,9 +201,10 @@ typedef struct WT_ProcessInfo {
 - Auto-start services.
 - Scheduled tasks (later phases).
 
-**Per item:** id, name, source, command/path, publisher, signature status,
-origin (microsoft / third-party / unknown), enabled state, estimated or measured
-impact. Unsigned alone is never treated as malware.
+**Per item:** id, name, source, command/path, product name, publisher,
+signature status, origin, install location, unusual-location review flag,
+enabled state, estimated or measured impact. Unsigned alone is never treated as
+malware; unusual location is a calm review cue only.
 
 ---
 

@@ -139,6 +139,9 @@ wintune top --interval 1000
 wintune top --json
 ```
 
+JSON process rows include provenance (`publisher`, `product_name`, `location`,
+`unusual_location`, …). Text tables add a Loc column; `!` means calm review only.
+
 `--watch` refreshes the table every interval **without** entering the full TUI.
 
 ```text
@@ -192,9 +195,10 @@ wintune startup delay "<id>" --seconds 30
 
 Microsoft and security startup items are not disabled by default.
 
-Text and JSON include best-effort **publisher**, **signature** status, and
-**origin** (`microsoft` / `third-party` / `unknown`). Unsigned alone is never
-treated as malware.
+Text and JSON include best-effort **publisher**, **product_name**,
+**signature** status, **origin**, **location**, and **unusual_location**.
+Unsigned alone is never treated as malware; unusual location means calm review
+only (for example Temp/Downloads).
 
 ---
 

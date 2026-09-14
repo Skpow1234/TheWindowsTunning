@@ -40,7 +40,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 20 | TUI polish & UX | Done |
 | 21 | Distributable executable (end-user release) | Done |
 | 22 | Publisher & signature metadata | Done |
-| 23 | Binary provenance | Planned |
+| 23 | Binary provenance | Done |
 | 24 | Smart impact scoring v2 | Planned |
 | 25 | Disk counters in scan model | Planned |
 | 26 | Per-volume disk activity | Planned |
@@ -624,17 +624,24 @@ wintune top --json
 
 #### Phase 23 — Binary Provenance
 
+**Status:** Done
+
 **Goal:** Map running impact back to on-disk identity.
 
 **Deliver:**
 
-- Resolve process/startup path → ProductName / CompanyName (version resources).
-- Flag unexpected install locations when useful for review.
-- Surface provenance in scan/top/report JSON.
+- Resolve process/startup/service path → `ProductName` / `CompanyName` (version
+  resources) in `WT_FileIdentity`.
+- Classify install location (`windows`, `program-files`, `user-appdata`, `temp`,
+  `downloads`, `other`, …).
+- Flag `unusual_location` for calm review only (Temp/Downloads, or
+  Microsoft-labeled binary outside Windows/Program Files).
+- Surface provenance in `scan` / `top` / `startup` / `services` / `report` text
+  and JSON (`product_name`, `location`, `unusual_location`).
 
 **Depends on:** Phase 22.
 
-**Never:** Quarantine, delete, or block binaries.
+**Never:** Quarantine, delete, or block binaries; scareware language.
 
 ---
 
