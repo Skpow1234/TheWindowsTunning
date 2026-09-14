@@ -268,6 +268,54 @@ function Test-JsonOk {
     Write-CaseResult $Name "PASS"
 }
 
+function Test-JsonArrayItemFields {
+    param(
+        [string]$Name,
+        [string[]]$WtArgs,
+        [string]$ArrayKey,
+        [string[]]$ItemFields,
+        [int]$TimeoutSec = 90
+    )
+    $r = Invoke-Wt -WtArgs $WtArgs -TimeoutSec $TimeoutSec
+    if ($r.TimedOut) {
+        Write-CaseResult $Name "FAIL" "timeout"
+        return
+    }
+    if ($r.ExitCode -ne 0) {
+        Write-CaseResult $Name "FAIL" "exit $($r.ExitCode)"
+        return
+    }
+    $text = $r.StdOut.Trim()
+    if (-not ($text.StartsWith("{") -or $text.StartsWith("["))) {
+        Write-CaseResult $Name "FAIL" "stdout is not JSON-looking"
+        return
+    }
+    try {
+        $obj = $text | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        Write-CaseResult $Name "FAIL" "ConvertFrom-Json failed: $($_.Exception.Message)"
+        return
+    }
+    $arr = $obj.$ArrayKey
+    if ($null -eq $arr) {
+        Write-CaseResult $Name "FAIL" "missing array key '$ArrayKey'"
+        return
+    }
+    $count = @($arr).Count
+    if ($count -eq 0) {
+        Write-CaseResult $Name "SOFT" "no $ArrayKey items on this host; schema key present"
+        return
+    }
+    $item = @($arr)[0]
+    foreach ($field in $ItemFields) {
+        if ($null -eq ($item.PSObject.Properties[$field])) {
+            Write-CaseResult $Name "FAIL" "first $ArrayKey item missing field '$field'"
+            return
+        }
+    }
+    Write-CaseResult $Name "PASS" "$count item(s); fields ok"
+}
+
 Write-Host ""
 Write-Host "WinTune CLI smoke tests" -ForegroundColor Cyan
 Write-Host "Exe: $Exe"

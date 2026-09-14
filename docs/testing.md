@@ -82,14 +82,21 @@ session.” They do **not** fail the suite. Hard failures (`FAIL`) do.
 
 ### CI
 
-The x64 CI job runs:
+| Job | What runs |
+|-----|-----------|
+| **Lint and build (Windows x64)** *(required check)* | `/WX` build, `test.ps1`, `smoke.ps1 -SkipSlow` |
+| **Build (Windows ARM64)** | Release build, `test.ps1 -BuildDir build-arm64`, full smoke |
+| **Package dry-run (x64)** | On `v*` tags, PR label `release`, or dispatch — see [`ci.md`](ci.md) |
+
+x64 smoke:
 
 ```powershell
 .\scripts\smoke.ps1 -Config Release -SkipSlow
 ```
 
-`-SkipSlow` tightens timeouts; coverage is the same. ARM64 CI still only checks
-`wintune version` (arch string).
+`-SkipSlow` tightens timeouts; coverage is the same. ARM64 CI now runs the same
+smoke suite against the ARM64 binary. See [`ci.md`](ci.md) for caching,
+Dependabot, and how to set the required status check.
 
 ### What smoke does **not** do
 

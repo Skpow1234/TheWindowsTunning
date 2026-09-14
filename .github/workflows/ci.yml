@@ -160,16 +160,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache CMake build (x64 package)
-        id: cache-pkg
-        uses: actions/cache@v4
-        with:
-          path: build
-          key: wintune-x64-pkg-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'resources/**', 'pack/**', 'scripts/package.ps1', 'scripts/cmake-configure.ps1') }}
-          restore-keys: |
-            wintune-x64-pkg-${{ runner.os }}-
-            wintune-x64-${{ runner.os }}-
-
       - name: Package x64 ZIP (dry-run)
         shell: pwsh
         run: |
@@ -177,16 +167,8 @@ jobs:
           if ($env:GITHUB_REF_TYPE -eq "tag") {
             $ver = $env:GITHUB_REF_NAME.TrimStart("v", "V")
           }
-          $configure = ($env:CACHE_HIT -ne "true")
-          if ($configure) {
-            .\scripts\package.ps1 -Config Release -Arch x64 -Version $ver `
-              -Channel stable -Configure -Build -Zip
-          } else {
-            .\scripts\package.ps1 -Config Release -Arch x64 -Version $ver `
-              -Channel stable -Build -Zip
-          }
-        env:
-          CACHE_HIT: ${{ steps.cache-pkg.outputs.cache-hit }}
+          .\scripts\package.ps1 -Config Release -Arch x64 -Version $ver `
+            -Channel stable -Configure -Build -Zip
 
       - name: Verify package layout
         shell: pwsh
@@ -200,19 +182,12 @@ jobs:
           if ($null -eq $stage) { throw "Stage directory missing" }
           foreach ($f in @("wintune.exe", "VERSION.txt", "ARCH.txt", "QUICKSTART.txt")) {
             $p = Join-Path $stage.FullName $f
-            if (-not (Test-Path $p)) {
-              # install may put exe under bin/ — accept either
-              $alt = Join-Path $stage.FullName "bin\$f"
-              if ($f -eq "wintune.exe" -and (Test-Path $alt)) { continue }
-              if ($f -eq "wintune.exe") {
-                $found = Get-ChildItem -Path $stage.FullName -Recurse -Filter "wintune.exe" -ErrorAction SilentlyContinue |
-                  Select-Object -First 1
-                if ($null -eq $found) { throw "Missing $f in package stage" }
-              } elseif (-not (Test-Path $p)) {
-                throw "Missing $f in package stage"
-              }
+            if (-not (Test-Path -LiteralPath $p)) {
+              throw "Missing $f in package stage ($($stage.FullName))"
             }
           }
+          $arch = (Get-Content -LiteralPath (Join-Path $stage.FullName "ARCH.txt") -Raw).Trim()
+          if ($arch -ne "x64") { throw "ARCH.txt expected x64, got '$arch'" }
           Write-Host "Package dry-run OK"
 
       - name: Upload dry-run artifacts
