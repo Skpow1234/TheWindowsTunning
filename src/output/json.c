@@ -535,6 +535,26 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     } else {
         wt_json_null(&w);
     }
+    wt_json_key(&w, "throughput_available");
+    wt_json_bool(&w, report->disk_throughput_ok);
+    wt_json_key(&w, "read_bytes_per_sec");
+    if (report->disk_throughput_ok && report->disk_read_bytes_per_sec >= 0.0) {
+        wt_json_double(&w, report->disk_read_bytes_per_sec);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "write_bytes_per_sec");
+    if (report->disk_throughput_ok && report->disk_write_bytes_per_sec >= 0.0) {
+        wt_json_double(&w, report->disk_write_bytes_per_sec);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "avg_queue_length");
+    if (report->disk_queue_ok && report->disk_avg_queue_length >= 0.0) {
+        wt_json_double(&w, report->disk_avg_queue_length);
+    } else {
+        wt_json_null(&w);
+    }
     wt_json_end_object(&w);
 
     /* power */

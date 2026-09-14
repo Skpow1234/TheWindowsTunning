@@ -19,6 +19,9 @@
 #define WT_DISK_ACTIVE_PCT       90.0
 #define WT_DISK_FREE_HIGH_PCT    5.0
 #define WT_DISK_FREE_MED_PCT     10.0
+#define WT_DISK_THRU_HIGH_BPS    (50.0 * 1024.0 * 1024.0) /* 50 MB/s */
+#define WT_DISK_THRU_MED_BPS     (20.0 * 1024.0 * 1024.0)
+#define WT_DISK_QUEUE_HIGH       4.0
 #define WT_CPU_BUSY_PCT          85.0
 #define WT_BOOT_SLOW_MS          60000u
 #define WT_BOOT_APP_SLOW_MS      3000u
@@ -141,21 +144,71 @@ static void wt_check_memory(const WT_ScanReport *rep, WT_RecommendationList *out
 
 static void wt_check_disk(const WT_ScanReport *rep, WT_RecommendationList *out)
 {
+    double thru = 0.0;
+    if (rep->disk_throughput_ok) {
+        if (rep->disk_read_bytes_per_sec > 0.0) {
+            thru += rep->disk_read_bytes_per_sec;
+        }
+        if (rep->disk_write_bytes_per_sec > 0.0) {
+            thru += rep->disk_write_bytes_per_sec;
+        }
+    }
+
     if (rep->disk_active_ok && rep->disk_active_percent >= WT_DISK_ACTIVE_PCT) {
         WT_Recommendation *r = wt_rec_add(out);
         if (r != NULL) {
             wt_str_set(r->id, sizeof(r->id), "WT-DISK-001");
             wt_str_set(r->title, sizeof(r->title), "Disk activity is very high");
-            snprintf(r->reason, sizeof(r->reason),
-                     "Physical disk active time was %.0f%% during the sample. "
-                     "Sustained high disk usage often comes from antivirus "
-                     "scans, search indexing, or backups.",
-                     rep->disk_active_percent);
+            if (rep->disk_throughput_ok && thru >= WT_DISK_THRU_MED_BPS) {
+                snprintf(r->reason, sizeof(r->reason),
+                         "Physical disk active time was %.0f%% with about "
+                         "%.1f MB/s combined throughput (%.1f MB/s read, "
+                         "%.1f MB/s write) during the sample. Sustained load "
+                         "often comes from antivirus scans, search indexing, "
+                         "or backups.",
+                         rep->disk_active_percent,
+                         thru / (1024.0 * 1024.0),
+                         rep->disk_read_bytes_per_sec / (1024.0 * 1024.0),
+                         rep->disk_write_bytes_per_sec / (1024.0 * 1024.0));
+                r->confidence_percent =
+                    (rep->scan_sample_count > 1) ? 85 : 75;
+            } else {
+                snprintf(r->reason, sizeof(r->reason),
+                         "Physical disk active time was %.0f%% during the sample. "
+                         "Sustained high disk usage often comes from antivirus "
+                         "scans, search indexing, or backups.",
+                         rep->disk_active_percent);
+                r->confidence_percent =
+                    (rep->scan_sample_count > 1) ? 80 : 70;
+            }
             wt_str_set(r->action, sizeof(r->action),
                        "Review disk-heavy processes; let scans/indexing finish.");
             r->severity = WT_SEVERITY_MEDIUM;
             r->risk = WT_RISK_NONE;
-            r->confidence_percent = 70; /* single sample */
+        }
+    } else if (rep->disk_throughput_ok && thru >= WT_DISK_THRU_HIGH_BPS) {
+        WT_Recommendation *r = wt_rec_add(out);
+        if (r != NULL) {
+            wt_str_set(r->id, sizeof(r->id), "WT-DISK-003");
+            wt_str_set(r->title, sizeof(r->title),
+                       "Disk throughput is high");
+            snprintf(r->reason, sizeof(r->reason),
+                     "Physical disk throughput averaged about %.1f MB/s "
+                     "(%.1f MB/s read, %.1f MB/s write) during the sample%s. "
+                     "This is normal under heavy I/O but worth reviewing if "
+                     "unexpected.",
+                     thru / (1024.0 * 1024.0),
+                     rep->disk_read_bytes_per_sec / (1024.0 * 1024.0),
+                     rep->disk_write_bytes_per_sec / (1024.0 * 1024.0),
+                     (rep->disk_queue_ok &&
+                      rep->disk_avg_queue_length >= WT_DISK_QUEUE_HIGH)
+                         ? "; queue length was also elevated"
+                         : "");
+            wt_str_set(r->action, sizeof(r->action),
+                       "Review top disk consumers with 'wintune top --sort disk'.");
+            r->severity = WT_SEVERITY_INFO;
+            r->risk = WT_RISK_NONE;
+            r->confidence_percent = (rep->scan_sample_count > 1) ? 80 : 70;
         }
     }
 

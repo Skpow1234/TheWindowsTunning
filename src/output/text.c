@@ -151,6 +151,18 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
         }
         fprintf(out, "\n");
     }
+    if (report->disk_throughput_ok) {
+        wchar_t rd[32], wr[32];
+        wt_format_bytes((unsigned long long)report->disk_read_bytes_per_sec,
+                        rd, 32);
+        wt_format_bytes((unsigned long long)report->disk_write_bytes_per_sec,
+                        wr, 32);
+        fwprintf(out, L"  Throughput: %ls/s read, %ls/s write\n", rd, wr);
+    }
+    if (report->disk_queue_ok) {
+        fprintf(out, "  Avg. queue length: %.2f\n",
+                report->disk_avg_queue_length);
+    }
     fprintf(out, "\n");
 
     if (report->boot_ok && report->boot.boot_duration_ms > 0) {

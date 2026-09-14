@@ -63,6 +63,24 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
             (double)(sample_index + 1);
     }
 
+    if (sample->disk_throughput_ok && acc->disk_throughput_ok) {
+        acc->disk_read_bytes_per_sec =
+            ((acc->disk_read_bytes_per_sec * (double)sample_index) +
+             sample->disk_read_bytes_per_sec) /
+            (double)(sample_index + 1);
+        acc->disk_write_bytes_per_sec =
+            ((acc->disk_write_bytes_per_sec * (double)sample_index) +
+             sample->disk_write_bytes_per_sec) /
+            (double)(sample_index + 1);
+    }
+
+    if (sample->disk_queue_ok && acc->disk_queue_ok) {
+        acc->disk_avg_queue_length =
+            ((acc->disk_avg_queue_length * (double)sample_index) +
+             sample->disk_avg_queue_length) /
+            (double)(sample_index + 1);
+    }
+
     (void)sample_total;
 }
 
@@ -86,9 +104,29 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
     report->disk_ok =
         (wt_collect_disk_volumes(report->volumes, WT_MAX_VOLUMES,
                                  &report->volume_count) == WT_OK);
-    report->disk_active_ok =
-        (wt_collect_disk_activity(sample_ms, &report->disk_active_percent) ==
-         WT_OK);
+
+    WT_DiskIoMetrics disk_io;
+    if (wt_collect_disk_io(sample_ms, &disk_io) == WT_OK) {
+        report->disk_active_ok = disk_io.active_ok;
+        report->disk_active_percent = disk_io.active_percent;
+        report->disk_throughput_ok = disk_io.throughput_ok;
+        report->disk_read_bytes_per_sec =
+            disk_io.throughput_ok ? disk_io.read_bytes_per_sec : -1.0;
+        report->disk_write_bytes_per_sec =
+            disk_io.throughput_ok ? disk_io.write_bytes_per_sec : -1.0;
+        report->disk_queue_ok = disk_io.queue_ok;
+        report->disk_avg_queue_length =
+            disk_io.queue_ok ? disk_io.avg_queue_length : -1.0;
+    } else {
+        report->disk_active_ok =
+            (wt_collect_disk_activity(sample_ms, &report->disk_active_percent) ==
+             WT_OK);
+        report->disk_throughput_ok = 0;
+        report->disk_queue_ok = 0;
+        report->disk_read_bytes_per_sec = -1.0;
+        report->disk_write_bytes_per_sec = -1.0;
+        report->disk_avg_queue_length = -1.0;
+    }
     report->power_ok = (wt_collect_power_info(&report->power) == WT_OK);
 
     WT_Result boot_r = wt_collect_boot_from_event_log(&report->boot);

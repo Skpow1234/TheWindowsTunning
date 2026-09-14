@@ -38,6 +38,20 @@ static void wt_report_bottlenecks(FILE *out, const WT_ScanReport *report,
                 report->disk_active_percent);
         any = 1;
     }
+    if (report->disk_throughput_ok) {
+        double thru = 0.0;
+        if (report->disk_read_bytes_per_sec > 0.0) {
+            thru += report->disk_read_bytes_per_sec;
+        }
+        if (report->disk_write_bytes_per_sec > 0.0) {
+            thru += report->disk_write_bytes_per_sec;
+        }
+        if (thru >= 50.0 * 1024.0 * 1024.0) {
+            fprintf(out, "  - Disk throughput was about %.1f MB/s.\n",
+                    thru / (1024.0 * 1024.0));
+            any = 1;
+        }
+    }
     if (report->disk_ok) {
         for (size_t i = 0; i < report->volume_count; ++i) {
             const WT_DiskVolumeMetrics *v = &report->volumes[i];
@@ -152,6 +166,18 @@ void wt_print_performance_report_text(FILE *out,
     }
     if (report->disk_active_ok) {
         fprintf(out, "  Disk active time: %.0f%%\n", report->disk_active_percent);
+    }
+    if (report->disk_throughput_ok) {
+        wchar_t rd[32], wr[32];
+        wt_format_bytes((unsigned long long)report->disk_read_bytes_per_sec,
+                        rd, 32);
+        wt_format_bytes((unsigned long long)report->disk_write_bytes_per_sec,
+                        wr, 32);
+        fwprintf(out, L"  Disk throughput: %ls/s read, %ls/s write\n", rd, wr);
+    }
+    if (report->disk_queue_ok) {
+        fprintf(out, "  Disk avg. queue length: %.2f\n",
+                report->disk_avg_queue_length);
     }
 
     if (report->boot_ok && report->boot.boot_duration_ms > 0) {

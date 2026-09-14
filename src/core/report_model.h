@@ -28,6 +28,9 @@ typedef struct WT_ScanReport {
     WT_DiskVolumeMetrics volumes[WT_MAX_VOLUMES];
     size_t volume_count;
     double disk_active_percent;
+    double disk_read_bytes_per_sec;   /* PhysicalDisk(_Total); -1 if n/a */
+    double disk_write_bytes_per_sec;
+    double disk_avg_queue_length;     /* -1 if n/a */
 
     WT_ProcessInfo top_processes[WT_MAX_TOP_PROCESSES];
     size_t top_process_count;
@@ -46,6 +49,8 @@ typedef struct WT_ScanReport {
     int memory_ok;
     int disk_ok;
     int disk_active_ok;
+    int disk_throughput_ok;
+    int disk_queue_ok;
     int processes_ok;
     int power_ok;
     int boot_ok;
