@@ -39,7 +39,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 19 | Optional tray / native GUI (never Electron) | Done |
 | 20 | TUI polish & UX | Done |
 | 21 | Distributable executable (end-user release) | Done |
-| 22 | Publisher & signature metadata | Planned |
+| 22 | Publisher & signature metadata | Done |
 | 23 | Binary provenance | Planned |
 | 24 | Smart impact scoring v2 | Planned |
 | 25 | Disk counters in scan model | Planned |
@@ -594,20 +594,26 @@ Electron/WebView, cloud telemetry, kernel drivers, silent uninstall, UAC bypass.
 
 #### Phase 22 — Publisher & Signature Metadata
 
+**Status:** Done
+
 **Goal:** Show who owns high-impact processes, startups, and services.
 
 **Deliver:**
 
-- Publisher / company strings where available.
-- Authenticode or catalog signature status for binaries behind startups/services.
-- Clearer “Microsoft vs third-party” cues in `startup`, `services`, `top`, and
-  recommendations.
+- Publisher / company strings where available (`CompanyName` version resource).
+- Authenticode status via `WinVerifyTrust` (offline-friendly; cache by path).
+- Clearer “Microsoft vs third-party” cues in `startup`, `services`, `top`, scan,
+  report, and recommendations (Microsoft-origin startups are not suggested for
+  disable).
+- JSON fields: `publisher`, `signature`, `origin`, `image_path` (plus
+  `configured_image` on services).
 
 **Example:**
 
 ```bash
 wintune startup --json
 wintune services --json
+wintune top --json
 ```
 
 **Depends on:** Phases 5, 12, 15.

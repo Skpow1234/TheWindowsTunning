@@ -192,6 +192,10 @@ wintune startup delay "<id>" --seconds 30
 
 Microsoft and security startup items are not disabled by default.
 
+Text and JSON include best-effort **publisher**, **signature** status, and
+**origin** (`microsoft` / `third-party` / `unknown`). Unsigned alone is never
+treated as malware.
+
 ---
 
 ## `wintune tasks`
@@ -298,7 +302,11 @@ wintune services --live
 wintune services --json
 ```
 
-Action (later phases, confirmation required):
+Text and JSON include best-effort **publisher**, **signature**, **origin**, and
+configured **image path**. Classification is calm metadata — not a security
+verdict.
+
+Action (confirmation required unless `--yes`):
 
 ```bash
 wintune services restart <name>

@@ -164,6 +164,10 @@ CloseHandle
 - I/O counters.
 - Session ID.
 - Is-elevated / is-system if possible.
+- For top-process lists: publisher (`CompanyName`), Authenticode status, and
+  origin cue (`microsoft` / `third-party` / `unknown`) via
+  `src/system/file_identity.c` (`WinVerifyTrust` + version resources). Path
+  results are cached for the process lifetime.
 
 Full command line is **not** collected by default (it may contain secrets). It
 can be enabled behind `--include-command-line`, with a warning.
@@ -177,6 +181,7 @@ typedef struct WT_ProcessInfo {
     unsigned long long read_bytes;
     unsigned long long write_bytes;
     double cpu_percent;
+    WT_FileIdentity identity; /* publisher / signature / origin */
 } WT_ProcessInfo;
 ```
 
@@ -196,8 +201,9 @@ typedef struct WT_ProcessInfo {
 - Auto-start services.
 - Scheduled tasks (later phases).
 
-**Per item:** id, name, source, path, publisher (later), enabled state,
-estimated impact (heuristic in v1), risk.
+**Per item:** id, name, source, command/path, publisher, signature status,
+origin (microsoft / third-party / unknown), enabled state, estimated or measured
+impact. Unsigned alone is never treated as malware.
 
 ---
 
@@ -213,9 +219,9 @@ QueryServiceStatusEx
 QueryServiceConfigW
 ```
 
-**Collect:** service name, display name, status, startup type, binary path,
-service type, PID if running, CPU/memory if the PID can be mapped,
-Microsoft-signed (later).
+**Collect:** service name, display name, status, startup type, configured
+ImagePath, PID if running, publisher / Authenticode / origin metadata
+(best-effort; path-cached).
 
 Microsoft services are not judged aggressively; third-party services may be
 flagged for review only.

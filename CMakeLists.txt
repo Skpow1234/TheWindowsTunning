@@ -65,6 +65,7 @@ add_executable(wintune
     src/system/updates.c
     src/system/blockers.c
     src/system/services.c
+    src/system/file_identity.c
     src/system/boot.c
     src/system/boot_etw.c
     src/system/privilege.c
@@ -187,6 +188,9 @@ target_link_libraries(wintune PRIVATE
     wuguid
     rstrtmgr
     shell32
+    wintrust
+    version
+    crypt32
 )
 
 enable_testing()
@@ -243,6 +247,13 @@ wt_add_unit_test(test_json
     src/system/power.c
 )
 target_link_libraries(test_json PRIVATE powrprof)
+
+wt_add_unit_test(test_file_identity
+    tests/test_file_identity.c
+    src/system/file_identity.c
+    src/common/error.c
+)
+target_link_libraries(test_file_identity PRIVATE wintrust version crypt32)
 
 wt_add_unit_test(test_recommendations
     tests/test_recommendations.c
