@@ -189,23 +189,44 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
             }
         }
         if (show_cpu) {
-            fprintf(out, "  %-6s  %-22s  %-11s  %8s  %s\n", "PID", "Process",
-                    "Origin", "CPU%", "Memory");
+            fprintf(out, "  %-6s  %-20s  %-11s  %-8s  %8s  %s\n", "PID",
+                    "Process", "Origin", "Loc", "CPU%", "Memory");
         } else {
-            fprintf(out, "  %-6s  %-26s  %-11s  %s\n", "PID", "Process",
-                    "Origin", "Memory");
+            fprintf(out, "  %-6s  %-24s  %-11s  %-8s  %s\n", "PID", "Process",
+                    "Origin", "Loc", "Memory");
         }
         for (size_t i = 0; i < report->top_process_count; ++i) {
             const WT_ProcessInfo *p = &report->top_processes[i];
             wchar_t mem[32];
             wt_format_bytes(p->working_set_bytes, mem, 32);
             const char *origin = wt_publisher_origin_name(p->identity.origin);
-            if (show_cpu && p->cpu_percent >= 0.0) {
-                fprintf(out, "  %6lu  %-22.22ls  %-11s  %7.1f%%  %ls\n",
-                        p->pid, p->name, origin, p->cpu_percent, mem);
+            const char *loc = wt_install_location_name(p->identity.location);
+            char loc_mark[16];
+            if (p->identity.unusual_location) {
+                snprintf(loc_mark, sizeof(loc_mark), "%s!", loc);
             } else {
-                fprintf(out, "  %6lu  %-26.26ls  %-11s  %ls\n",
-                        p->pid, p->name, origin, mem);
+                snprintf(loc_mark, sizeof(loc_mark), "%s", loc);
+            }
+            if (show_cpu && p->cpu_percent >= 0.0) {
+                fprintf(out, "  %6lu  %-20.20ls  %-11s  %-8s  %7.1f%%  %ls\n",
+                        p->pid, p->name, origin, loc_mark, p->cpu_percent, mem);
+            } else {
+                fprintf(out, "  %6lu  %-24.24ls  %-11s  %-8s  %ls\n",
+                        p->pid, p->name, origin, loc_mark, mem);
+            }
+            if (p->identity.product_name[0] != L'\0' ||
+                p->identity.unusual_location) {
+                fprintf(out, "         ");
+                if (p->identity.product_name[0] != L'\0') {
+                    fprintf(out, "%.48ls", p->identity.product_name);
+                    if (p->identity.path[0] != L'\0') {
+                        fprintf(out, " — ");
+                    }
+                }
+                if (p->identity.path[0] != L'\0') {
+                    fprintf(out, "%.60ls", p->identity.path);
+                }
+                fprintf(out, "\n");
             }
         }
     } else {

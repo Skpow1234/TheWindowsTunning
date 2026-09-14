@@ -226,12 +226,23 @@ static void wt_json_emit_identity(WT_JsonWriter *w, const WT_FileIdentity *id)
     } else {
         wt_json_null(w);
     }
+    wt_json_key(w, "product_name");
+    if (id != NULL && id->product_name[0] != L'\0') {
+        wt_json_wstring(w, id->product_name);
+    } else {
+        wt_json_null(w);
+    }
     wt_json_key(w, "signature");
     wt_json_string(w, wt_signature_status_name(
                        id != NULL ? id->signature : WT_SIG_UNAVAILABLE));
     wt_json_key(w, "origin");
     wt_json_string(w, wt_publisher_origin_name(
                        id != NULL ? id->origin : WT_ORIGIN_UNKNOWN));
+    wt_json_key(w, "location");
+    wt_json_string(w, wt_install_location_name(
+                       id != NULL ? id->location : WT_LOC_UNKNOWN));
+    wt_json_key(w, "unusual_location");
+    wt_json_bool(w, id != NULL && id->unusual_location);
     wt_json_key(w, "image_path");
     if (id != NULL && id->path[0] != L'\0') {
         wt_json_wstring(w, id->path);

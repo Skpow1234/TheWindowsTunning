@@ -188,9 +188,19 @@ void wt_print_performance_report_text(FILE *out,
             const WT_ProcessInfo *p = &report->top_processes[i];
             wchar_t mem[32];
             wt_format_bytes(p->working_set_bytes, mem, 32);
-            fprintf(out, "  %6lu  %-28.28ls  %-11s  %ls\n",
+            fprintf(out, "  %6lu  %-24.24ls  %-11s  %-8s%s  %ls\n",
                     p->pid, p->name,
-                    wt_publisher_origin_name(p->identity.origin), mem);
+                    wt_publisher_origin_name(p->identity.origin),
+                    wt_install_location_name(p->identity.location),
+                    p->identity.unusual_location ? "!" : "",
+                    mem);
+            if (p->identity.product_name[0] != L'\0') {
+                fprintf(out, "         Product: %.60ls\n",
+                        p->identity.product_name);
+            }
+            if (p->identity.path[0] != L'\0') {
+                fprintf(out, "         Path: %.90ls\n", p->identity.path);
+            }
         }
     } else {
         fputs("  Process data unavailable.\n", out);
