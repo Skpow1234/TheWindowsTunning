@@ -81,6 +81,36 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
             (double)(sample_index + 1);
     }
 
+    if (sample->disk_ok && acc->disk_ok &&
+        sample->volume_count == acc->volume_count) {
+        for (size_t i = 0; i < acc->volume_count; ++i) {
+            WT_DiskVolumeMetrics *a = &acc->volumes[i];
+            const WT_DiskVolumeMetrics *s = &sample->volumes[i];
+            if (a->activity_ok && s->activity_ok) {
+                a->active_percent =
+                    ((a->active_percent * (double)sample_index) +
+                     s->active_percent) /
+                    (double)(sample_index + 1);
+            }
+            if (a->throughput_ok && s->throughput_ok) {
+                a->read_bytes_per_sec =
+                    ((a->read_bytes_per_sec * (double)sample_index) +
+                     s->read_bytes_per_sec) /
+                    (double)(sample_index + 1);
+                a->write_bytes_per_sec =
+                    ((a->write_bytes_per_sec * (double)sample_index) +
+                     s->write_bytes_per_sec) /
+                    (double)(sample_index + 1);
+            }
+            if (a->queue_ok && s->queue_ok) {
+                a->avg_queue_length =
+                    ((a->avg_queue_length * (double)sample_index) +
+                     s->avg_queue_length) /
+                    (double)(sample_index + 1);
+            }
+        }
+    }
+
     (void)sample_total;
 }
 
@@ -106,7 +136,11 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
                                  &report->volume_count) == WT_OK);
 
     WT_DiskIoMetrics disk_io;
-    if (wt_collect_disk_io(sample_ms, &disk_io) == WT_OK) {
+    ZeroMemory(&disk_io, sizeof(disk_io));
+    disk_io.avg_queue_length = -1.0;
+    if (wt_collect_disk_io_ex(sample_ms, &disk_io, report->volumes,
+                              report->disk_ok ? report->volume_count : 0) ==
+        WT_OK) {
         report->disk_active_ok = disk_io.active_ok;
         report->disk_active_percent = disk_io.active_percent;
         report->disk_throughput_ok = disk_io.throughput_ok;

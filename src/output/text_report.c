@@ -34,7 +34,7 @@ static void wt_report_bottlenecks(FILE *out, const WT_ScanReport *report,
         any = 1;
     }
     if (report->disk_active_ok && report->disk_active_percent >= 90.0) {
-        fprintf(out, "  - Disk active time was %.0f%%.\n",
+        fprintf(out, "  - Disk active time was %.0f%% (system total).\n",
                 report->disk_active_percent);
         any = 1;
     }
@@ -59,6 +59,12 @@ static void wt_report_bottlenecks(FILE *out, const WT_ScanReport *report,
                 fwprintf(out,
                          L"  - Drive %ls is low on free space (%.1f%% free).\n",
                          v->root_path, v->free_percent);
+                any = 1;
+            }
+            if (v->activity_ok && v->active_percent >= 90.0) {
+                fwprintf(out,
+                         L"  - Drive %ls active time was %.0f%%.\n",
+                         v->root_path, v->active_percent);
                 any = 1;
             }
         }
@@ -160,12 +166,28 @@ void wt_print_performance_report_text(FILE *out,
             wchar_t free_b[32], total_b[32];
             wt_format_bytes(v->free_bytes, free_b, 32);
             wt_format_bytes(v->total_bytes, total_b, 32);
-            fwprintf(out, L"  Disk %ls %ls free / %ls (%.1f%% free)\n",
+            fwprintf(out, L"  Disk %ls %ls free / %ls (%.1f%% free)",
                      v->root_path, free_b, total_b, v->free_percent);
+            if (v->activity_ok) {
+                fprintf(out, " | active %.0f%%", v->active_percent);
+            }
+            if (v->throughput_ok) {
+                wchar_t rd[32], wr[32];
+                wt_format_bytes((unsigned long long)v->read_bytes_per_sec, rd,
+                                32);
+                wt_format_bytes((unsigned long long)v->write_bytes_per_sec, wr,
+                                32);
+                fwprintf(out, L" | %ls/s read, %ls/s write", rd, wr);
+            }
+            if (v->queue_ok) {
+                fprintf(out, " | queue %.2f", v->avg_queue_length);
+            }
+            fprintf(out, "\n");
         }
     }
     if (report->disk_active_ok) {
-        fprintf(out, "  Disk active time: %.0f%%\n", report->disk_active_percent);
+        fprintf(out, "  Disk total active time: %.0f%%\n",
+                report->disk_active_percent);
     }
     if (report->disk_throughput_ok) {
         wchar_t rd[32], wr[32];
@@ -173,10 +195,11 @@ void wt_print_performance_report_text(FILE *out,
                         rd, 32);
         wt_format_bytes((unsigned long long)report->disk_write_bytes_per_sec,
                         wr, 32);
-        fwprintf(out, L"  Disk throughput: %ls/s read, %ls/s write\n", rd, wr);
+        fwprintf(out, L"  Disk total throughput: %ls/s read, %ls/s write\n", rd,
+                 wr);
     }
     if (report->disk_queue_ok) {
-        fprintf(out, "  Disk avg. queue length: %.2f\n",
+        fprintf(out, "  Disk total avg. queue length: %.2f\n",
                 report->disk_avg_queue_length);
     }
 

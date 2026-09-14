@@ -142,6 +142,24 @@ static void wt_check_memory(const WT_ScanReport *rep, WT_RecommendationList *out
     r->confidence_percent = 90;
 }
 
+static const WT_DiskVolumeMetrics *wt_hottest_volume(const WT_ScanReport *rep)
+{
+    const WT_DiskVolumeMetrics *hot = NULL;
+    if (rep == NULL || !rep->disk_ok) {
+        return NULL;
+    }
+    for (size_t i = 0; i < rep->volume_count; ++i) {
+        const WT_DiskVolumeMetrics *v = &rep->volumes[i];
+        if (!v->activity_ok) {
+            continue;
+        }
+        if (hot == NULL || v->active_percent > hot->active_percent) {
+            hot = v;
+        }
+    }
+    return hot;
+}
+
 static void wt_check_disk(const WT_ScanReport *rep, WT_RecommendationList *out)
 {
     double thru = 0.0;
@@ -154,12 +172,43 @@ static void wt_check_disk(const WT_ScanReport *rep, WT_RecommendationList *out)
         }
     }
 
-    if (rep->disk_active_ok && rep->disk_active_percent >= WT_DISK_ACTIVE_PCT) {
+    const WT_DiskVolumeMetrics *hot = wt_hottest_volume(rep);
+    int total_hot = (rep->disk_active_ok &&
+                     rep->disk_active_percent >= WT_DISK_ACTIVE_PCT);
+    int volume_hot =
+        (hot != NULL && hot->activity_ok &&
+         hot->active_percent >= WT_DISK_ACTIVE_PCT);
+
+    if (total_hot) {
         WT_Recommendation *r = wt_rec_add(out);
         if (r != NULL) {
             wt_str_set(r->id, sizeof(r->id), "WT-DISK-001");
             wt_str_set(r->title, sizeof(r->title), "Disk activity is very high");
-            if (rep->disk_throughput_ok && thru >= WT_DISK_THRU_MED_BPS) {
+            if (hot != NULL && hot->activity_ok &&
+                rep->disk_throughput_ok && thru >= WT_DISK_THRU_MED_BPS) {
+                snprintf(r->reason, sizeof(r->reason),
+                         "Physical disk active time was %.0f%% (hottest volume "
+                         "%c: at %.0f%%) with about %.1f MB/s combined "
+                         "throughput (%.1f MB/s read, %.1f MB/s write). "
+                         "Sustained load often comes from antivirus scans, "
+                         "search indexing, or backups.",
+                         rep->disk_active_percent, (char)hot->root_path[0],
+                         hot->active_percent, thru / (1024.0 * 1024.0),
+                         rep->disk_read_bytes_per_sec / (1024.0 * 1024.0),
+                         rep->disk_write_bytes_per_sec / (1024.0 * 1024.0));
+                r->confidence_percent =
+                    (rep->scan_sample_count > 1) ? 85 : 75;
+            } else if (hot != NULL && hot->activity_ok) {
+                snprintf(r->reason, sizeof(r->reason),
+                         "Physical disk active time was %.0f%% during the "
+                         "sample; volume %c: was about %.0f%% active. "
+                         "Sustained high disk usage often comes from antivirus "
+                         "scans, search indexing, or backups.",
+                         rep->disk_active_percent, (char)hot->root_path[0],
+                         hot->active_percent);
+                r->confidence_percent =
+                    (rep->scan_sample_count > 1) ? 80 : 70;
+            } else if (rep->disk_throughput_ok && thru >= WT_DISK_THRU_MED_BPS) {
                 snprintf(r->reason, sizeof(r->reason),
                          "Physical disk active time was %.0f%% with about "
                          "%.1f MB/s combined throughput (%.1f MB/s read, "
@@ -185,6 +234,44 @@ static void wt_check_disk(const WT_ScanReport *rep, WT_RecommendationList *out)
                        "Review disk-heavy processes; let scans/indexing finish.");
             r->severity = WT_SEVERITY_MEDIUM;
             r->risk = WT_RISK_NONE;
+        }
+    } else if (volume_hot) {
+        /* One volume is saturated while system total is not (Phase 26). */
+        WT_Recommendation *r = wt_rec_add(out);
+        if (r != NULL) {
+            double v_thru = 0.0;
+            if (hot->throughput_ok) {
+                if (hot->read_bytes_per_sec > 0.0) {
+                    v_thru += hot->read_bytes_per_sec;
+                }
+                if (hot->write_bytes_per_sec > 0.0) {
+                    v_thru += hot->write_bytes_per_sec;
+                }
+            }
+            wt_str_set(r->id, sizeof(r->id), "WT-DISK-004");
+            wt_str_set(r->title, sizeof(r->title),
+                       "One volume has very high disk activity");
+            if (hot->throughput_ok && v_thru >= WT_DISK_THRU_MED_BPS) {
+                snprintf(r->reason, sizeof(r->reason),
+                         "Drive %c: LogicalDisk active time was %.0f%% with "
+                         "about %.1f MB/s combined throughput, while overall "
+                         "PhysicalDisk(_Total) was not as elevated. Pressure "
+                         "may be localized to this volume.",
+                         (char)hot->root_path[0], hot->active_percent,
+                         v_thru / (1024.0 * 1024.0));
+            } else {
+                snprintf(r->reason, sizeof(r->reason),
+                         "Drive %c: LogicalDisk active time was %.0f%% during "
+                         "the sample, while overall PhysicalDisk(_Total) was "
+                         "not as elevated. Pressure may be localized to this "
+                         "volume (backups, installs, or large file copies).",
+                         (char)hot->root_path[0], hot->active_percent);
+            }
+            wt_str_set(r->action, sizeof(r->action),
+                       "Review activity on that volume; check top disk I/O.");
+            r->severity = WT_SEVERITY_MEDIUM;
+            r->risk = WT_RISK_NONE;
+            r->confidence_percent = (rep->scan_sample_count > 1) ? 80 : 70;
         }
     } else if (rep->disk_throughput_ok && thru >= WT_DISK_THRU_HIGH_BPS) {
         WT_Recommendation *r = wt_rec_add(out);

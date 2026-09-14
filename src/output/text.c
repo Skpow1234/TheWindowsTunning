@@ -138,14 +138,29 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
             wchar_t total_bytes[32];
             wt_format_bytes(v->free_bytes, free_bytes, 32);
             wt_format_bytes(v->total_bytes, total_bytes, 32);
-            fwprintf(out, L"  %ls %ls free / %ls (%.1f%% free)\n",
+            fwprintf(out, L"  %ls %ls free / %ls (%.1f%% free)",
                      v->root_path, free_bytes, total_bytes, v->free_percent);
+            if (v->activity_ok) {
+                fprintf(out, " | active %.0f%%", v->active_percent);
+            }
+            if (v->throughput_ok) {
+                wchar_t rd[32], wr[32];
+                wt_format_bytes((unsigned long long)v->read_bytes_per_sec, rd,
+                                32);
+                wt_format_bytes((unsigned long long)v->write_bytes_per_sec, wr,
+                                32);
+                fwprintf(out, L" | %ls/s read, %ls/s write", rd, wr);
+            }
+            if (v->queue_ok) {
+                fprintf(out, " | queue %.2f", v->avg_queue_length);
+            }
+            fprintf(out, "\n");
         }
     } else {
         fprintf(out, "  (unavailable)\n");
     }
     if (report->disk_active_ok) {
-        fprintf(out, "  Active time: %.0f%%", report->disk_active_percent);
+        fprintf(out, "  Total active time: %.0f%%", report->disk_active_percent);
         if (report->scan_sample_count > 1) {
             fprintf(out, " (avg of %u samples)", report->scan_sample_count);
         }
@@ -157,10 +172,10 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
                         rd, 32);
         wt_format_bytes((unsigned long long)report->disk_write_bytes_per_sec,
                         wr, 32);
-        fwprintf(out, L"  Throughput: %ls/s read, %ls/s write\n", rd, wr);
+        fwprintf(out, L"  Total throughput: %ls/s read, %ls/s write\n", rd, wr);
     }
     if (report->disk_queue_ok) {
-        fprintf(out, "  Avg. queue length: %.2f\n",
+        fprintf(out, "  Total avg. queue length: %.2f\n",
                 report->disk_avg_queue_length);
     }
     fprintf(out, "\n");

@@ -524,6 +524,34 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
             wt_json_key(&w, "total_bytes");  wt_json_uint64(&w, v->total_bytes);
             wt_json_key(&w, "free_bytes");   wt_json_uint64(&w, v->free_bytes);
             wt_json_key(&w, "free_percent"); wt_json_double(&w, v->free_percent);
+            wt_json_key(&w, "active_available");
+            wt_json_bool(&w, v->activity_ok);
+            wt_json_key(&w, "active_percent");
+            if (v->activity_ok) {
+                wt_json_double(&w, v->active_percent);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "throughput_available");
+            wt_json_bool(&w, v->throughput_ok);
+            wt_json_key(&w, "read_bytes_per_sec");
+            if (v->throughput_ok && v->read_bytes_per_sec >= 0.0) {
+                wt_json_double(&w, v->read_bytes_per_sec);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "write_bytes_per_sec");
+            if (v->throughput_ok && v->write_bytes_per_sec >= 0.0) {
+                wt_json_double(&w, v->write_bytes_per_sec);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "avg_queue_length");
+            if (v->queue_ok && v->avg_queue_length >= 0.0) {
+                wt_json_double(&w, v->avg_queue_length);
+            } else {
+                wt_json_null(&w);
+            }
             wt_json_end_object(&w);
         }
     }
