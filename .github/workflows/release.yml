@@ -57,7 +57,7 @@ jobs:
             -Channel ${{ needs.resolve-version.outputs.channel }} -Configure -Build -Zip
 
       - name: Upload x64 artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wintune-x64
           path: |
@@ -84,7 +84,7 @@ jobs:
             -Channel ${{ needs.resolve-version.outputs.channel }} -Configure -Build -Zip
 
       - name: Upload ARM64 artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wintune-arm64
           path: |

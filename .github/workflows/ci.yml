@@ -191,7 +191,7 @@ jobs:
           Write-Host "Package dry-run OK"
 
       - name: Upload dry-run artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wintune-x64-dry-run
           path: |
