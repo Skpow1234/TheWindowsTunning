@@ -32,7 +32,7 @@ jobs:
 
       - name: Cache CMake build (x64)
         id: cache-build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: build
           key: wintune-x64-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'resources/**', 'tests/**', 'scripts/cmake-configure.ps1') }}
@@ -89,7 +89,7 @@ jobs:
 
       - name: Cache CMake build (ARM64)
         id: cache-build-arm
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: build-arm64
           key: wintune-arm64-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'resources/**', 'tests/**', 'scripts/cmake-configure.ps1') }}
