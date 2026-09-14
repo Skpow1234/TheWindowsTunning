@@ -335,6 +335,33 @@ Test-ExpectOk "scan" @("scan", "--samples", "1", "--interval", "200") `
     -StdoutContains @("WinTune System Scan", "CPU:", "Memory:") -TimeoutSec $scanTimeout
 Test-JsonOk "scan --json" @("scan", "--json", "--samples", "1", "--interval", "200") `
     -MustContain @("schema_version", "cpu", "memory", "disk", "read_bytes_per_sec", "write_bytes_per_sec", "throughput_available") -TimeoutSec $scanTimeout
+# Per-volume LogicalDisk activity (Phase 26); soft-pass if host has no volumes.
+$scanJson = Invoke-Wt -WtArgs @("scan", "--json", "--samples", "1", "--interval", "200") -TimeoutSec $scanTimeout
+if (-not $scanJson.TimedOut -and $scanJson.ExitCode -eq 0) {
+    try {
+        $scanObj = $scanJson.StdOut.Trim() | ConvertFrom-Json -ErrorAction Stop
+        $vols = @($scanObj.disk.volumes)
+        if ($vols.Count -eq 0) {
+            Write-CaseResult "scan --json volume activity" "SOFT" "no volumes on this host"
+        } else {
+            $v0 = $vols[0]
+            $need = @("active_available", "active_percent", "throughput_available", "read_bytes_per_sec", "write_bytes_per_sec", "avg_queue_length")
+            $missing = @()
+            foreach ($f in $need) {
+                if ($null -eq ($v0.PSObject.Properties[$f])) { $missing += $f }
+            }
+            if ($missing.Count -gt 0) {
+                Write-CaseResult "scan --json volume activity" "FAIL" ("missing: " + ($missing -join ", "))
+            } else {
+                Write-CaseResult "scan --json volume activity" "PASS" "$($vols.Count) volume(s)"
+            }
+        }
+    } catch {
+        Write-CaseResult "scan --json volume activity" "FAIL" $_.Exception.Message
+    }
+} else {
+    Write-CaseResult "scan --json volume activity" "FAIL" "scan --json failed or timed out"
+}
 
 Test-ExpectOk "top" @("top", "--limit", "5") -StdoutRegex @("PID|Process")
 Test-ExpectOk "top --sort cpu" @("top", "--sort", "cpu", "--limit", "5")

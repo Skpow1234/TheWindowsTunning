@@ -332,7 +332,7 @@ The scan document has a stable shape:
   "system":  { "available": true, "os": "Windows 11 Pro", "arch": "x64", "hostname": "...", "uptime_ms": 0 },
   "cpu":     { "available": true, "logical_processors": 32, "total_usage_percent": 14.1 },
   "memory":  { "available": true, "total_bytes": 0, "available_bytes": 0, "used_bytes": 0, "used_percent": 35.3 },
-  "disk":    { "available": true, "volumes": [ { "root": "C:\\", "total_bytes": 0, "free_bytes": 0, "free_percent": 30.5 } ], "active_available": true, "active_percent": 4.0 },
+  "disk":    { "available": true, "volumes": [ { "root": "C:\\", "total_bytes": 0, "free_bytes": 0, "free_percent": 30.5, "active_available": true, "active_percent": 12.0 } ], "active_available": true, "active_percent": 4.0 },
   "power":   { "available": true, "plan": "Balanced", "plan_name": "Balanced", "on_ac": true, "battery_percent": null },
   "processes": { "available": true, "top": [ { "pid": 0, "name": "...", "working_set_bytes": 0, "private_bytes": 0, "read_bytes": 0, "write_bytes": 0, "cpu_percent": null } ] },
   "recommendations": [
@@ -409,7 +409,8 @@ end-user release polish).
 | 23 | Binary provenance | Done |
 | 24 | Smart impact scoring v2 | Done |
 | 25 | Disk counters in scan model | Done |
-| 26–53 | v3 depth (per-volume disk, boot v2, apply UX, fleet, signing) | Planned |
+| 26 | Per-volume disk activity | Done |
+| 27–53 | v3 depth (boot v2, apply UX, fleet, signing, …) | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.
@@ -427,9 +428,10 @@ exit non-zero.
   `scan`, `top`, and `tui`.
 - Per-process CPU and disk I/O rates are sampled during `scan` and `top`; very
   short-lived processes may be missed.
-- Recommendations cover power, memory, disk free space, disk activity, and CPU.
-- Disk active time is a single PDH sample per scan; multi-sample smoothing is
-  planned.
+- Recommendations cover power, memory, disk free space, disk activity
+  (system-wide and per-volume), and CPU.
+- Disk activity uses one PDH window per scan sample for PhysicalDisk(_Total)
+  and LogicalDisk per fixed volume; multi-sample scans average those values.
 - `power --set` switches only to power schemes that already exist on the
   machine (it never creates custom plans); the previous scheme is captured for
   rollback, including custom plans.

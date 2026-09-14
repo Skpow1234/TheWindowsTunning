@@ -98,17 +98,23 @@ GetProcessIoCounters
 \PhysicalDisk(_Total)\Disk Read Bytes/sec
 \PhysicalDisk(_Total)\Disk Write Bytes/sec
 \PhysicalDisk(_Total)\Avg. Disk Queue Length
+\LogicalDisk(C:)\% Disk Time
+\LogicalDisk(C:)\Disk Read Bytes/sec
+\LogicalDisk(C:)\Disk Write Bytes/sec
+\LogicalDisk(C:)\Avg. Disk Queue Length
 ```
 
 **Collect:**
 - Disk free space per volume.
-- Disk active time (`% Disk Time`).
-- Disk read/write bytes per second (`PhysicalDisk(_Total)`, Phase 25).
-- Avg. disk queue length when available.
+- Disk active time (`% Disk Time`) system-wide and per fixed volume.
+- Disk read/write bytes per second (`PhysicalDisk(_Total)` and per-volume
+  `LogicalDisk`, Phases 25–26).
+- Avg. disk queue length when available (total and per volume).
 - Top disk-heavy processes where practical (per-process I/O deltas).
 
-One PDH sample window (`wt_collect_disk_io`) gathers active % + throughput +
-queue so scan does not pay the sample interval twice.
+One PDH sample window (`wt_collect_disk_io_ex`) gathers PhysicalDisk(_Total)
+and LogicalDisk counters for each fixed volume so scan does not pay the sample
+interval twice.
 
 WinTune never deletes user files, cleans temporary files (v1), or manually
 removes WinSxS / System32 / Windows Update cache / browser cache / app data.
@@ -119,6 +125,13 @@ typedef struct WT_DiskVolumeMetrics {
     unsigned long long total_bytes;
     unsigned long long free_bytes;
     double free_percent;
+    double active_percent;       /* LogicalDisk; -1 / flags when n/a */
+    double read_bytes_per_sec;
+    double write_bytes_per_sec;
+    double avg_queue_length;
+    int activity_ok;
+    int throughput_ok;
+    int queue_ok;
 } WT_DiskVolumeMetrics;
 
 typedef struct WT_DiskIoMetrics {
@@ -132,8 +145,17 @@ typedef struct WT_DiskIoMetrics {
 } WT_DiskIoMetrics;
 ```
 
-Scan JSON `disk` object includes `read_bytes_per_sec`, `write_bytes_per_sec`,
-`avg_queue_length`, and matching `*_available` / `throughput_available` flags.
+Scan JSON `disk` object includes system totals (`read_bytes_per_sec`,
+`write_bytes_per_sec`, `avg_queue_length`, `*_available` /
+`throughput_available`) and each volume may include the same activity fields
+(`active_percent`, throughput, queue) when LogicalDisk counters succeed.
+
+Recommendations:
+- `WT-DISK-001` — system-wide active time high; cites hottest volume when known.
+- `WT-DISK-002` — low free space on a volume.
+- `WT-DISK-003` — high throughput without extreme active %.
+- `WT-DISK-004` — one volume’s LogicalDisk active time is high while
+  PhysicalDisk(_Total) is not (localized pressure).
 
 ---
 

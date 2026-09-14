@@ -43,7 +43,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 23 | Binary provenance | Done |
 | 24 | Smart impact scoring v2 | Done |
 | 25 | Disk counters in scan model | Done |
-| 26 | Per-volume disk activity | Planned |
+| 26 | Per-volume disk activity | Done |
 | 27 | Per-process network (ETW) | Planned |
 | 28 | GPU / display readiness (read-only) | Planned |
 | 29 | Thermal & power budget (read-only) | Planned |
@@ -693,12 +693,19 @@ wintune top --json
 
 #### Phase 26 — Per-Volume Disk Activity
 
+**Status:** Done
+
 **Goal:** Separate C: vs D: (etc.) disk pressure.
 
 **Deliver:**
 
-- Per-volume PDH activity where practical (not only `_Total`).
-- Volume-aware tips in `doctor` / `WT-DISK-*`.
+- `wt_collect_disk_io_ex`: one PDH window for `PhysicalDisk(_Total)` plus
+  `LogicalDisk(X:)` active %, read/write bytes/sec, and queue per fixed volume.
+- Scan merges per-volume activity across multi-sample runs.
+- Text/JSON in `scan` / `doctor` / `report` show per-volume activity beside
+  free space; totals remain labeled as system-wide.
+- `WT-DISK-001` cites the hottest volume when known; `WT-DISK-004` when one
+  volume is hot while system total is not.
 
 **Depends on:** Phase 25.
 
