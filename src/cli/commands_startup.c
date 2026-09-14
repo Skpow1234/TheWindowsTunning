@@ -59,14 +59,28 @@ static void wt_print_startup_text(const WT_StartupEntry *entries, size_t count,
             printf("%-8s %-11s %ls\n",
                    wt_startup_impact_name(e->impact), origin, e->id);
         }
-        if (e->identity.publisher[0] != L'\0') {
-            printf("%-8s   Publisher: %.60ls (%s)\n", "",
-                   e->identity.publisher,
-                   wt_signature_status_name(e->identity.signature));
+        if (e->identity.product_name[0] != L'\0' ||
+            e->identity.publisher[0] != L'\0') {
+            printf("%-8s   ", "");
+            if (e->identity.product_name[0] != L'\0') {
+                printf("Product: %.40ls", e->identity.product_name);
+                if (e->identity.publisher[0] != L'\0') {
+                    printf(" | ");
+                }
+            }
+            if (e->identity.publisher[0] != L'\0') {
+                printf("Publisher: %.40ls", e->identity.publisher);
+            }
+            printf(" (%s)\n", wt_signature_status_name(e->identity.signature));
         } else {
             printf("%-8s   Signature: %s\n", "",
                    wt_signature_status_name(e->identity.signature));
         }
+        printf("%-8s   Location: %s%s\n", "",
+               wt_install_location_name(e->identity.location),
+               e->identity.unusual_location
+                   ? " (review — not a malware claim)"
+                   : "");
         printf("%-8s   %.88ls\n", "", e->command);
     }
     printf("\nDisable one with: wintune startup disable \"<id>\"\n");

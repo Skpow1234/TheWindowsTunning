@@ -74,7 +74,9 @@ static void wt_print_services_text(const WT_ServiceInfo *svcs, size_t count,
         const char *origin = wt_publisher_origin_name(s->identity.origin);
         const wchar_t *pub = s->identity.publisher[0] != L'\0'
                                  ? s->identity.publisher
-                                 : s->display_name;
+                                 : (s->identity.product_name[0] != L'\0'
+                                        ? s->identity.product_name
+                                        : s->display_name);
         if (s->pid == 0) {
             printf("%-28.28ls %-9s %-8s %-6s %-11s %.40ls\n",
                    s->name,
@@ -96,8 +98,8 @@ static void wt_print_services_text(const WT_ServiceInfo *svcs, size_t count,
 
     printf("\nSummary: %zu running, %zu stopped, %zu auto-start\n",
            running, stopped, autostart);
-    printf("Origin is metadata only (microsoft / third-party / unknown); "
-           "unsigned alone is not treated as malware.\n");
+    printf("Origin/location are metadata only; unusual Temp/Downloads paths "
+           "are flagged for calm review — unsigned alone is not malware.\n");
 }
 
 static int wt_services_restart(const WT_CliOptions *opts)
