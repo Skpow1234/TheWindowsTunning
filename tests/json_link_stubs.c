@@ -5,6 +5,7 @@
 #include "system/tasks.h"
 #include "system/services.h"
 #include "system/updates.h"
+#include "system/file_identity.h"
 
 #include <stddef.h>
 
@@ -64,5 +65,17 @@ const char *wt_service_state_name(WT_ServiceState state)
 const char *wt_service_start_type_name(WT_ServiceStartType type)
 {
     (void)type;
+    return "unknown";
+}
+
+const char *wt_signature_status_name(WT_SignatureStatus status)
+{
+    (void)status;
+    return "unknown";
+}
+
+const char *wt_publisher_origin_name(WT_PublisherOrigin origin)
+{
+    (void)origin;
     return "unknown";
 }

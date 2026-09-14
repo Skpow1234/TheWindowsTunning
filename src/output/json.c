@@ -6,6 +6,7 @@
 #include "system/power.h"
 #include "system/privilege.h"
 #include "system/boot.h"
+#include "system/file_identity.h"
 
 #include <windows.h>
 
@@ -217,6 +218,28 @@ void wt_json_finish(WT_JsonWriter *w)
 /* High-level emitters                                                 */
 /* ------------------------------------------------------------------ */
 
+static void wt_json_emit_identity(WT_JsonWriter *w, const WT_FileIdentity *id)
+{
+    wt_json_key(w, "publisher");
+    if (id != NULL && id->publisher[0] != L'\0') {
+        wt_json_wstring(w, id->publisher);
+    } else {
+        wt_json_null(w);
+    }
+    wt_json_key(w, "signature");
+    wt_json_string(w, wt_signature_status_name(
+                       id != NULL ? id->signature : WT_SIG_UNAVAILABLE));
+    wt_json_key(w, "origin");
+    wt_json_string(w, wt_publisher_origin_name(
+                       id != NULL ? id->origin : WT_ORIGIN_UNKNOWN));
+    wt_json_key(w, "image_path");
+    if (id != NULL && id->path[0] != L'\0') {
+        wt_json_wstring(w, id->path);
+    } else {
+        wt_json_null(w);
+    }
+}
+
 static void wt_json_emit_process(WT_JsonWriter *w, const WT_ProcessInfo *p)
 {
     wt_json_begin_object(w);
@@ -244,6 +267,7 @@ static void wt_json_emit_process(WT_JsonWriter *w, const WT_ProcessInfo *p)
     } else {
         wt_json_double(w, p->disk_write_bytes_per_sec);
     }
+    wt_json_emit_identity(w, &p->identity);
     wt_json_end_object(w);
 }
 
@@ -603,6 +627,7 @@ void wt_print_startup_json(const WT_StartupEntry *items, size_t count, FILE *out
         } else {
             wt_json_null(&w);
         }
+        wt_json_emit_identity(&w, &e->identity);
         wt_json_end_object(&w);
     }
     wt_json_end_array(&w);
@@ -668,6 +693,13 @@ void wt_print_services_json(const WT_ServiceInfo *items, size_t count, FILE *out
         } else {
             wt_json_uint64(&w, s->pid);
         }
+        wt_json_key(&w, "configured_image");
+        if (s->image_path[0] != L'\0') {
+            wt_json_wstring(&w, s->image_path);
+        } else {
+            wt_json_null(&w);
+        }
+        wt_json_emit_identity(&w, &s->identity);
         wt_json_end_object(&w);
     }
     wt_json_end_array(&w);
