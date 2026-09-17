@@ -73,7 +73,7 @@ PID    Process               CPU%     Memory       Disk
 8420   chrome.exe            21.4%    2.4 GB       8.0 MB/s
 ...
 ──────────────────────────────────────────────────────────────────────
-Keys: q quit | Space pause | t sort | j/k scroll | e export | ...
+Keys: q quit | Space pause | t sort | w net | j/k scroll | e export | ...
 ```
 
 ---
@@ -86,8 +86,9 @@ Space              pause / resume refresh (freeze frame)
 r                  refresh now (also resumes if paused)
 o                  overview
 d / m / n / p / s  disk / memory / network / power / services
-t                  cycle sort: cpu → memory → disk
-1 / 2 / 3          sort by CPU / memory / disk
+t                  cycle sort: cpu → memory → disk → net
+1 / 2 / 3 / 4      sort by CPU / memory / disk / network
+w                  toggle per-process TCP net columns (extra overhead)
 j / k or arrows    scroll process or service list
 PgUp / PgDn        page scroll
 e                  export snapshot to Documents\WinTune\Reports\
@@ -95,6 +96,8 @@ e                  export snapshot to Documents\WinTune\Reports\
 ```
 
 Services stay on `s`. Snapshot export uses `e` so the keys do not conflict.
+Per-process net columns use TCP Extended Stats only (no payload capture; UDP
+not included) and stay off until `w` or `--include-network`.
 
 The TUI must **never** apply system changes without confirmation.
 

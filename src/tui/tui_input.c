@@ -35,6 +35,8 @@ WT_TuiKey wt_tui_poll_key(void)
     case '1':                              return WT_TUI_KEY_SORT_CPU;
     case '2':                              return WT_TUI_KEY_SORT_MEMORY;
     case '3':                              return WT_TUI_KEY_SORT_DISK;
+    case '4':                              return WT_TUI_KEY_SORT_NETWORK;
+    case 'w': case 'W':                    return WT_TUI_KEY_TOGGLE_NETWORK;
     case 'j': case 'J':                    return WT_TUI_KEY_SCROLL_DOWN;
     case 'k': case 'K':                    return WT_TUI_KEY_SCROLL_UP;
     case 'e': case 'E':                    return WT_TUI_KEY_EXPORT;

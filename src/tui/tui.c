@@ -57,6 +57,7 @@ typedef struct WT_TuiState {
     size_t proc_scroll;
     size_t svc_scroll;
     int paused;
+    int include_network; /* opt-in per-process TCP rates */
     int last_rows;
     int last_cols;
     char status[160];
@@ -211,6 +212,7 @@ static const char *wt_tui_sort_name(WT_ProcessSort sort)
     switch (sort) {
     case WT_PROCESS_SORT_CPU: return "cpu";
     case WT_PROCESS_SORT_DISK: return "disk";
+    case WT_PROCESS_SORT_NETWORK: return "net";
     default: return "memory";
     }
 }
@@ -297,19 +299,28 @@ static void wt_tui_render_processes(WT_TuiScreen *s, const WT_TuiTheme *t,
     }
 
     int show_cpu = 0;
+    int show_net = 0;
     for (size_t i = 0; i < count; ++i) {
         if (procs[i].cpu_percent >= 0.0) {
             show_cpu = 1;
-            break;
+        }
+        if (procs[i].net_recv_bytes_per_sec >= 0.0 ||
+            procs[i].net_send_bytes_per_sec >= 0.0) {
+            show_net = 1;
         }
     }
 
-    wt_tui_screen_line(s, "%ssort:%s %-6s  %sscroll:%s %zu/%zu",
+    wt_tui_screen_line(s, "%ssort:%s %-6s  %sscroll:%s %zu/%zu%s",
                        wt_tui_dim(t), wt_tui_reset(t), wt_tui_sort_name(sort),
                        wt_tui_dim(t), wt_tui_reset(t),
-                       scroll + 1 > count ? count : scroll + 1, count);
+                       scroll + 1 > count ? count : scroll + 1, count,
+                       show_net ? "  net:on" : "");
 
-    if (show_cpu) {
+    if (show_cpu && show_net) {
+        wt_tui_screen_line(s, "%s%-6s %-16s %6s %9s %8s %8s%s",
+                           wt_tui_dim(t), "PID", "Process", "CPU%", "Memory",
+                           "Disk", "Net", wt_tui_reset(t));
+    } else if (show_cpu) {
         wt_tui_screen_line(s, "%s%-6s %-20s %6s %10s %10s%s",
                            wt_tui_dim(t), "PID", "Process", "CPU%", "Memory",
                            "Disk", wt_tui_reset(t));
@@ -332,7 +343,33 @@ static void wt_tui_render_processes(WT_TuiScreen *s, const WT_TuiTheme *t,
         wt_tui_human(procs[i].working_set_bytes, ws, sizeof(ws));
         wt_tui_human(procs[i].private_bytes, pv, sizeof(pv));
 
-        if (show_cpu) {
+        if (show_cpu && show_net) {
+            double disk_rate = 0.0;
+            if (procs[i].disk_read_bytes_per_sec >= 0.0) {
+                disk_rate += procs[i].disk_read_bytes_per_sec;
+            }
+            if (procs[i].disk_write_bytes_per_sec >= 0.0) {
+                disk_rate += procs[i].disk_write_bytes_per_sec;
+            }
+            double net_rate = 0.0;
+            if (procs[i].net_recv_bytes_per_sec >= 0.0) {
+                net_rate += procs[i].net_recv_bytes_per_sec;
+            }
+            if (procs[i].net_send_bytes_per_sec >= 0.0) {
+                net_rate += procs[i].net_send_bytes_per_sec;
+            }
+            char disk[32], net[32];
+            wt_tui_rate(disk_rate, disk, sizeof(disk));
+            wt_tui_rate(net_rate, net, sizeof(net));
+            if (procs[i].cpu_percent >= 0.0) {
+                wt_tui_screen_line(s, "%-6lu %-16.16s %5.1f%% %9s %8s %8s",
+                                   procs[i].pid, name, procs[i].cpu_percent, ws,
+                                   disk, net);
+            } else {
+                wt_tui_screen_line(s, "%-6lu %-16.16s %6s %9s %8s %8s",
+                                   procs[i].pid, name, "-", ws, disk, net);
+            }
+        } else if (show_cpu) {
             double disk_rate = 0.0;
             if (procs[i].disk_read_bytes_per_sec >= 0.0) {
                 disk_rate += procs[i].disk_read_bytes_per_sec;
@@ -428,6 +465,11 @@ static void wt_tui_render_network(WT_TuiScreen *s, const WT_TuiTheme *t,
     wt_tui_screen_line(s, "");
     wt_tui_screen_line(s, "Throughput   down %-14s  up %-14s", rxs, txs);
     wt_tui_screen_line(s, "Cumulative   in   %-14s  out %-14s", inb, outb);
+    wt_tui_screen_line(s, "");
+    wt_tui_empty_line(s, t,
+                      "Per-process TCP rates: press w (or --include-network).");
+    wt_tui_empty_line(s, t,
+                      "Uses IP Helper Extended Stats; no payload capture.");
 }
 
 static void wt_tui_render_power(WT_TuiScreen *s, const WT_TuiTheme *t)
@@ -523,8 +565,9 @@ static void wt_tui_render_help(WT_TuiScreen *s, const WT_TuiTheme *t)
     wt_tui_screen_line(s, "  o     Overview (CPU/RAM/disk/net + top processes)");
     wt_tui_screen_line(s, "  d/m/n Disk / Memory / Network views");
     wt_tui_screen_line(s, "  p/s   Power / Services views");
-    wt_tui_screen_line(s, "  t     Cycle process sort (cpu → memory → disk)");
-    wt_tui_screen_line(s, "  1/2/3 Sort by CPU / Memory / Disk");
+    wt_tui_screen_line(s, "  t     Cycle process sort (cpu → memory → disk → net)");
+    wt_tui_screen_line(s, "  1/2/3/4  Sort by CPU / Memory / Disk / Network");
+    wt_tui_screen_line(s, "  w     Toggle per-process TCP net columns (extra overhead)");
     wt_tui_screen_line(s, "  j/k   Scroll process/service list (arrows too)");
     wt_tui_screen_line(s, "  PgUp/PgDn  Page scroll");
     wt_tui_screen_line(s, "  Space Pause / resume refresh");
@@ -534,6 +577,7 @@ static void wt_tui_render_help(WT_TuiScreen *s, const WT_TuiTheme *t)
     wt_tui_screen_line(s, "  q     Quit (Esc / Ctrl+C also quit)");
     wt_tui_screen_line(s, "");
     wt_tui_empty_line(s, t, "Minimum size: 48x14. Themes: --theme default|compact|mono");
+    wt_tui_empty_line(s, t, "Net columns: TCP Extended Stats only; UDP not included.");
     wt_tui_empty_line(s, t, "WinTune never changes the system from the dashboard.");
 }
 
@@ -699,12 +743,17 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
     ZeroMemory(&state, sizeof(state));
     state.view = WT_VIEW_OVERVIEW;
     state.sort = WT_PROCESS_SORT_CPU;
+    state.include_network = (opts != NULL && opts->include_network);
     if (opts != NULL && opts->sort != NULL) {
         if (_wcsicmp(opts->sort, L"memory") == 0 ||
             _wcsicmp(opts->sort, L"mem") == 0) {
             state.sort = WT_PROCESS_SORT_MEMORY;
         } else if (_wcsicmp(opts->sort, L"disk") == 0) {
             state.sort = WT_PROCESS_SORT_DISK;
+        } else if (_wcsicmp(opts->sort, L"network") == 0 ||
+                   _wcsicmp(opts->sort, L"net") == 0) {
+            state.sort = WT_PROCESS_SORT_NETWORK;
+            state.include_network = 1;
         } else {
             state.sort = WT_PROCESS_SORT_CPU;
         }
@@ -784,6 +833,7 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
                 /* Short sample keeps TUI responsive (was blocking a full interval). */
                 if (wt_collect_top_processes(procs, WT_TUI_TOP_PROC, state.sort,
                                              WT_TUI_PROC_SAMPLE_MS,
+                                             state.include_network,
                                              &proc_count) == WT_OK) {
                     procs_ok = 1;
                     wt_tui_clamp_scroll(&state.proc_scroll, proc_count, 1);
@@ -883,7 +933,7 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
             } else {
                 wt_tui_screen_line(
                     &screen,
-                    "%sKeys:%s q quit | Space pause | t sort | j/k scroll | "
+                    "%sKeys:%s q quit | Space pause | t sort | w net | j/k scroll | "
                     "e export | o/d/m/n/p/s views | ? help",
                     wt_tui_dim(&theme), wt_tui_reset(&theme));
             }
@@ -949,6 +999,9 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
                     state.sort = WT_PROCESS_SORT_MEMORY;
                 } else if (state.sort == WT_PROCESS_SORT_MEMORY) {
                     state.sort = WT_PROCESS_SORT_DISK;
+                } else if (state.sort == WT_PROCESS_SORT_DISK) {
+                    state.sort = WT_PROCESS_SORT_NETWORK;
+                    state.include_network = 1;
                 } else {
                     state.sort = WT_PROCESS_SORT_CPU;
                 }
@@ -981,6 +1034,28 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
                 state.proc_scroll = 0;
                 state.paused = 0;
                 wt_tui_set_status(&state, "sort: disk", 1500);
+                redraw = 1;
+                break;
+            case WT_TUI_KEY_SORT_NETWORK:
+                state.sort = WT_PROCESS_SORT_NETWORK;
+                state.include_network = 1;
+                state.proc_scroll = 0;
+                state.paused = 0;
+                wt_tui_set_status(&state, "sort: net (TCP EStats on)", 2000);
+                redraw = 1;
+                break;
+            case WT_TUI_KEY_TOGGLE_NETWORK:
+                state.include_network = !state.include_network;
+                if (!state.include_network &&
+                    state.sort == WT_PROCESS_SORT_NETWORK) {
+                    state.sort = WT_PROCESS_SORT_CPU;
+                }
+                state.paused = 0;
+                wt_tui_set_status(&state,
+                                  state.include_network
+                                      ? "per-process net: on (TCP only)"
+                                      : "per-process net: off",
+                                  2000);
                 redraw = 1;
                 break;
             case WT_TUI_KEY_SCROLL_UP:
