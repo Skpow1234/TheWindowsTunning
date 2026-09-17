@@ -46,7 +46,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 26 | Per-volume disk activity | Done |
 | 27 | Per-process network (ETW) | Done |
 | 28 | GPU / display readiness (read-only) | Done |
-| 29 | Thermal & power budget (read-only) | Planned |
+| 29 | Thermal & power budget (read-only) | Done |
 | 30 | Multi-sample disk smoothing | Planned |
 | 31 | Reboot-spanning boot ETW | Planned |
 | 32 | Cold vs warm boot profiles | Planned |
@@ -754,16 +754,24 @@ wintune top --json
 
 #### Phase 29 — Thermal & Power Budget (Read-Only)
 
+**Status:** Done
+
 **Goal:** Tie “feels slow” to power source and battery drain.
 
 **Deliver:**
 
-- Battery discharge rate, AC/DC transitions, basic throttling hints.
-- Link recommendations to existing power plans (no custom extreme plans required).
+- `SYSTEM_BATTERY_STATE` via `CallNtPowerInformation`: present/charging/
+  discharging, signed discharge rate (mW), estimated remaining time, capacity.
+- Active-plan processor max (PROCTHROTTLEMAX) for AC and DC — calm “capped”
+  hint when the current source is below 100%.
+- Text/JSON in `power`, `scan`, `doctor`, `report`, TUI power view.
+- `WT-POWER-003` (plan caps processor); `WT-POWER-004` (fast discharge ≥ ~20 W).
+- Existing `WT-POWER-001` / `002` still link to existing Windows plans only.
 
 **Depends on:** Phase 7 power APIs.
 
-**Never:** Fan curve hacking or firmware flashes.
+**Never:** Fan curve hacking or firmware flashes. Does not use obsolete
+`CurrentMhz` thermal APIs.
 
 ---
 

@@ -419,7 +419,8 @@ Test-JsonArrayItemFields "services --json provenance" @("services", "--json") `
     -ItemFields @("publisher", "origin", "signature", "location")
 
 Test-ExpectOk "power" @("power") -StdoutRegex @("plan|Power|Balanced|performance|saver")
-Test-JsonOk "power --json" @("power", "--json") -MustContain @("power")
+Test-JsonOk "power --json" @("power", "--json") `
+    -MustContain @("scheme", "processor_capped", "processor_max_pct_ac", "rate_mw")
 
 Test-ExpectOk "updates" @("updates") -AllowAccessDenied
 Test-JsonOk "updates --json" @("updates", "--json") -MustContain @("updates") -AllowAccessDenied

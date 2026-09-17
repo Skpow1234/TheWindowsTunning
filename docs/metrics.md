@@ -334,13 +334,21 @@ PowerGetActiveScheme
 PowerSetActiveScheme
 PowerEnumerate
 PowerReadFriendlyName
+PowerReadACValueIndex / PowerReadDCValueIndex  /* PROCTHROTTLEMAX */
 GetSystemPowerStatus
+CallNtPowerInformation(SystemBatteryState)     /* rate mW, charge state */
 ```
 
-**Collect:** AC/battery status, current active power scheme, available known
-schemes, battery percentage if applicable, and a recommendation based on the
-plugged-in state. The previous scheme is preserved as rollback metadata before
-any change.
+**Collect:** AC/battery status, current active power scheme, battery percentage,
+charging/discharging, signed discharge rate (mW; negative while draining),
+estimated remaining time when available, and the active plan’s processor
+maximum state for AC and DC (Phase 29). A “capped” flag is set when the current
+source’s max is below 100%.
+
+Recommendations use existing Windows plans only (`WT-POWER-001`/`002` apply;
+`WT-POWER-003`/`004` are advisory). WinTune never edits fan curves or firmware.
+
+The previous scheme is preserved as rollback metadata before any plan change.
 
 ---
 
