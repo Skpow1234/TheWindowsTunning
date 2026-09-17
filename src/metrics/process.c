@@ -1,6 +1,7 @@
 #include "metrics/process.h"
 
 #include "metrics/pdh_utils.h"
+#include "metrics/network.h"
 #include "system/file_identity.h"
 
 #include <windows.h>
@@ -10,6 +11,7 @@
 #include <stdlib.h>
 
 #define WT_PROCESS_DEFAULT_SAMPLE_MS 500
+#define WT_PROCESS_NET_RATE_CAP 512
 
 typedef struct WT_ProcessIoSample {
     unsigned long pid;
@@ -110,6 +112,8 @@ static void wt_process_init_metrics(WT_ProcessInfo *p)
     p->cpu_percent = -1.0;
     p->disk_read_bytes_per_sec = -1.0;
     p->disk_write_bytes_per_sec = -1.0;
+    p->net_recv_bytes_per_sec = -1.0;
+    p->net_send_bytes_per_sec = -1.0;
 }
 
 static void wt_process_fill(WT_ProcessInfo *p, const PROCESSENTRY32W *entry)
@@ -157,6 +161,12 @@ static int wt_process_sort_key(const WT_ProcessInfo *p, WT_ProcessSort sort)
         }
         return (rate > 0.0) ? 1 : 0;
     }
+    case WT_PROCESS_SORT_NETWORK:
+        /* Measured (even if idle) so --sort network still fills a table. */
+        return (p->net_recv_bytes_per_sec >= 0.0 ||
+                p->net_send_bytes_per_sec >= 0.0)
+                   ? 1
+                   : 0;
     case WT_PROCESS_SORT_MEMORY:
     default:
         return (p->working_set_bytes > 0) ? 1 : 0;
@@ -178,6 +188,16 @@ static unsigned long long wt_process_sort_value(const WT_ProcessInfo *p,
         }
         if (p->disk_write_bytes_per_sec >= 0.0) {
             rate += p->disk_write_bytes_per_sec;
+        }
+        return (unsigned long long)rate;
+    }
+    case WT_PROCESS_SORT_NETWORK: {
+        double rate = 0.0;
+        if (p->net_recv_bytes_per_sec >= 0.0) {
+            rate += p->net_recv_bytes_per_sec;
+        }
+        if (p->net_send_bytes_per_sec >= 0.0) {
+            rate += p->net_send_bytes_per_sec;
         }
         return (unsigned long long)rate;
     }
@@ -467,6 +487,29 @@ static int wt_compare_by_disk_desc(const void *a, const void *b)
     return 0;
 }
 
+static int wt_compare_by_network_desc(const void *a, const void *b)
+{
+    const WT_ProcessInfo *pa = (const WT_ProcessInfo *)a;
+    const WT_ProcessInfo *pb = (const WT_ProcessInfo *)b;
+    double da = 0.0;
+    double db = 0.0;
+    if (pa->net_recv_bytes_per_sec >= 0.0) {
+        da += pa->net_recv_bytes_per_sec;
+    }
+    if (pa->net_send_bytes_per_sec >= 0.0) {
+        da += pa->net_send_bytes_per_sec;
+    }
+    if (pb->net_recv_bytes_per_sec >= 0.0) {
+        db += pb->net_recv_bytes_per_sec;
+    }
+    if (pb->net_send_bytes_per_sec >= 0.0) {
+        db += pb->net_send_bytes_per_sec;
+    }
+    if (da < db) return 1;
+    if (da > db) return -1;
+    return 0;
+}
+
 void wt_enrich_process_identity(WT_ProcessInfo *items, size_t count)
 {
     if (items == NULL) {
@@ -488,6 +531,7 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
                                    size_t limit,
                                    WT_ProcessSort sort,
                                    unsigned int sample_ms,
+                                   int include_network,
                                    size_t *out_count)
 {
     if (out == NULL || out_count == NULL || limit == 0) {
@@ -495,7 +539,11 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
     }
     *out_count = 0;
 
-    if (sample_ms == 0 && sort == WT_PROCESS_SORT_MEMORY) {
+    if (sort == WT_PROCESS_SORT_NETWORK) {
+        include_network = 1;
+    }
+
+    if (sample_ms == 0 && sort == WT_PROCESS_SORT_MEMORY && !include_network) {
         HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
         if (snapshot == INVALID_HANDLE_VALUE) {
             return WT_ERR_WIN32;
@@ -552,12 +600,35 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
     size_t cpu_before_count = 0;
     (void)wt_sample_process_cpu(cpu_before, &cpu_before_count, 4096);
 
+    WT_NetTcpSampleSession net_session;
+    ZeroMemory(&net_session, sizeof(net_session));
+    int net_sampling = 0;
+    if (include_network) {
+        if (wt_net_tcp_sample_start(&net_session, sample_ms) == WT_OK) {
+            net_sampling = 1;
+        }
+    }
+
     Sleep(sample_ms);
+
+    WT_ProcessNetRate net_rates[WT_PROCESS_NET_RATE_CAP];
+    size_t net_rate_count = 0;
+    int net_ok = 0;
+    if (net_sampling) {
+        if (wt_net_tcp_sample_finish(&net_session, net_rates,
+                                     WT_PROCESS_NET_RATE_CAP,
+                                     &net_rate_count) == WT_OK) {
+            net_ok = 1;
+        }
+    }
 
     WT_ProcessCpuSample *cpu_after = (WT_ProcessCpuSample *)HeapAlloc(
         GetProcessHeap(), HEAP_ZERO_MEMORY,
         4096 * sizeof(WT_ProcessCpuSample));
     if (cpu_after == NULL) {
+        if (net_sampling) {
+            wt_net_tcp_sample_abort(&net_session);
+        }
         HeapFree(GetProcessHeap(), 0, cpu_before);
         HeapFree(GetProcessHeap(), 0, io_before);
         return WT_ERR_OUT_OF_MEMORY;
@@ -633,6 +704,19 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
                 }
             }
 
+            if (net_ok) {
+                const WT_ProcessNetRate *nr =
+                    wt_find_process_net_rate(net_rates, net_rate_count,
+                                             info.pid);
+                if (nr != NULL) {
+                    info.net_recv_bytes_per_sec = nr->recv_bytes_per_sec;
+                    info.net_send_bytes_per_sec = nr->send_bytes_per_sec;
+                } else {
+                    info.net_recv_bytes_per_sec = 0.0;
+                    info.net_send_bytes_per_sec = 0.0;
+                }
+            }
+
             wt_topk_insert(out, out_count, limit, &info, sort);
         } while (Process32NextW(snapshot, &entry));
     } else {
@@ -656,8 +740,8 @@ WT_Result wt_collect_top_processes_by_memory(WT_ProcessInfo *out,
                                              size_t limit,
                                              size_t *out_count)
 {
-    return wt_collect_top_processes(out, limit, WT_PROCESS_SORT_MEMORY, 0,
-                                  out_count);
+    return wt_collect_top_processes(out, limit, WT_PROCESS_SORT_MEMORY, 0, 0,
+                                    out_count);
 }
 
 void wt_sort_processes_by_memory(WT_ProcessInfo *items, size_t count)
@@ -684,6 +768,14 @@ void wt_sort_processes_by_disk(WT_ProcessInfo *items, size_t count)
     qsort(items, count, sizeof(WT_ProcessInfo), wt_compare_by_disk_desc);
 }
 
+void wt_sort_processes_by_network(WT_ProcessInfo *items, size_t count)
+{
+    if (items == NULL || count < 2) {
+        return;
+    }
+    qsort(items, count, sizeof(WT_ProcessInfo), wt_compare_by_network_desc);
+}
+
 void wt_sort_processes(WT_ProcessInfo *items, size_t count, WT_ProcessSort sort)
 {
     switch (sort) {
@@ -692,6 +784,9 @@ void wt_sort_processes(WT_ProcessInfo *items, size_t count, WT_ProcessSort sort)
         break;
     case WT_PROCESS_SORT_DISK:
         wt_sort_processes_by_disk(items, count);
+        break;
+    case WT_PROCESS_SORT_NETWORK:
+        wt_sort_processes_by_network(items, count);
         break;
     case WT_PROCESS_SORT_MEMORY:
     default:

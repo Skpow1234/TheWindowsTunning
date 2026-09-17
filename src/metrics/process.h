@@ -12,7 +12,8 @@
 typedef enum WT_ProcessSort {
     WT_PROCESS_SORT_MEMORY = 0,
     WT_PROCESS_SORT_CPU,
-    WT_PROCESS_SORT_DISK
+    WT_PROCESS_SORT_DISK,
+    WT_PROCESS_SORT_NETWORK
 } WT_ProcessSort;
 
 typedef struct WT_ProcessInfo {
@@ -25,6 +26,8 @@ typedef struct WT_ProcessInfo {
     double cpu_percent;                  /* -1.0 when not measured */
     double disk_read_bytes_per_sec;      /* -1.0 when not measured */
     double disk_write_bytes_per_sec;     /* -1.0 when not measured */
+    double net_recv_bytes_per_sec;       /* -1.0 when not measured (opt-in) */
+    double net_send_bytes_per_sec;       /* -1.0 when not measured (opt-in) */
     WT_FileIdentity identity;            /* publisher / Authenticode (top only) */
 } WT_ProcessInfo;
 
@@ -41,14 +44,18 @@ WT_Result wt_collect_processes(WT_ProcessInfo *out,
 void wt_sort_processes_by_memory(WT_ProcessInfo *items, size_t count);
 void wt_sort_processes_by_cpu(WT_ProcessInfo *items, size_t count);
 void wt_sort_processes_by_disk(WT_ProcessInfo *items, size_t count);
+void wt_sort_processes_by_network(WT_ProcessInfo *items, size_t count);
 void wt_sort_processes(WT_ProcessInfo *items, size_t count, WT_ProcessSort sort);
 
 /* Returns the top `limit` processes after a short sample window. When
- * `sample_ms` > 0, enriches entries with PDH CPU and disk I/O rates. */
+ * `sample_ms` > 0, enriches entries with PDH CPU and disk I/O rates.
+ * When `include_network` is non-zero, also samples TCP Extended Stats
+ * (opt-in; higher overhead; no payload capture). */
 WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
                                    size_t limit,
                                    WT_ProcessSort sort,
                                    unsigned int sample_ms,
+                                   int include_network,
                                    size_t *out_count);
 
 /* Backward-compatible wrapper: top processes by memory without CPU/disk rates. */
