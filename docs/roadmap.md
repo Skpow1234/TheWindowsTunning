@@ -45,7 +45,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 25 | Disk counters in scan model | Done |
 | 26 | Per-volume disk activity | Done |
 | 27 | Per-process network (ETW) | Done |
-| 28 | GPU / display readiness (read-only) | Planned |
+| 28 | GPU / display readiness (read-only) | Done |
 | 29 | Thermal & power budget (read-only) | Planned |
 | 30 | Multi-sample disk smoothing | Planned |
 | 31 | Reboot-spanning boot ETW | Planned |
@@ -734,12 +734,19 @@ wintune top --json
 
 #### Phase 28 — GPU / Display Readiness (Read-Only)
 
+**Status:** Done
+
 **Goal:** High-level GPU/display utilization when official APIs allow.
 
 **Deliver:**
 
-- Read-only GPU/engine busy hints suitable for explaining desktop lag.
-- Optional section in `scan` / TUI.
+- DXGI hardware adapter enumeration (name, dedicated/shared memory; skip
+  software/WARP).
+- PDH `\GPU Engine(*)\Utilization Percentage` aggregated by adapter LUID
+  (max engine busy, clamped 0–100%).
+- Active display count + primary resolution.
+- Text/JSON in `scan` / `doctor` / `report`; TUI view (`g`).
+- Advisory `WT-GPU-001` when max engine busy ≥ 90% (informational only).
 
 **Never:** Overclocking, undervolt, driver install/update, FPS “boost.”
 

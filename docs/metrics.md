@@ -189,6 +189,27 @@ DNS, proxy, firewall, routing, or adapter settings in v1.
 
 ---
 
+## GPU / Display (Phase 28)
+
+**APIs / counters:**
+
+```c
+CreateDXGIFactory1 / IDXGIAdapter1::GetDesc1   /* hardware adapters */
+EnumDisplayDevicesW / GetSystemMetrics         /* display count + primary size */
+\GPU Engine(*)\Utilization Percentage          /* PDH; aggregate by LUID */
+```
+
+**Collect:**
+- Hardware GPU name, dedicated and shared video memory (software/WARP skipped).
+- Per-adapter engine busy % (max across engine types for that LUID, clamped
+  0–100%). Soft-fails when the counter set is missing (some VMs).
+- Active desktop display count and primary resolution.
+
+Read-only only. WinTune never installs drivers, overclocks, undervolts, or
+claims FPS “boosts.” Advisory `WT-GPU-001` may note very high engine busy.
+
+---
+
 ## Processes
 
 **APIs:**

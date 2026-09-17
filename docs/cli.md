@@ -78,7 +78,8 @@ JSON schema, exit codes, and fleet patterns: [`json-schema.md`](json-schema.md),
 ## `wintune scan`
 
 Runs a full local scan: OS version, architecture, uptime, CPU, memory, disk
-(usage + active time + per-volume LogicalDisk activity), network status, top CPU/memory/disk processes, current
+(usage + active time + per-volume LogicalDisk activity), GPU/display readiness,
+network status, top CPU/memory/disk processes, current
 power plan, startup entries, auto-start services, and basic recommendations.
 
 ```bash

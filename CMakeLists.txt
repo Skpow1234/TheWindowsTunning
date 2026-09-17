@@ -56,6 +56,7 @@ add_executable(wintune
     src/metrics/disk.c
     src/metrics/process.c
     src/metrics/network.c
+    src/metrics/gpu.c
 
     # system
     src/system/os_info.c
@@ -177,6 +178,7 @@ install(FILES
 #   powrprof -> power scheme detection (power)
 #   iphlpapi -> network interface counters + TCP EStats (network/tui/top)
 #   ws2_32   -> address family constants for TCP table sampling
+#   dxgi     -> GPU adapter enumeration (Phase 28)
 target_link_libraries(wintune PRIVATE
     pdh
     psapi
@@ -185,6 +187,8 @@ target_link_libraries(wintune PRIVATE
     powrprof
     iphlpapi
     ws2_32
+    dxgi
+    dxguid
     taskschd
     ole32
     oleaut32

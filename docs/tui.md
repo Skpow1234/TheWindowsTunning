@@ -85,7 +85,7 @@ q / Esc / Ctrl+C   quit
 Space              pause / resume refresh (freeze frame)
 r                  refresh now (also resumes if paused)
 o                  overview
-d / m / n / p / s  disk / memory / network / power / services
+d / m / n / g / p / s  disk / memory / network / GPU / power / services
 t                  cycle sort: cpu → memory → disk → net
 1 / 2 / 3 / 4      sort by CPU / memory / disk / network
 w                  toggle per-process TCP net columns (extra overhead)

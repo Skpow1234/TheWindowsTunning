@@ -411,7 +411,8 @@ end-user release polish).
 | 25 | Disk counters in scan model | Done |
 | 26 | Per-volume disk activity | Done |
 | 27 | Per-process network (TCP EStats) | Done |
-| 28–53 | v3 depth (boot v2, apply UX, fleet, signing, …) | Planned |
+| 28 | GPU / display readiness (read-only) | Done |
+| 29–53 | v3 depth (thermal, boot v2, apply UX, fleet, signing, …) | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.
