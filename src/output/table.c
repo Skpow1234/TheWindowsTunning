@@ -22,6 +22,7 @@ void wt_print_process_table(const WT_ProcessInfo *items, size_t count)
 {
     int show_cpu = 0;
     int show_disk = 0;
+    int show_net = 0;
     int any_unusual = 0;
     for (size_t i = 0; i < count; ++i) {
         if (items[i].cpu_percent >= 0.0) {
@@ -31,15 +32,25 @@ void wt_print_process_table(const WT_ProcessInfo *items, size_t count)
                 items[i].disk_write_bytes_per_sec >= 0.0) {
             show_disk = 1;
         }
+        if (items[i].net_recv_bytes_per_sec >= 0.0 ||
+                items[i].net_send_bytes_per_sec >= 0.0) {
+            show_net = 1;
+        }
         if (items[i].identity.unusual_location) {
             any_unusual = 1;
         }
     }
 
-    if (show_cpu || show_disk) {
-        printf("%-8s %-16s %-11s %-8s %7s %11s %11s %11s\n",
-               "PID", "Process", "Origin", "Loc", "CPU%", "Memory", "Disk R",
-               "Disk W");
+    if (show_cpu || show_disk || show_net) {
+        if (show_net) {
+            printf("%-8s %-14s %-9s %-6s %6s %9s %9s %9s %9s %9s\n",
+                   "PID", "Process", "Origin", "Loc", "CPU%", "Memory",
+                   "Disk R", "Disk W", "Net R", "Net W");
+        } else {
+            printf("%-8s %-16s %-11s %-8s %7s %11s %11s %11s\n",
+                   "PID", "Process", "Origin", "Loc", "CPU%", "Memory", "Disk R",
+                   "Disk W");
+        }
     } else {
         printf("%-8s %-20s %-11s %-8s %12s %12s\n",
                "PID", "Process", "Origin", "Loc", "Memory", "Private");
@@ -59,13 +70,30 @@ void wt_print_process_table(const WT_ProcessInfo *items, size_t count)
             snprintf(loc_mark, sizeof(loc_mark), "%s", loc);
         }
 
-        if (show_cpu || show_disk) {
+        if (show_cpu || show_disk || show_net) {
             wchar_t disk_r[32];
             wchar_t disk_w[32];
             wt_format_rate(items[i].disk_read_bytes_per_sec, disk_r, 32);
             wt_format_rate(items[i].disk_write_bytes_per_sec, disk_w, 32);
 
-            if (items[i].cpu_percent >= 0.0) {
+            if (show_net) {
+                wchar_t net_r[32];
+                wchar_t net_w[32];
+                wt_format_rate(items[i].net_recv_bytes_per_sec, net_r, 32);
+                wt_format_rate(items[i].net_send_bytes_per_sec, net_w, 32);
+                if (items[i].cpu_percent >= 0.0) {
+                    printf("%-8lu %-14.14ls %-9s %-6s %5.1f%% %9ls %9ls %9ls "
+                           "%9ls %9ls\n",
+                           items[i].pid, items[i].name, origin, loc_mark,
+                           items[i].cpu_percent, memory, disk_r, disk_w, net_r,
+                           net_w);
+                } else {
+                    printf("%-8lu %-14.14ls %-9s %-6s %6s %9ls %9ls %9ls %9ls "
+                           "%9ls\n",
+                           items[i].pid, items[i].name, origin, loc_mark, "-",
+                           memory, disk_r, disk_w, net_r, net_w);
+                }
+            } else if (items[i].cpu_percent >= 0.0) {
                 printf("%-8lu %-16.16ls %-11s %-8s %6.1f%% %11ls %11ls %11ls\n",
                        items[i].pid, items[i].name, origin, loc_mark,
                        items[i].cpu_percent, memory, disk_r, disk_w);
@@ -85,5 +113,9 @@ void wt_print_process_table(const WT_ProcessInfo *items, size_t count)
         printf("\nLoc marked with ! is worth a calm review (temp/downloads, or "
                "Microsoft-labeled binary outside Windows/Program Files). "
                "Not a malware claim.\n");
+    }
+    if (show_net) {
+        printf("\nNet columns are TCP Extended Stats only (opt-in; no payload "
+               "capture; UDP not included).\n");
     }
 }

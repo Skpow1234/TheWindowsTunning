@@ -28,7 +28,7 @@ static void wt_scan_collect_top_processes(WT_ScanReport *report, size_t top_limi
 
     size_t count = 0;
     if (wt_collect_top_processes(report->top_processes, top_limit,
-                                 WT_PROCESS_SORT_MEMORY, sample_ms,
+                                 WT_PROCESS_SORT_MEMORY, sample_ms, 0,
                                  &count) == WT_OK) {
         report->top_process_count = count;
         report->processes_ok = 1;

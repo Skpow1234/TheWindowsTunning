@@ -278,6 +278,18 @@ static void wt_json_emit_process(WT_JsonWriter *w, const WT_ProcessInfo *p)
     } else {
         wt_json_double(w, p->disk_write_bytes_per_sec);
     }
+    wt_json_key(w, "net_recv_bytes_per_sec");
+    if (p->net_recv_bytes_per_sec < 0.0) {
+        wt_json_null(w);
+    } else {
+        wt_json_double(w, p->net_recv_bytes_per_sec);
+    }
+    wt_json_key(w, "net_send_bytes_per_sec");
+    if (p->net_send_bytes_per_sec < 0.0) {
+        wt_json_null(w);
+    } else {
+        wt_json_double(w, p->net_send_bytes_per_sec);
+    }
     wt_json_emit_identity(w, &p->identity);
     wt_json_end_object(w);
 }

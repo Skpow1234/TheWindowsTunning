@@ -48,11 +48,12 @@ static size_t wt_top_clamp_limit(long requested)
 
 static WT_Result wt_top_snapshot(WT_ProcessInfo *buffer, size_t limit,
                                  WT_ProcessSort sort, unsigned int sample_ms,
-                                 size_t *out_shown)
+                                 int include_network, size_t *out_shown)
 {
     size_t count = 0;
     WT_Result r =
-        wt_collect_top_processes(buffer, limit, sort, sample_ms, &count);
+        wt_collect_top_processes(buffer, limit, sort, sample_ms,
+                                 include_network, &count);
     if (r != WT_OK) {
         return r;
     }
@@ -82,7 +83,8 @@ static int wt_top_wait_or_quit(unsigned int ms)
 }
 
 static int wt_top_watch(size_t limit, WT_ProcessSort sort,
-                        unsigned int interval_ms, unsigned int sample_ms)
+                        unsigned int interval_ms, unsigned int sample_ms,
+                        int include_network)
 {
     WT_ProcessInfo *buffer = (WT_ProcessInfo *)malloc(limit * sizeof(WT_ProcessInfo));
     if (buffer == NULL) {
@@ -100,7 +102,8 @@ static int wt_top_watch(size_t limit, WT_ProcessSort sort,
     while (!g_watch_stop) {
         size_t shown = 0;
         WT_Result r =
-            wt_top_snapshot(buffer, limit, sort, sample_ms, &shown);
+            wt_top_snapshot(buffer, limit, sort, sample_ms, include_network,
+                            &shown);
 
         fputs("\x1b[H\x1b[2J", stdout);
 
@@ -135,7 +138,8 @@ static int wt_top_watch(size_t limit, WT_ProcessSort sort,
 static int wt_top_ndjson_stream(const WT_CliOptions *opts, size_t limit,
                                 WT_ProcessSort sort, unsigned int sample_ms,
                                 unsigned int interval_ms,
-                                unsigned int duration_ms)
+                                unsigned int duration_ms,
+                                int include_network)
 {
     WT_ProcessInfo *buffer =
         (WT_ProcessInfo *)malloc(limit * sizeof(WT_ProcessInfo));
@@ -161,7 +165,8 @@ static int wt_top_ndjson_stream(const WT_CliOptions *opts, size_t limit,
     for (;;) {
         size_t shown = 0;
         WT_Result r =
-            wt_top_snapshot(buffer, limit, sort, sample_ms, &shown);
+            wt_top_snapshot(buffer, limit, sort, sample_ms, include_network,
+                            &shown);
         if (r != WT_OK) {
             free(buffer);
             if (opened != NULL) {
@@ -202,14 +207,26 @@ int wt_cmd_top(const WT_CliOptions *opts)
             sort = WT_PROCESS_SORT_CPU;
         } else if (_wcsicmp(opts->sort, L"disk") == 0) {
             sort = WT_PROCESS_SORT_DISK;
+        } else if (_wcsicmp(opts->sort, L"network") == 0 ||
+                   _wcsicmp(opts->sort, L"net") == 0) {
+            sort = WT_PROCESS_SORT_NETWORK;
         } else if (_wcsicmp(opts->sort, L"memory") != 0) {
             wt_cli_user_note(opts,
                              "wintune: unknown --sort key; using memory.\n");
         }
     }
 
+    int include_network = (opts != NULL && opts->include_network) ||
+                          (sort == WT_PROCESS_SORT_NETWORK);
+    if (include_network && !json) {
+        wt_cli_user_note(
+            opts,
+            "wintune: --include-network samples TCP Extended Stats "
+            "(extra overhead; no payload capture; UDP not included).\n");
+    }
+
     unsigned int sample_ms = WT_TOP_DEFAULT_SAMPLE_MS;
-    if (sort != WT_PROCESS_SORT_MEMORY ||
+    if (sort != WT_PROCESS_SORT_MEMORY || include_network ||
             (opts != NULL && opts->sort != NULL)) {
         if (opts != NULL && opts->interval_ms > 0) {
             sample_ms = (unsigned int)opts->interval_ms;
@@ -232,7 +249,7 @@ int wt_cmd_top(const WT_CliOptions *opts)
             duration = interval * 60u;
         }
         return wt_top_ndjson_stream(opts, limit, sort, sample_ms, interval,
-                                    duration);
+                                    duration, include_network);
     }
 
     if (watch && !json) {
@@ -241,7 +258,8 @@ int wt_cmd_top(const WT_CliOptions *opts)
             if (opts != NULL && opts->interval_ms > 0) {
                 interval = (unsigned int)opts->interval_ms;
             }
-            return wt_top_watch(limit, sort, interval, sample_ms);
+            return wt_top_watch(limit, sort, interval, sample_ms,
+                                include_network);
         }
         wt_cli_user_note(opts,
                          "wintune: 'top --watch' needs an interactive terminal; "
@@ -257,7 +275,8 @@ int wt_cmd_top(const WT_CliOptions *opts)
     }
 
     size_t shown = 0;
-    WT_Result r = wt_top_snapshot(buffer, limit, sort, sample_ms, &shown);
+    WT_Result r = wt_top_snapshot(buffer, limit, sort, sample_ms,
+                                  include_network, &shown);
     if (r != WT_OK) {
         free(buffer);
         return wt_cli_exit_from_result(opts, r, L"top",
