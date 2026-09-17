@@ -367,6 +367,9 @@ Test-ExpectOk "top" @("top", "--limit", "5") -StdoutRegex @("PID|Process")
 Test-ExpectOk "top --sort cpu" @("top", "--sort", "cpu", "--limit", "5")
 Test-ExpectOk "top --sort memory" @("top", "--sort", "memory", "--limit", "5")
 Test-ExpectOk "top --sort disk" @("top", "--sort", "disk", "--limit", "5")
+Test-ExpectOk "top --sort network" @("top", "--sort", "network", "--limit", "5") -TimeoutSec 60
+Test-JsonOk "top --json --include-network" @("top", "--json", "--include-network", "--limit", "5") `
+    -MustContain @("processes", "net_recv_bytes_per_sec", "net_send_bytes_per_sec") -TimeoutSec 60
 Test-JsonOk "top --json" @("top", "--json", "--limit", "5") -MustContain @("processes")
 Test-JsonArrayItemFields "top --json provenance" @("top", "--json", "--limit", "5") `
     -ArrayKey "processes" `

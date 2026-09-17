@@ -134,11 +134,20 @@ wintune top
 wintune top --sort cpu
 wintune top --sort memory
 wintune top --sort disk
+wintune top --sort network
+wintune top --include-network
 wintune top --limit 20
 wintune top --watch
 wintune top --interval 1000
 wintune top --json
 ```
+
+`--include-network` (also implied by `--sort network`) samples **TCP Extended
+Stats** via IP Helper during the process sample window. It is off by default
+because enabling EStats on many connections adds overhead. It does **not**
+capture payloads; UDP is not included. Text tables add Net R / Net W columns
+when measured; JSON adds `net_recv_bytes_per_sec` / `net_send_bytes_per_sec`
+(null when not sampled).
 
 JSON process rows include provenance (`publisher`, `product_name`, `location`,
 `unusual_location`, …). Text tables add a Loc column; `!` means calm review only.

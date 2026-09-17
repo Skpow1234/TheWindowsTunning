@@ -23,6 +23,8 @@ wintune scan --samples 5 --interval 1000
 wintune top --sort cpu
 wintune top --sort disk
 wintune top --sort memory
+wintune top --sort network
+wintune top --include-network
 ```
 
 Per-process metrics in `top`, `scan`, and TUI:
@@ -30,7 +32,8 @@ Per-process metrics in `top`, `scan`, and TUI:
 - **CPU%** — PDH `\Process(*)\% Processor Time` when available; otherwise
   `GetProcessTimes` delta over the sample window (same approach as Task Manager)
 - **Disk read/write rates** — delta of `GetProcessIoCounters` over the sample window
-- Per-process network rates are not available without ETW (future phase)
+- **Network send/recv rates** — opt-in TCP Extended Stats (`--include-network`);
+  see Network section (no payload capture; UDP not included)
 
 ---
 
@@ -164,19 +167,22 @@ Recommendations:
 **APIs / counters:**
 
 ```c
-GetAdaptersAddresses
-GetIfTable2
-```
-
-```text
-\Network Interface(*)\Bytes Total/sec
+GetIfTable                         /* system-wide interface octets (TUI) */
+GetExtendedTcpTable                /* TCP table with owning PID */
+SetPerTcpConnectionEStats /
+GetPerTcpConnectionEStats          /* opt-in per-process TCP byte rates */
+SetPerTcp6ConnectionEStats /
+GetPerTcp6ConnectionEStats
 ```
 
 **Collect:**
-- Adapter names and operational status.
-- Bytes sent/received per second.
-- Basic connectivity indicators.
-- Basic IP information if useful.
+- System-wide received/sent octets across non-loopback interfaces (`wt_collect_net_totals`).
+- Opt-in per-process TCP send/recv bytes/sec (`--include-network` / TUI `w`)
+  via IP Helper Extended Stats aggregated by OwningPid (Phase 27).
+
+**Overhead:** Per-process sampling enables TCP EStats on up to ~1024 connections
+for one sample window. Keep it off unless you need Net columns or
+`--sort network`. No packet capture of payloads; UDP is not included.
 
 Sensitive network details are not exposed by default. WinTune does not change
 DNS, proxy, firewall, routing, or adapter settings in v1.

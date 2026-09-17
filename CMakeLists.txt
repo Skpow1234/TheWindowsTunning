@@ -175,7 +175,8 @@ install(FILES
 #   advapi32 -> registry (os_info), services, ETW trace sessions
 #   wevtapi  -> boot performance event log (boot analyze)
 #   powrprof -> power scheme detection (power)
-#   iphlpapi -> network interface counters (network/tui)
+#   iphlpapi -> network interface counters + TCP EStats (network/tui/top)
+#   ws2_32   -> address family constants for TCP table sampling
 target_link_libraries(wintune PRIVATE
     pdh
     psapi
@@ -183,6 +184,7 @@ target_link_libraries(wintune PRIVATE
     wevtapi
     powrprof
     iphlpapi
+    ws2_32
     taskschd
     ole32
     oleaut32

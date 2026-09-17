@@ -19,6 +19,7 @@ wintune tui --safe-terminal
 wintune tui --theme compact
 wintune tui --theme mono
 wintune tui --sort cpu
+wintune tui --include-network
 ```
 
 The TUI must work in Windows Terminal, PowerShell, CMD (with VT enabled), the

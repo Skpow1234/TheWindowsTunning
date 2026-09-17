@@ -44,7 +44,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 24 | Smart impact scoring v2 | Done |
 | 25 | Disk counters in scan model | Done |
 | 26 | Per-volume disk activity | Done |
-| 27 | Per-process network (ETW) | Planned |
+| 27 | Per-process network (ETW) | Done |
 | 28 | GPU / display readiness (read-only) | Planned |
 | 29 | Thermal & power budget (read-only) | Planned |
 | 30 | Multi-sample disk smoothing | Planned |
@@ -713,13 +713,18 @@ wintune top --json
 
 #### Phase 27 — Per-Process Network (ETW)
 
+**Status:** Done
+
 **Goal:** Optional top send/receive by process.
 
 **Deliver:**
 
-- Opt-in ETW (or equivalent official) sampling for per-process network rates.
-- Off by default; clear overhead note in help/docs.
-- Columns in `top` / TUI when enabled.
+- Opt-in IP Helper TCP Extended Stats (`GetExtendedTcpTable` +
+  `GetPerTcpConnectionEStats`) for per-process send/recv rates (equivalent
+  official path to always-on TCPIP ETW; no payload capture).
+- Off by default (`--include-network` or `--sort network`; TUI `w` / `4`).
+- Clear overhead note in CLI help/docs; UDP not included.
+- Net R / Net W columns in `top` text + JSON; Net column in TUI when enabled.
 
 **Depends on:** Phases 10, 15.
 
