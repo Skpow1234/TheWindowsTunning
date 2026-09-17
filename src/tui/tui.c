@@ -12,6 +12,7 @@
 #include "metrics/disk.h"
 #include "metrics/process.h"
 #include "metrics/network.h"
+#include "metrics/gpu.h"
 #include "system/os_info.h"
 #include "system/power.h"
 #include "system/services.h"
@@ -38,6 +39,7 @@ typedef enum WT_TuiView {
     WT_VIEW_DISK,
     WT_VIEW_MEMORY,
     WT_VIEW_NETWORK,
+    WT_VIEW_GPU,
     WT_VIEW_POWER,
     WT_VIEW_SERVICES,
     WT_VIEW_HELP
@@ -472,6 +474,45 @@ static void wt_tui_render_network(WT_TuiScreen *s, const WT_TuiTheme *t,
                       "Uses IP Helper Extended Stats; no payload capture.");
 }
 
+static void wt_tui_render_gpu(WT_TuiScreen *s, const WT_TuiTheme *t)
+{
+    WT_GpuMetrics gpu;
+    if (wt_collect_gpu_metrics(250, &gpu) != WT_OK) {
+        wt_tui_empty_line(s, t, "(GPU / display metrics unavailable)");
+        return;
+    }
+
+    if (gpu.display.available) {
+        wt_tui_screen_line(s, "Displays: %u active   primary %ux%u",
+                           gpu.display.display_count, gpu.display.primary_width,
+                           gpu.display.primary_height);
+        wt_tui_screen_line(s, "");
+    }
+
+    if (!gpu.adapters_ok || gpu.adapter_count == 0) {
+        wt_tui_empty_line(s, t, "(no hardware GPU adapters found)");
+        return;
+    }
+
+    wt_tui_screen_line(s, "%s%-36s %10s %8s%s", wt_tui_dim(t), "Adapter",
+                       "Dedicated", "Busy", wt_tui_reset(t));
+    for (size_t i = 0; i < gpu.adapter_count; ++i) {
+        char name[96], ded[32];
+        WideCharToMultiByte(CP_UTF8, 0, gpu.adapters[i].name, -1, name,
+                            sizeof(name), NULL, NULL);
+        wt_tui_human(gpu.adapters[i].dedicated_bytes, ded, sizeof(ded));
+        if (gpu.adapters[i].utilization_ok) {
+            wt_tui_screen_line(s, "%-36.36s %10s %6.0f%%", name, ded,
+                               gpu.adapters[i].utilization_percent);
+        } else {
+            wt_tui_screen_line(s, "%-36.36s %10s %8s", name, ded, "n/a");
+        }
+    }
+    wt_tui_screen_line(s, "");
+    wt_tui_empty_line(s, t, "Busy = max GPU Engine utilization (PDH). Read-only.");
+    wt_tui_empty_line(s, t, "WinTune never changes drivers, clocks, or FPS settings.");
+}
+
 static void wt_tui_render_power(WT_TuiScreen *s, const WT_TuiTheme *t)
 {
     WT_PowerInfo p;
@@ -563,7 +604,7 @@ static void wt_tui_render_help(WT_TuiScreen *s, const WT_TuiTheme *t)
     wt_tui_screen_line(s, "%sKeyboard%s", wt_tui_bold(t), wt_tui_reset(t));
     wt_tui_screen_line(s, "");
     wt_tui_screen_line(s, "  o     Overview (CPU/RAM/disk/net + top processes)");
-    wt_tui_screen_line(s, "  d/m/n Disk / Memory / Network views");
+    wt_tui_screen_line(s, "  d/m/n/g Disk / Memory / Network / GPU views");
     wt_tui_screen_line(s, "  p/s   Power / Services views");
     wt_tui_screen_line(s, "  t     Cycle process sort (cpu → memory → disk → net)");
     wt_tui_screen_line(s, "  1/2/3/4  Sort by CPU / Memory / Disk / Network");
@@ -587,6 +628,7 @@ static const char *wt_tui_view_title(WT_TuiView view)
     case WT_VIEW_DISK:     return "Disk";
     case WT_VIEW_MEMORY:   return "Memory";
     case WT_VIEW_NETWORK:  return "Network";
+    case WT_VIEW_GPU:      return "GPU";
     case WT_VIEW_POWER:    return "Power";
     case WT_VIEW_SERVICES: return "Services";
     case WT_VIEW_HELP:     return "Help";
@@ -903,6 +945,9 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
             case WT_VIEW_NETWORK:
                 wt_tui_render_network(&screen, &theme, &net_now, net_ok, rx, tx);
                 break;
+            case WT_VIEW_GPU:
+                wt_tui_render_gpu(&screen, &theme);
+                break;
             case WT_VIEW_POWER:
                 wt_tui_render_power(&screen, &theme);
                 break;
@@ -934,7 +979,7 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
                 wt_tui_screen_line(
                     &screen,
                     "%sKeys:%s q quit | Space pause | t sort | w net | j/k scroll | "
-                    "e export | o/d/m/n/p/s views | ? help",
+                    "e export | o/d/m/n/g/p/s views | ? help",
                     wt_tui_dim(&theme), wt_tui_reset(&theme));
             }
             wt_tui_screen_flush(&screen, stdout);
@@ -982,6 +1027,10 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
                 break;
             case WT_TUI_KEY_NETWORK:
                 state.view = WT_VIEW_NETWORK;
+                redraw = 1;
+                break;
+            case WT_TUI_KEY_GPU:
+                state.view = WT_VIEW_GPU;
                 redraw = 1;
                 break;
             case WT_TUI_KEY_POWER:

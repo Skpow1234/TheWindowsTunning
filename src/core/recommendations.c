@@ -8,6 +8,7 @@
 #include "system/tasks.h"
 #include "system/file_identity.h"
 
+#include <windows.h>
 #include <stdio.h>
 #include <string.h>
 #include <wchar.h>
@@ -727,6 +728,52 @@ static void wt_check_task_actions(const WT_ScanReport *report,
     }
 }
 
+static void wt_check_gpu(const WT_ScanReport *rep, WT_RecommendationList *out)
+{
+    if (!rep->gpu_ok || !rep->gpu.utilization_ok ||
+        rep->gpu.max_utilization_percent < 90.0) {
+        return;
+    }
+    WT_Recommendation *r = wt_rec_add(out);
+    if (r == NULL) {
+        return;
+    }
+    const WT_GpuAdapter *hot = NULL;
+    for (size_t i = 0; i < rep->gpu.adapter_count; ++i) {
+        const WT_GpuAdapter *a = &rep->gpu.adapters[i];
+        if (!a->utilization_ok) {
+            continue;
+        }
+        if (hot == NULL ||
+            a->utilization_percent > hot->utilization_percent) {
+            hot = a;
+        }
+    }
+    wt_str_set(r->id, sizeof(r->id), "WT-GPU-001");
+    wt_str_set(r->title, sizeof(r->title), "GPU engines are very busy");
+    if (hot != NULL) {
+        char name_utf8[160];
+        WideCharToMultiByte(CP_UTF8, 0, hot->name, -1, name_utf8,
+                            sizeof(name_utf8), NULL, NULL);
+        snprintf(r->reason, sizeof(r->reason),
+                 "GPU engine utilization peaked around %.0f%% on \"%s\" during "
+                 "the sample. High GPU load can make the desktop feel laggy "
+                 "(compositing, browsers, games, video encode). This is "
+                 "informational — WinTune does not change GPU drivers or clocks.",
+                 hot->utilization_percent, name_utf8);
+    } else {
+        snprintf(r->reason, sizeof(r->reason),
+                 "GPU engine utilization peaked around %.0f%% during the sample. "
+                 "High GPU load can make the desktop feel laggy.",
+                 rep->gpu.max_utilization_percent);
+    }
+    wt_str_set(r->action, sizeof(r->action),
+               "Review GPU-heavy apps; wait for encodes/games to finish.");
+    r->severity = WT_SEVERITY_INFO;
+    r->risk = WT_RISK_NONE;
+    r->confidence_percent = (rep->scan_sample_count > 1) ? 75 : 65;
+}
+
 WT_Result wt_generate_recommendations(const WT_ScanReport *report,
                                       WT_RecommendationList *out)
 {
@@ -739,6 +786,7 @@ WT_Result wt_generate_recommendations(const WT_ScanReport *report,
     wt_check_memory(report, out);
     wt_check_disk(report, out);
     wt_check_cpu(report, out);
+    wt_check_gpu(report, out);
     wt_check_boot(report, out);
     wt_check_updates(report, out);
     wt_check_blockers(report, out);

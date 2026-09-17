@@ -38,6 +38,12 @@ static void wt_report_bottlenecks(FILE *out, const WT_ScanReport *report,
                 report->disk_active_percent);
         any = 1;
     }
+    if (report->gpu_ok && report->gpu.utilization_ok &&
+        report->gpu.max_utilization_percent >= 90.0) {
+        fprintf(out, "  - GPU engine busy was about %.0f%%.\n",
+                report->gpu.max_utilization_percent);
+        any = 1;
+    }
     if (report->disk_throughput_ok) {
         double thru = 0.0;
         if (report->disk_read_bytes_per_sec > 0.0) {
@@ -201,6 +207,27 @@ void wt_print_performance_report_text(FILE *out,
     if (report->disk_queue_ok) {
         fprintf(out, "  Disk total avg. queue length: %.2f\n",
                 report->disk_avg_queue_length);
+    }
+    if (report->gpu_ok && report->gpu.adapters_ok) {
+        for (size_t i = 0; i < report->gpu.adapter_count; ++i) {
+            const WT_GpuAdapter *a = &report->gpu.adapters[i];
+            wchar_t ded[32];
+            wt_format_bytes(a->dedicated_bytes, ded, 32);
+            fwprintf(out, L"  GPU %ls  dedicated %ls", a->name, ded);
+            if (a->utilization_ok) {
+                fprintf(out, "  | busy %.0f%%", a->utilization_percent);
+            }
+            fprintf(out, "\n");
+        }
+    }
+    if (report->gpu_ok && report->gpu.display.available) {
+        fprintf(out, "  Displays: %u active", report->gpu.display.display_count);
+        if (report->gpu.display.primary_width > 0) {
+            fprintf(out, "  | primary %ux%u",
+                    report->gpu.display.primary_width,
+                    report->gpu.display.primary_height);
+        }
+        fprintf(out, "\n");
     }
 
     if (report->boot_ok && report->boot.boot_duration_ms > 0) {

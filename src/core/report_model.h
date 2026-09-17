@@ -8,6 +8,7 @@
 #include "metrics/memory.h"
 #include "metrics/disk.h"
 #include "metrics/process.h"
+#include "metrics/gpu.h"
 #include "system/os_info.h"
 #include "system/power.h"
 #include "system/boot.h"
@@ -41,6 +42,8 @@ typedef struct WT_ScanReport {
 
     WT_UpdateStatus updates;
 
+    WT_GpuMetrics gpu;
+
     unsigned int scan_sample_count;
     unsigned int scan_sample_interval_ms;
 
@@ -55,6 +58,7 @@ typedef struct WT_ScanReport {
     int power_ok;
     int boot_ok;
     int updates_ok;
+    int gpu_ok;
 } WT_ScanReport;
 
 /* Zero-initializes a report and clears all availability flags. */

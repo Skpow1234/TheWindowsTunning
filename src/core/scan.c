@@ -4,6 +4,7 @@
 #include "metrics/memory.h"
 #include "metrics/disk.h"
 #include "metrics/process.h"
+#include "metrics/gpu.h"
 #include "system/os_info.h"
 #include "system/power.h"
 #include "system/boot.h"
@@ -162,6 +163,8 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
         report->disk_avg_queue_length = -1.0;
     }
     report->power_ok = (wt_collect_power_info(&report->power) == WT_OK);
+
+    report->gpu_ok = (wt_collect_gpu_metrics(sample_ms, &report->gpu) == WT_OK);
 
     WT_Result boot_r = wt_collect_boot_from_event_log(&report->boot);
     report->boot_ok = (boot_r == WT_OK);

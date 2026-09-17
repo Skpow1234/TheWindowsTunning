@@ -30,6 +30,7 @@ WT_TuiKey wt_tui_poll_key(void)
     case 'd': case 'D':                    return WT_TUI_KEY_DISK;
     case 'm': case 'M':                    return WT_TUI_KEY_MEMORY;
     case 'n': case 'N':                    return WT_TUI_KEY_NETWORK;
+    case 'g': case 'G':                    return WT_TUI_KEY_GPU;
     case ' ':                              return WT_TUI_KEY_PAUSE;
     case 't': case 'T':                    return WT_TUI_KEY_SORT_CYCLE;
     case '1':                              return WT_TUI_KEY_SORT_CPU;

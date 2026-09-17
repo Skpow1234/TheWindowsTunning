@@ -597,6 +597,59 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     }
     wt_json_end_object(&w);
 
+    /* gpu / display (Phase 28) */
+    wt_json_key(&w, "gpu");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "available");
+    wt_json_bool(&w, report->gpu_ok);
+    wt_json_key(&w, "utilization_available");
+    wt_json_bool(&w, report->gpu_ok && report->gpu.utilization_ok);
+    wt_json_key(&w, "max_utilization_percent");
+    if (report->gpu_ok && report->gpu.utilization_ok &&
+        report->gpu.max_utilization_percent >= 0.0) {
+        wt_json_double(&w, report->gpu.max_utilization_percent);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "adapters");
+    wt_json_begin_array(&w);
+    if (report->gpu_ok && report->gpu.adapters_ok) {
+        for (size_t i = 0; i < report->gpu.adapter_count; ++i) {
+            const WT_GpuAdapter *a = &report->gpu.adapters[i];
+            wt_json_begin_object(&w);
+            wt_json_key(&w, "name");
+            wt_json_wstring(&w, a->name);
+            wt_json_key(&w, "dedicated_bytes");
+            wt_json_uint64(&w, a->dedicated_bytes);
+            wt_json_key(&w, "shared_bytes");
+            wt_json_uint64(&w, a->shared_bytes);
+            wt_json_key(&w, "utilization_available");
+            wt_json_bool(&w, a->utilization_ok);
+            wt_json_key(&w, "utilization_percent");
+            if (a->utilization_ok) {
+                wt_json_double(&w, a->utilization_percent);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_end_object(&w);
+        }
+    }
+    wt_json_end_array(&w);
+    wt_json_key(&w, "display");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "available");
+    wt_json_bool(&w, report->gpu_ok && report->gpu.display.available);
+    if (report->gpu_ok && report->gpu.display.available) {
+        wt_json_key(&w, "count");
+        wt_json_uint64(&w, report->gpu.display.display_count);
+        wt_json_key(&w, "primary_width");
+        wt_json_uint64(&w, report->gpu.display.primary_width);
+        wt_json_key(&w, "primary_height");
+        wt_json_uint64(&w, report->gpu.display.primary_height);
+    }
+    wt_json_end_object(&w);
+    wt_json_end_object(&w);
+
     /* power */
     wt_json_key(&w, "power");
     wt_json_begin_object(&w);

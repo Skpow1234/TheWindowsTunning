@@ -180,6 +180,33 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
     }
     fprintf(out, "\n");
 
+    fprintf(out, "GPU / Display:\n");
+    if (report->gpu_ok && report->gpu.adapters_ok &&
+        report->gpu.adapter_count > 0) {
+        for (size_t i = 0; i < report->gpu.adapter_count; ++i) {
+            const WT_GpuAdapter *a = &report->gpu.adapters[i];
+            wchar_t ded[32];
+            wt_format_bytes(a->dedicated_bytes, ded, 32);
+            fwprintf(out, L"  %ls  dedicated %ls", a->name, ded);
+            if (a->utilization_ok) {
+                fprintf(out, "  | busy %.0f%%", a->utilization_percent);
+            }
+            fprintf(out, "\n");
+        }
+    } else {
+        fprintf(out, "  (adapters unavailable)\n");
+    }
+    if (report->gpu_ok && report->gpu.display.available) {
+        fprintf(out, "  Displays: %u active", report->gpu.display.display_count);
+        if (report->gpu.display.primary_width > 0) {
+            fprintf(out, "  | primary %ux%u",
+                    report->gpu.display.primary_width,
+                    report->gpu.display.primary_height);
+        }
+        fprintf(out, "\n");
+    }
+    fprintf(out, "\n");
+
     if (report->boot_ok && report->boot.boot_duration_ms > 0) {
         wchar_t boot_dur[32];
         wt_format_duration_ms(report->boot.boot_duration_ms, boot_dur, 32);
