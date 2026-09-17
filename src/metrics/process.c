@@ -161,12 +161,24 @@ static int wt_process_sort_key(const WT_ProcessInfo *p, WT_ProcessSort sort)
         }
         return (rate > 0.0) ? 1 : 0;
     }
-    case WT_PROCESS_SORT_NETWORK:
-        /* Measured (even if idle) so --sort network still fills a table. */
-        return (p->net_recv_bytes_per_sec >= 0.0 ||
-                p->net_send_bytes_per_sec >= 0.0)
-                   ? 1
-                   : 0;
+    case WT_PROCESS_SORT_NETWORK: {
+        /* Include idle measured processes, but skip inaccessible shells. */
+        if (p->net_recv_bytes_per_sec < 0.0 &&
+            p->net_send_bytes_per_sec < 0.0) {
+            return 0;
+        }
+        double rate = 0.0;
+        if (p->net_recv_bytes_per_sec >= 0.0) {
+            rate += p->net_recv_bytes_per_sec;
+        }
+        if (p->net_send_bytes_per_sec >= 0.0) {
+            rate += p->net_send_bytes_per_sec;
+        }
+        if (rate > 0.0) {
+            return 1;
+        }
+        return (p->working_set_bytes > 0) ? 1 : 0;
+    }
     case WT_PROCESS_SORT_MEMORY:
     default:
         return (p->working_set_bytes > 0) ? 1 : 0;
@@ -199,7 +211,11 @@ static unsigned long long wt_process_sort_value(const WT_ProcessInfo *p,
         if (p->net_send_bytes_per_sec >= 0.0) {
             rate += p->net_send_bytes_per_sec;
         }
-        return (unsigned long long)rate;
+        /* Active TCP traffic ranks first; idle falls back to memory. */
+        if (rate > 0.0) {
+            return (unsigned long long)rate;
+        }
+        return p->working_set_bytes;
     }
     case WT_PROCESS_SORT_MEMORY:
     default:
@@ -507,6 +523,8 @@ static int wt_compare_by_network_desc(const void *a, const void *b)
     }
     if (da < db) return 1;
     if (da > db) return -1;
+    if (pa->working_set_bytes < pb->working_set_bytes) return 1;
+    if (pa->working_set_bytes > pb->working_set_bytes) return -1;
     return 0;
 }
 
