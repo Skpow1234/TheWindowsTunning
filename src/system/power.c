@@ -16,6 +16,12 @@ static const GUID WT_GUID_POWER_SAVER =
 static const GUID WT_GUID_ULTIMATE =
     {0xe9a42b02, 0xd5df, 0x448d, {0xaa, 0x00, 0x03, 0xf1, 0x47, 0x49, 0xeb, 0x61}};
 
+/* Official processor settings GUIDs — read-only plan caps (Phase 29). */
+static const GUID WT_GUID_PROCESSOR_SETTINGS =
+    {0x54533251, 0x82be, 0x4824, {0x96, 0xc1, 0x47, 0xb6, 0x0b, 0x74, 0x0d, 0x00}};
+static const GUID WT_GUID_PROCTHROTTLEMAX =
+    {0xbc5038f7, 0x23e0, 0x4960, {0x96, 0xda, 0x33, 0xab, 0xaf, 0x59, 0x35, 0xec}};
+
 static const GUID *wt_power_scheme_guid(WT_PowerScheme scheme)
 {
     switch (scheme) {
@@ -32,7 +38,7 @@ const char *wt_power_scheme_name(WT_PowerScheme scheme)
     switch (scheme) {
     case WT_POWER_BALANCED:     return "Balanced";
     case WT_POWER_HIGH_PERF:    return "High performance";
-    case WT_POWER_POWER_SAVER:  return "Power saver";
+    case WT_POWER_POWER_SAVER: return "Power saver";
     case WT_POWER_ULTIMATE:     return "Ultimate performance";
     default:                    return "Unknown";
     }
@@ -56,6 +62,65 @@ static void wt_power_read_friendly_name(const GUID *scheme, wchar_t *out, size_t
     free(buffer);
 }
 
+static int wt_power_read_throttle_max(const GUID *scheme, int ac)
+{
+    if (scheme == NULL) {
+        return -1;
+    }
+    DWORD value = 0;
+    DWORD rc;
+    if (ac) {
+        rc = PowerReadACValueIndex(NULL, scheme, &WT_GUID_PROCESSOR_SETTINGS,
+                                   &WT_GUID_PROCTHROTTLEMAX, &value);
+    } else {
+        rc = PowerReadDCValueIndex(NULL, scheme, &WT_GUID_PROCESSOR_SETTINGS,
+                                   &WT_GUID_PROCTHROTTLEMAX, &value);
+    }
+    if (rc != ERROR_SUCCESS) {
+        return -1;
+    }
+    if (value > 100) {
+        value = 100;
+    }
+    return (int)value;
+}
+
+static void wt_power_read_battery_budget(WT_PowerInfo *out)
+{
+    SYSTEM_BATTERY_STATE bat;
+    ZeroMemory(&bat, sizeof(bat));
+    LONG st = (LONG)CallNtPowerInformation(SystemBatteryState, NULL, 0, &bat,
+                                           sizeof(bat));
+    if (st != 0) {
+        return;
+    }
+
+    out->battery_present = bat.BatteryPresent ? 1 : 0;
+    if (!bat.BatteryPresent) {
+        return;
+    }
+
+    out->charging = bat.Charging ? 1 : 0;
+    out->discharging = bat.Discharging ? 1 : 0;
+    out->rate_mw = (int)bat.Rate;
+    out->rate_ok = 1;
+    if (bat.EstimatedTime != (ULONG)-1 && bat.EstimatedTime != 0) {
+        out->estimated_seconds = (int)bat.EstimatedTime;
+    }
+    if (bat.RemainingCapacity != 0) {
+        out->remaining_mwh = (int)bat.RemainingCapacity;
+    }
+    if (bat.MaxCapacity != 0) {
+        out->full_mwh = (int)bat.MaxCapacity;
+    }
+
+    if (bat.AcOnLine) {
+        out->on_ac = 1;
+    } else {
+        out->on_ac = 0;
+    }
+}
+
 WT_Result wt_collect_power_info(WT_PowerInfo *out)
 {
     if (out == NULL) {
@@ -65,6 +130,15 @@ WT_Result wt_collect_power_info(WT_PowerInfo *out)
     out->scheme = WT_POWER_UNKNOWN;
     out->on_ac = -1;
     out->battery_percent = -1;
+    out->battery_present = -1;
+    out->charging = -1;
+    out->discharging = -1;
+    out->estimated_seconds = -1;
+    out->remaining_mwh = -1;
+    out->full_mwh = -1;
+    out->processor_max_pct_ac = -1;
+    out->processor_max_pct_dc = -1;
+    out->processor_capped = 0;
     StringCchCopyW(out->active_name, ARRAYSIZE(out->active_name), L"Unknown");
 
     GUID *active = NULL;
@@ -79,9 +153,10 @@ WT_Result wt_collect_power_info(WT_PowerInfo *out)
             out->scheme = WT_POWER_ULTIMATE;
         }
 
-        /* Prefer the real (possibly localized) friendly name for display. */
         wt_power_read_friendly_name(active, out->active_name,
                                     ARRAYSIZE(out->active_name));
+        out->processor_max_pct_ac = wt_power_read_throttle_max(active, 1);
+        out->processor_max_pct_dc = wt_power_read_throttle_max(active, 0);
         LocalFree(active);
     }
 
@@ -95,6 +170,27 @@ WT_Result wt_collect_power_info(WT_PowerInfo *out)
         if (status.BatteryLifePercent <= 100) {
             out->battery_percent = status.BatteryLifePercent;
         }
+        if (status.BatteryFlag == 128) {
+            out->battery_present = 0;
+        } else if ((status.BatteryFlag & 0x80) == 0 &&
+                   status.BatteryLifePercent <= 100) {
+            if (out->battery_present < 0) {
+                out->battery_present = 1;
+            }
+        }
+        if ((status.BatteryFlag & 8) != 0) {
+            out->charging = 1;
+        }
+    }
+
+    wt_power_read_battery_budget(out);
+
+    if (out->on_ac == 1 && out->processor_max_pct_ac >= 0 &&
+        out->processor_max_pct_ac < 100) {
+        out->processor_capped = 1;
+    } else if (out->on_ac == 0 && out->processor_max_pct_dc >= 0 &&
+               out->processor_max_pct_dc < 100) {
+        out->processor_capped = 1;
     }
 
     return WT_OK;
@@ -182,9 +278,6 @@ WT_Result wt_power_set_active_scheme(WT_PowerScheme scheme)
         return WT_ERR_INVALID_ARGUMENT;
     }
 
-    /* Confirm the scheme actually exists before switching: a friendly-name
-     * read for a missing scheme fails, which lets us return a clear error
-     * instead of silently doing nothing. */
     DWORD bytes = 0;
     if (PowerReadFriendlyName(NULL, g, NULL, NULL, NULL, &bytes) != ERROR_SUCCESS) {
         return WT_ERR_NOT_FOUND;

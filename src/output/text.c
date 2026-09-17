@@ -90,6 +90,9 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
         fprintf(out, "Power: %s", wt_power_scheme_name(report->power.scheme));
         if (report->power.on_ac == 1) {
             fprintf(out, " (AC");
+            if (report->power.charging == 1) {
+                fprintf(out, ", charging");
+            }
         } else if (report->power.on_ac == 0) {
             fprintf(out, " (battery");
         } else {
@@ -101,6 +104,23 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
             fprintf(out, ")");
         }
         fprintf(out, "\n");
+        if (report->power.rate_ok && report->power.on_ac == 0 &&
+            report->power.discharging == 1 && report->power.rate_mw < 0) {
+            fprintf(out, "  Discharge: %.1f W",
+                    (-(double)report->power.rate_mw) / 1000.0);
+            if (report->power.estimated_seconds > 0) {
+                fprintf(out, "  | ~%d min remaining",
+                        report->power.estimated_seconds / 60);
+            }
+            fprintf(out, "\n");
+        }
+        if (report->power.processor_capped) {
+            int cap = (report->power.on_ac == 1)
+                          ? report->power.processor_max_pct_ac
+                          : report->power.processor_max_pct_dc;
+            fprintf(out, "  Processor max (plan): %d%%\n",
+                    cap >= 0 ? cap : 0);
+        }
     }
     fprintf(out, "\n");
 

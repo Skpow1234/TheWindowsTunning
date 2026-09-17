@@ -670,6 +670,52 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
         } else {
             wt_json_uint64(&w, (unsigned long long)report->power.battery_percent);
         }
+        wt_json_key(&w, "battery_present");
+        if (report->power.battery_present < 0) {
+            wt_json_null(&w);
+        } else {
+            wt_json_bool(&w, report->power.battery_present);
+        }
+        wt_json_key(&w, "charging");
+        if (report->power.charging < 0) {
+            wt_json_null(&w);
+        } else {
+            wt_json_bool(&w, report->power.charging);
+        }
+        wt_json_key(&w, "discharging");
+        if (report->power.discharging < 0) {
+            wt_json_null(&w);
+        } else {
+            wt_json_bool(&w, report->power.discharging);
+        }
+        wt_json_key(&w, "rate_mw");
+        if (report->power.rate_ok) {
+            wt_json_double(&w, (double)report->power.rate_mw);
+        } else {
+            wt_json_null(&w);
+        }
+        wt_json_key(&w, "estimated_seconds");
+        if (report->power.estimated_seconds >= 0) {
+            wt_json_uint64(&w, (unsigned long long)report->power.estimated_seconds);
+        } else {
+            wt_json_null(&w);
+        }
+        wt_json_key(&w, "processor_max_pct_ac");
+        if (report->power.processor_max_pct_ac >= 0) {
+            wt_json_uint64(&w,
+                           (unsigned long long)report->power.processor_max_pct_ac);
+        } else {
+            wt_json_null(&w);
+        }
+        wt_json_key(&w, "processor_max_pct_dc");
+        if (report->power.processor_max_pct_dc >= 0) {
+            wt_json_uint64(&w,
+                           (unsigned long long)report->power.processor_max_pct_dc);
+        } else {
+            wt_json_null(&w);
+        }
+        wt_json_key(&w, "processor_capped");
+        wt_json_bool(&w, report->power.processor_capped);
     }
     wt_json_end_object(&w);
 

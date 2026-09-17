@@ -248,10 +248,26 @@ void wt_print_performance_report_text(FILE *out,
                 wt_power_scheme_name(report->power.scheme),
                 report->power.active_name);
         if (report->power.on_ac == 1) {
-            fputs("  Source:  AC power\n", out);
+            fputs("  Source:  AC power", out);
+            if (report->power.charging == 1) {
+                fputs(" (charging)", out);
+            }
+            fputc('\n', out);
         } else if (report->power.on_ac == 0) {
             fprintf(out, "  Source:  Battery (%d%%)\n",
                     report->power.battery_percent);
+            if (report->power.rate_ok && report->power.discharging == 1 &&
+                report->power.rate_mw < 0) {
+                fprintf(out, "  Discharge: %.1f W\n",
+                        (-(double)report->power.rate_mw) / 1000.0);
+            }
+        }
+        if (report->power.processor_capped) {
+            int cap = (report->power.on_ac == 1)
+                          ? report->power.processor_max_pct_ac
+                          : report->power.processor_max_pct_dc;
+            fprintf(out, "  Processor max (plan): %d%%\n",
+                    cap >= 0 ? cap : 0);
         }
     } else {
         fputs("  Power information unavailable.\n", out);

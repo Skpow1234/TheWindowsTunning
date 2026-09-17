@@ -47,9 +47,37 @@ static int wt_power_show(const WT_CliOptions *opts, const WT_PowerInfo *p)
         printf("  \"power_source\": \"%s\",\n",
                (p->on_ac == 1) ? "ac" : (p->on_ac == 0) ? "battery" : "unknown");
         if (p->battery_percent >= 0) {
-            printf("  \"battery_percent\": %d\n", p->battery_percent);
+            printf("  \"battery_percent\": %d,\n", p->battery_percent);
         } else {
-            printf("  \"battery_percent\": null\n");
+            printf("  \"battery_percent\": null,\n");
+        }
+        if (p->battery_present >= 0) {
+            printf("  \"battery_present\": %s,\n",
+                   p->battery_present ? "true" : "false");
+        } else {
+            printf("  \"battery_present\": null,\n");
+        }
+        if (p->rate_ok) {
+            printf("  \"rate_mw\": %d,\n", p->rate_mw);
+        } else {
+            printf("  \"rate_mw\": null,\n");
+        }
+        if (p->estimated_seconds >= 0) {
+            printf("  \"estimated_seconds\": %d,\n", p->estimated_seconds);
+        } else {
+            printf("  \"estimated_seconds\": null,\n");
+        }
+        printf("  \"processor_capped\": %s,\n",
+               p->processor_capped ? "true" : "false");
+        if (p->processor_max_pct_ac >= 0) {
+            printf("  \"processor_max_pct_ac\": %d,\n", p->processor_max_pct_ac);
+        } else {
+            printf("  \"processor_max_pct_ac\": null,\n");
+        }
+        if (p->processor_max_pct_dc >= 0) {
+            printf("  \"processor_max_pct_dc\": %d\n", p->processor_max_pct_dc);
+        } else {
+            printf("  \"processor_max_pct_dc\": null\n");
         }
         printf("}\n");
         return 0;
@@ -65,6 +93,34 @@ static int wt_power_show(const WT_CliOptions *opts, const WT_PowerInfo *p)
         printf("  (battery %d%%)", p->battery_percent);
     }
     printf("\n");
+    if (p->charging == 1) {
+        printf("  Battery state: charging\n");
+    } else if (p->discharging == 1) {
+        printf("  Battery state: discharging\n");
+    }
+    if (p->rate_ok && p->on_ac == 0 && p->discharging == 1 && p->rate_mw < 0) {
+        printf("  Discharge rate: %.1f W\n", (-(double)p->rate_mw) / 1000.0);
+        if (p->estimated_seconds > 0) {
+            printf("  Est. remaining: ~%d min\n", p->estimated_seconds / 60);
+        }
+    }
+    if (p->processor_max_pct_ac >= 0 || p->processor_max_pct_dc >= 0) {
+        printf("  Processor max: AC %s",
+               p->processor_max_pct_ac >= 0 ? "" : "n/a");
+        if (p->processor_max_pct_ac >= 0) {
+            printf("%d%%", p->processor_max_pct_ac);
+        }
+        printf(" / DC ");
+        if (p->processor_max_pct_dc >= 0) {
+            printf("%d%%", p->processor_max_pct_dc);
+        } else {
+            printf("n/a");
+        }
+        if (p->processor_capped) {
+            printf(" (capped for current source)");
+        }
+        printf("\n");
+    }
 
     const char *action_id = NULL;
     const char *rec = wt_power_recommend(p, &action_id);
@@ -73,6 +129,9 @@ static int wt_power_show(const WT_CliOptions *opts, const WT_PowerInfo *p)
         printf("\nRecommendation:\n  %s\n", rec);
         printf("\nSafe action:\n  [%s] wintune power --set %s\n",
                action_id, set_token);
+    } else if (p->processor_capped) {
+        printf("\nNote: the active plan caps processor maximum state for this "
+               "power source.\n");
     } else {
         printf("\nThe current power plan looks appropriate for the power source.\n");
     }

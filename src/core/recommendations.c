@@ -112,6 +112,74 @@ static void wt_check_power(const WT_ScanReport *rep, WT_RecommendationList *out)
         r->rollback_available = 1;
         r->confidence_percent = 80;
     }
+
+    /* Phase 29: plan may intentionally limit processor max state. */
+    if (p->processor_capped) {
+        int cap = (p->on_ac == 1) ? p->processor_max_pct_ac
+                                  : p->processor_max_pct_dc;
+        WT_Recommendation *r = wt_rec_add(out);
+        if (r != NULL) {
+            wt_str_set(r->id, sizeof(r->id), "WT-POWER-003");
+            wt_str_set(r->title, sizeof(r->title),
+                       "Current power plan caps processor performance");
+            snprintf(r->reason, sizeof(r->reason),
+                     "The active '%s' plan sets processor maximum state to "
+                     "%d%% for the current power source (%s). That can make "
+                     "the machine feel slower under load. Switching to "
+                     "Balanced or High performance (when plugged in) raises "
+                     "the cap using an existing Windows plan.",
+                     wt_power_scheme_name(p->scheme),
+                     cap >= 0 ? cap : 0,
+                     p->on_ac == 1 ? "AC" : "battery");
+            if (p->on_ac == 1) {
+                wt_str_set(r->action, sizeof(r->action),
+                           "wintune apply WT-POWER-001");
+                r->rollback_available = 1;
+            } else {
+                wt_str_set(r->action, sizeof(r->action),
+                           "Review power plan; use Balanced if on High performance.");
+                r->rollback_available = 0;
+            }
+            r->severity = WT_SEVERITY_INFO;
+            r->risk = WT_RISK_LOW;
+            r->requires_admin = 0;
+            r->confidence_percent = 80;
+        }
+    }
+
+    /* High discharge rate while on battery (signed mW; negative = drain). */
+    if (p->on_ac == 0 && p->rate_ok && p->discharging == 1 &&
+        p->rate_mw <= -20000) {
+        WT_Recommendation *r = wt_rec_add(out);
+        if (r != NULL) {
+            double watts = (-(double)p->rate_mw) / 1000.0;
+            wt_str_set(r->id, sizeof(r->id), "WT-POWER-004");
+            wt_str_set(r->title, sizeof(r->title),
+                       "Battery is discharging quickly");
+            if (p->estimated_seconds > 0) {
+                snprintf(r->reason, sizeof(r->reason),
+                         "Battery discharge is about %.1f W. Estimated time "
+                         "remaining at this rate is roughly %d minutes. Heavy "
+                         "CPU/GPU work, bright displays, or High performance "
+                         "plans increase drain. WinTune does not change fans "
+                         "or firmware.",
+                         watts, p->estimated_seconds / 60);
+            } else {
+                snprintf(r->reason, sizeof(r->reason),
+                         "Battery discharge is about %.1f W. Heavy CPU/GPU "
+                         "work or a High performance plan can increase drain. "
+                         "WinTune does not change fans or firmware.",
+                         watts);
+            }
+            wt_str_set(r->action, sizeof(r->action),
+                       "Reduce load or switch to Balanced/Power saver on battery.");
+            r->severity = WT_SEVERITY_LOW;
+            r->risk = WT_RISK_NONE;
+            r->requires_admin = 0;
+            r->rollback_available = 0;
+            r->confidence_percent = 70;
+        }
+    }
 }
 
 static void wt_check_memory(const WT_ScanReport *rep, WT_RecommendationList *out)
