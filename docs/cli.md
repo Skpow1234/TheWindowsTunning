@@ -339,6 +339,12 @@ Action (confirmation required unless `--yes`):
 wintune services restart <name>
 ```
 
+Requires administrator privileges. Critical/security services (Defender,
+firewall, Windows Update, SCM core, etc.) are refused. On success, WinTune
+writes a `service_restart` **audit** rollback record with pre/post state and
+PID (`wintune rollback list`). A restart cannot restore the prior process —
+`rollback apply` on that id explains this and takes no action.
+
 Services are never disabled automatically in v1.
 
 ---
@@ -420,7 +426,8 @@ wintune apply WT-POWER-001 --via-service --yes
 
 ## `wintune rollback`
 
-Lists or applies saved rollback records for power, startup, and task changes.
+Lists or applies saved rollback records for power, startup, task, and service
+restart audit notes.
 
 ```bash
 wintune rollback list

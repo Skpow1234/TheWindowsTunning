@@ -113,9 +113,11 @@ Supported rollback types:
 | `startup_delay` | Restore previous delay / enabled state |
 | `task_enabled` | Re-enable or disable task |
 | `task_delay` | Restore previous logon delay |
+| `service_restart` | **Audit only** — lists pre/post state+PID; `rollback apply` explains that a restart cannot restore the prior process and takes no action |
 
-Service restarts are intentionally **not** rollback-recorded (restart is not
-reversible to a prior runtime state).
+Successful `wintune services restart <name>` writes a `service_restart` record
+(`previous_value` / `new_value` = `Name|State|Pid`). Critical/security services
+(Defender, firewall, Windows Update, SCM core, etc.) remain refused.
 
 ## Safety
 

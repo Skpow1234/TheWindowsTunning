@@ -419,7 +419,8 @@ end-user release polish).
 | 34 | Startup delay orchestration (`startup delay-plan`) | Done |
 | 35 | Recommendation confidence engine | Done |
 | 36 | Apply preview / dry-run | Done |
-| 37–53 | v3 depth (service restart rollback, fleet, signing, …) | Planned |
+| 37 | Service restart rollback metadata | Done |
+| 38–53 | v3 depth (guided doctor plan, fleet, signing, …) | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.
@@ -460,7 +461,9 @@ exit non-zero.
   available via `wintune tasks list` and `wintune startup --include-tasks`.
   See [`docs/tasks.md`](docs/tasks.md).
 - `services restart` requires elevation and refuses a denylist of
-  critical/security services to avoid destabilizing Windows.
+  critical/security services. On success it writes a `service_restart` audit
+  rollback record (pre/post state+PID); restart is not reversible to the prior
+  process instance.
 - The `tui` dashboard is read-only and keyboard-driven (no mouse). Network
   throughput is computed from interface byte-counter deltas between refreshes.
   Applying changes from the dashboard is intentionally not supported.

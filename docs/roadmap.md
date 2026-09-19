@@ -54,7 +54,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 34 | Startup delay orchestration | Done |
 | 35 | Recommendation confidence engine | Done |
 | 36 | Apply preview / dry-run | Done |
-| 37 | Service restart rollback metadata | Planned |
+| 37 | Service restart rollback metadata | Done |
 | 38 | Guided doctor plan | Planned |
 | 39 | Uninstall advisor (read-only) | Planned |
 | 40 | TUI historical sparklines | Planned |
@@ -940,10 +940,15 @@ wintune power --set performance --dry-run
 
 **Goal:** Record pre-restart service state for audit/rollback notes.
 
+**Status:** Done
+
 **Deliver:**
 
-- Rollback/audit record for confirmed `services restart`.
-- Still refuse critical/security denylist services.
+- Successful `services restart` writes a `service_restart` audit record with
+  pre/post state and PID (`name|state|pid`).
+- `rollback apply` on that type explains audit-only behavior and does not
+  stop/start again (no restart loops).
+- Expanded critical/security denylist (Defender, firewall, WU, SCM core, …).
 
 **Depends on:** Phases 7, 16.
 
