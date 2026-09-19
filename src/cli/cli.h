@@ -21,6 +21,7 @@ typedef struct WT_CliOptions {
     int safe_terminal;
     int yes;
     int dry_run;                /* --dry-run / --preview (Phase 36) */
+    int plan;                   /* --plan (Phase 38 doctor guided plan) */
     const wchar_t *output_path; /* NULL unless --output <path> was given */
 
     /* Command-specific options. */
