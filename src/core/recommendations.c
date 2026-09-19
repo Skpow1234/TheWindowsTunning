@@ -11,6 +11,7 @@
 #include "system/uninstall.h"
 #include "system/storage_health.h"
 #include "system/reliability.h"
+#include "system/maintenance.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -759,7 +760,109 @@ static void wt_check_reliability(WT_RecommendationList *out)
             rec->risk = WT_RISK_NONE;
             rec->confidence_percent = 88;
             wt_str_set(rec->confidence_basis, sizeof(rec->confidence_basis),
-                       "System 1001 / local dump metadata");
+               "System 1001 / local dump metadata");
+        }
+    }
+}
+
+static void wt_check_maintenance(const WT_ScanReport *rep,
+                                 WT_RecommendationList *out)
+{
+    WT_MaintenanceReport maint;
+    WT_Recommendation *rec;
+
+    if (wt_maintenance_from_scan(&maint, rep) != WT_OK) {
+        return;
+    }
+    if (!maint.overlap) {
+        return;
+    }
+
+    if (maint.defender_active && (maint.cpu_hot || maint.disk_hot)) {
+        rec = wt_rec_add(out);
+        if (rec != NULL) {
+            wt_str_set(rec->id, sizeof(rec->id), "WT-MAINT-001");
+            wt_str_set(rec->title, sizeof(rec->title),
+                       "Defender activity overlaps busy samples");
+            snprintf(rec->reason, sizeof(rec->reason),
+                     "High %s samples overlapped Microsoft Defender-related "
+                     "processes or scheduled scans. Security scans are "
+                     "important but can feel like system slowness.",
+                     maint.disk_hot ? "disk" : "CPU");
+            wt_str_set(rec->action, sizeof(rec->action),
+                       "Prefer Windows Security scheduled scan outside work "
+                       "hours / Active hours. Do not disable Defender. "
+                       "Run: wintune maintenance");
+            rec->severity = WT_SEVERITY_MEDIUM;
+            rec->risk = WT_RISK_NONE;
+            rec->confidence_percent = 82;
+            wt_str_set(rec->confidence_basis, sizeof(rec->confidence_basis),
+                       "scan hot samples + Defender process/task");
+        }
+    }
+
+    if (maint.update_active && (maint.cpu_hot || maint.disk_hot)) {
+        rec = wt_rec_add(out);
+        if (rec != NULL) {
+            wt_str_set(rec->id, sizeof(rec->id), "WT-MAINT-002");
+            wt_str_set(rec->title, sizeof(rec->title),
+                       "Windows Update/servicing overlaps high load");
+            wt_str_set(rec->reason, sizeof(rec->reason),
+                       "Update Orchestrator / servicing workers were active "
+                       "while CPU or disk samples were hot. Installing updates "
+                       "during work hours can stall interactive use.");
+            wt_str_set(rec->action, sizeof(rec->action),
+                       "Schedule updates/reboots via Windows Update Active "
+                       "hours. Do not disable Windows Update. "
+                       "Run: wintune maintenance");
+            rec->severity = WT_SEVERITY_MEDIUM;
+            rec->risk = WT_RISK_NONE;
+            rec->confidence_percent = 80;
+            wt_str_set(rec->confidence_basis, sizeof(rec->confidence_basis),
+                       "scan hot samples + WU/servicing process/task");
+        }
+    }
+
+    if (maint.optimize_active && maint.disk_hot) {
+        rec = wt_rec_add(out);
+        if (rec != NULL) {
+            wt_str_set(rec->id, sizeof(rec->id), "WT-MAINT-003");
+            wt_str_set(rec->title, sizeof(rec->title),
+                       "Background optimization overlaps high disk");
+            wt_str_set(rec->reason, sizeof(rec->reason),
+                       "Search indexing, defrag/optimize, or compatibility "
+                       "assessment overlapped high disk active time.");
+            wt_str_set(rec->action, sizeof(rec->action),
+                       "Review Task Scheduler / Storage optimize schedule for "
+                       "off-peak hours. Do not disable security features. "
+                       "Run: wintune maintenance");
+            rec->severity = WT_SEVERITY_LOW;
+            rec->risk = WT_RISK_NONE;
+            rec->confidence_percent = 75;
+            wt_str_set(rec->confidence_basis, sizeof(rec->confidence_basis),
+                       "disk hot + optimization process/task");
+        }
+    }
+
+    if ((maint.defender_active ? 1 : 0) + (maint.update_active ? 1 : 0) +
+            (maint.optimize_active ? 1 : 0) >=
+        2) {
+        rec = wt_rec_add(out);
+        if (rec != NULL) {
+            wt_str_set(rec->id, sizeof(rec->id), "WT-MAINT-004");
+            wt_str_set(rec->title, sizeof(rec->title),
+                       "Multiple maintenance workloads concurrent");
+            wt_str_set(rec->reason, sizeof(rec->reason),
+                       "More than one maintenance class (Defender, Update, "
+                       "optimization) was active during the scan window.");
+            wt_str_set(rec->action, sizeof(rec->action),
+                       "Stagger Defender scans, updates, and Optimize Drives "
+                       "to idle hours when possible. Never disable security.");
+            rec->severity = WT_SEVERITY_INFO;
+            rec->risk = WT_RISK_NONE;
+            rec->confidence_percent = 70;
+            wt_str_set(rec->confidence_basis, sizeof(rec->confidence_basis),
+                       "multiple maint kinds in one window");
         }
     }
 }
@@ -1348,6 +1451,7 @@ WT_Result wt_generate_recommendations(const WT_ScanReport *report,
     wt_check_disk(report, out);
     wt_check_storage_health(out);
     wt_check_reliability(out);
+    wt_check_maintenance(report, out);
     wt_check_cpu(report, out);
     wt_check_gpu(report, out);
     wt_check_boot(report, out);
