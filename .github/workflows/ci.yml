@@ -168,7 +168,7 @@ jobs:
             $ver = $env:GITHUB_REF_NAME.TrimStart("v", "V")
           }
           .\scripts\package.ps1 -Config Release -Arch x64 -Version $ver `
-            -Channel stable -Configure -Build -Zip
+            -Channel stable -Configure -Build -Zip -VerifySignature
 
       - name: Verify package layout
         shell: pwsh
@@ -180,7 +180,7 @@ jobs:
           if (-not (Test-Path $sha)) { throw "Missing checksum: $sha" }
           $stage = Get-ChildItem -Path dist -Directory -Filter "WinTune-*-win-x64" | Select-Object -First 1
           if ($null -eq $stage) { throw "Stage directory missing" }
-          foreach ($f in @("wintune.exe", "VERSION.txt", "ARCH.txt", "QUICKSTART.txt")) {
+          foreach ($f in @("wintune.exe", "VERSION.txt", "ARCH.txt", "QUICKSTART.txt", "SIGNING.txt")) {
             $p = Join-Path $stage.FullName $f
             if (-not (Test-Path -LiteralPath $p)) {
               throw "Missing $f in package stage ($($stage.FullName))"
@@ -188,6 +188,10 @@ jobs:
           }
           $arch = (Get-Content -LiteralPath (Join-Path $stage.FullName "ARCH.txt") -Raw).Trim()
           if ($arch -ne "x64") { throw "ARCH.txt expected x64, got '$arch'" }
+          $signing = (Get-Content -LiteralPath (Join-Path $stage.FullName "SIGNING.txt") -Raw).Trim()
+          Write-Host "SIGNING.txt: $signing"
+          .\scripts\sign.ps1 -Path (Join-Path $stage.FullName "wintune.exe") -Verify -AllowUnsigned
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Write-Host "Package dry-run OK"
 
       - name: Upload dry-run artifacts

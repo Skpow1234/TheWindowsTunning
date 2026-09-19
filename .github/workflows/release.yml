@@ -52,9 +52,27 @@ jobs:
 
       - name: Package x64
         shell: pwsh
+        env:
+          WINTUNE_SIGN_ENABLED: ${{ vars.WINTUNE_SIGN_ENABLED }}
+          WINTUNE_SIGN_PFX_BASE64: ${{ secrets.WINTUNE_SIGN_PFX_BASE64 }}
+          WINTUNE_SIGN_PASSWORD: ${{ secrets.WINTUNE_SIGN_PASSWORD }}
+          WINTUNE_SIGN_TIMESTAMP: ${{ vars.WINTUNE_SIGN_TIMESTAMP }}
         run: |
           .\scripts\package.ps1 -Config Release -Arch x64 -Version ${{ needs.resolve-version.outputs.value }} `
-            -Channel ${{ needs.resolve-version.outputs.channel }} -Configure -Build -Zip
+            -Channel ${{ needs.resolve-version.outputs.channel }} -Configure -Build -Zip -SignIfConfigured
+
+      - name: Verify Authenticode (soft if unsigned)
+        shell: pwsh
+        run: |
+          $exe = "dist\WinTune-${{ needs.resolve-version.outputs.value }}-win-x64\wintune.exe"
+          $require = ($env:WINTUNE_SIGN_ENABLED -eq "true" -or $env:WINTUNE_SIGN_ENABLED -eq "1")
+          if ($require) {
+            .\scripts\sign.ps1 -Path $exe -Verify -RequireSigned
+          } else {
+            .\scripts\sign.ps1 -Path $exe -Verify -AllowUnsigned
+          }
+        env:
+          WINTUNE_SIGN_ENABLED: ${{ vars.WINTUNE_SIGN_ENABLED }}
 
       - name: Upload x64 artifacts
         uses: actions/upload-artifact@v4
@@ -79,9 +97,27 @@ jobs:
 
       - name: Package ARM64
         shell: pwsh
+        env:
+          WINTUNE_SIGN_ENABLED: ${{ vars.WINTUNE_SIGN_ENABLED }}
+          WINTUNE_SIGN_PFX_BASE64: ${{ secrets.WINTUNE_SIGN_PFX_BASE64 }}
+          WINTUNE_SIGN_PASSWORD: ${{ secrets.WINTUNE_SIGN_PASSWORD }}
+          WINTUNE_SIGN_TIMESTAMP: ${{ vars.WINTUNE_SIGN_TIMESTAMP }}
         run: |
           .\scripts\package.ps1 -Config Release -Arch arm64 -Version ${{ needs.resolve-version.outputs.value }} `
-            -Channel ${{ needs.resolve-version.outputs.channel }} -Configure -Build -Zip
+            -Channel ${{ needs.resolve-version.outputs.channel }} -Configure -Build -Zip -SignIfConfigured
+
+      - name: Verify Authenticode (soft if unsigned)
+        shell: pwsh
+        run: |
+          $exe = "dist\WinTune-${{ needs.resolve-version.outputs.value }}-win-arm64\wintune.exe"
+          $require = ($env:WINTUNE_SIGN_ENABLED -eq "true" -or $env:WINTUNE_SIGN_ENABLED -eq "1")
+          if ($require) {
+            .\scripts\sign.ps1 -Path $exe -Verify -RequireSigned
+          } else {
+            .\scripts\sign.ps1 -Path $exe -Verify -AllowUnsigned
+          }
+        env:
+          WINTUNE_SIGN_ENABLED: ${{ vars.WINTUNE_SIGN_ENABLED }}
 
       - name: Upload ARM64 artifacts
         uses: actions/upload-artifact@v4

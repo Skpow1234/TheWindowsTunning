@@ -433,7 +433,8 @@ end-user release polish).
 | 48 | Storage health (read-only) | Done |
 | 49 | Memory dump / WER signals | Done |
 | 50 | Pagefile & commit charge depth | Done |
-| 51–53 | Maintenance windows, signing, installer | Planned |
+| 51–52 | Maintenance windows, Authenticode CI | Done |
+| 53 | Installer & channel maturity | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.

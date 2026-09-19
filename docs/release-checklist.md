@@ -71,5 +71,7 @@ Get-FileHash .\WinTune-x.y.z-win-x64.zip -Algorithm SHA256
 
 ## Signing (optional)
 
-See [`signing.md`](signing.md). Unsigned open-source builds are fine; SmartScreen
-may warn on first run until reputation builds.
+See [`signing.md`](signing.md). Release CI runs `package.ps1 -SignIfConfigured`
+and `sign.ps1` verify (unsigned soft-pass unless `WINTUNE_SIGN_ENABLED=true`).
+Unsigned open-source builds are fine; SmartScreen may warn on first run until
+reputation builds.

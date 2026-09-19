@@ -82,7 +82,8 @@ CMake installs:
 - `README.md`, `LICENSE` (when present)
 - Files from `pack/` (launchers, quick start)
 
-`scripts/package.ps1` wraps install and adds `VERSION.txt` / `CHANNEL.txt`.
+`scripts/package.ps1` wraps install and adds `VERSION.txt` / `CHANNEL.txt` /
+`ARCH.txt` / `SIGNING.txt` (Authenticode status).
 
 ---
 

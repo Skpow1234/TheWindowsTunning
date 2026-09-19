@@ -69,7 +69,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 49 | Memory dump / WER signals | Done |
 | 50 | Pagefile & commit charge depth | Done |
 | 51 | Scheduled maintenance windows | Done |
-| 52 | Authenticode CI + release signing | Planned |
+| 52 | Authenticode CI + release signing | Done |
 | 53 | Installer & channel maturity | Planned |
 
 ---
@@ -1229,10 +1229,15 @@ wintune fleet pack --input reports/ --output fleet-pack.zip
 
 **Goal:** Optional signed Release artifacts with verify-in-smoke.
 
+**Status:** Done
+
 **Deliver:**
 
-- CI/OIDC or documented signing path; `signtool verify` in release checks.
-- See [`signing.md`](signing.md).
+- `scripts/sign.ps1`: sign (PFX / env) and verify (`signtool` + Authenticode).
+- `package.ps1 -SignIfConfigured` / `-VerifySignature`; writes `SIGNING.txt`.
+- Release workflow: optional secrets (`WINTUNE_SIGN_PFX_BASE64`, …) + soft/require
+  verify gate; CI package dry-run checks `SIGNING.txt` + allow-unsigned verify.
+- Docs: [`signing.md`](signing.md) (PFX + Azure Trusted Signing / OIDC guidance).
 
 **Depends on:** Phase 21.
 

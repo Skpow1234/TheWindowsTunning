@@ -140,9 +140,12 @@ bumping versions.
 
 ## Optional (post Phase 21)
 
+Default CI remains unsigned. Release / dry-run packaging always runs
+`scripts/sign.ps1` verify (soft-pass when unsigned) and writes `SIGNING.txt`.
+Optional PFX signing via secrets is documented in [`signing.md`](signing.md).
+
 Not in default CI yet:
 
-- Authenticode signing (see [`signing.md`](signing.md))
 - Publishing the draft winget manifests under `packaging/winget/` to winget-pkgs
 - Inno Setup installer build (`scripts/installer/wintune.iss`)
 
