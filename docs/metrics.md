@@ -67,18 +67,23 @@ Per-process metrics in `top`, `scan`, and TUI:
 
 ```c
 GlobalMemoryStatusEx
+GetPerformanceInfo          /* CommitTotal / Limit / Peak */
 GetProcessMemoryInfo
+PDH \\Memory\\Pages Input/sec   /* hard faults (optional sample) */
+PDH \\Memory\\Page Faults/sec   /* soft+hard (optional) */
 ```
 
 **Collect:**
-- Total physical memory.
-- Available physical memory.
-- Used physical memory and used percent.
-- Per-process working set.
-- Per-process private bytes if available.
+- Total / available / used physical memory and used percent.
+- Commit charge: total, limit, peak, percent (`GetPerformanceInfo`).
+- Commit headroom (`ullAvailPageFile`).
+- Optional hard-fault rate via PDH (`wintune memory` / recommend sample).
+- Per-process working set / private bytes (process module).
+
+Command: `wintune memory` / `--json`.
 
 Memory pressure recommendations use clear thresholds. WinTune never implements
-"RAM cleaner" behavior and never force-empties working sets in v1.
+"RAM cleaner" behavior and never force-empties working sets.
 
 ```c
 typedef struct WT_MemoryMetrics {
@@ -86,8 +91,20 @@ typedef struct WT_MemoryMetrics {
     unsigned long long available_physical_bytes;
     unsigned long long used_physical_bytes;
     double used_percent;
+    int commit_ok;
+    unsigned long long commit_total_bytes;
+    unsigned long long commit_limit_bytes;
+    unsigned long long commit_peak_bytes;
+    double commit_percent;
+    /* ... pagefile headroom + optional PDH fault rates ... */
 } WT_MemoryMetrics;
 ```
+
+Recommendations:
+
+- `WT-MEMORY-001` — low physical available
+- `WT-MEMORY-002` — high commit charge (≥ ~85%)
+- `WT-MEMORY-003` — high hard-fault rate under pressure
 
 ---
 

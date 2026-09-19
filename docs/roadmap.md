@@ -67,7 +67,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 47 | JSON schema v2 + compatibility | Done |
 | 48 | Storage health (read-only) | Done |
 | 49 | Memory dump / WER signals | Done |
-| 50 | Pagefile & commit charge depth | Planned |
+| 50 | Pagefile & commit charge depth | Done |
 | 51 | Scheduled maintenance windows | Planned |
 | 52 | Authenticode CI + release signing | Planned |
 | 53 | Installer & channel maturity | Planned |
@@ -1187,9 +1187,14 @@ wintune fleet pack --input reports/ --output fleet-pack.zip
 
 **Goal:** Explain memory pressure without a RAM cleaner.
 
+**Status:** Done
+
 **Deliver:**
 
-- Commit limit/peak, hard faults; tips to close/delay heavy apps.
+- `wintune memory` / `--json`: physical RAM, commit total/limit/peak, hard-fault
+  rate (`Pages Input/sec`).
+- Scan JSON/text include commit summary.
+- Advisories: `WT-MEMORY-002` (high commit), `WT-MEMORY-003` (hard faults).
 
 **Never:** Force-empty working sets as an “optimization.”
 

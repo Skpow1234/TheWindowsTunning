@@ -72,6 +72,7 @@ needs a true breaking rename. Prefer checking the **major** component
 | `blockers` | `blockers` |
 | `storage` | `storage` |
 | `reliability` | `reliability` |
+| `memory` | `memory` |
 | `error` | `--json-errors` failure document |
 | `fleet_pack_result` | `fleet pack --json` |
 

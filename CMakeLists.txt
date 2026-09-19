@@ -420,10 +420,12 @@ wt_add_unit_test(test_recommendations
     src/system/file_identity.c
     src/system/uninstall.c
     src/system/os_info.c
+    src/metrics/memory.c
+    src/metrics/pdh_utils.c
 )
 target_link_libraries(test_recommendations PRIVATE
     powrprof advapi32 wevtapi taskschd ole32 oleaut32 wuguid rstrtmgr
-    wintrust version crypt32
+    wintrust version crypt32 pdh psapi
 )
 
 wt_add_unit_test(test_impact_score
