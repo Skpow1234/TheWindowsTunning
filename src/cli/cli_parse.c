@@ -82,6 +82,15 @@ int wt_cli_parse_argv(int argc, wchar_t **argv, WT_CliOptions *opts,
             }
         }
         else if (wcscmp(t, L"--auto-start") == 0) opts->service_auto_start = 1;
+        else if (wcscmp(t, L"--profile") == 0) {
+            if (i + 1 < argc) opts->service_profile = argv[++i];
+            else {
+                fprintf(stderr,
+                        "wintune: --profile requires a name "
+                        "(balanced|performance|light|on-demand)\n");
+                return WT_EXIT_USAGE;
+            }
+        }
         else if (wcscmp(t, L"--account") == 0) {
             if (i + 1 < argc) {
                 opts->service_account = argv[++i];

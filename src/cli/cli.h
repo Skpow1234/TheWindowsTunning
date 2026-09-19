@@ -51,6 +51,7 @@ typedef struct WT_CliOptions {
     int service_auto_start;     /* --auto-start */
     const wchar_t *service_account; /* --account system|localservice|virtual|DOMAIN\User */
     const wchar_t *service_account_password; /* --account-password (custom only) */
+    const wchar_t *service_profile; /* --profile balanced|performance|light|on-demand */
 
     /* services filters (OR-combined; none == show all) */
     int svc_auto;               /* --auto */
