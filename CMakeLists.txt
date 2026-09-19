@@ -76,6 +76,7 @@ add_executable(wintune
     src/service/service_install.c
     src/service/service_main.c
     src/service/service_dispatch.c
+    src/service/service_policy.c
 
     # actions
     src/actions/rollback.c
@@ -315,6 +316,14 @@ wt_add_unit_test(test_tui_theme
     src/tui/tui_theme.c
 )
 
+wt_add_unit_test(test_service_policy
+    tests/test_service_policy.c
+    src/service/service_policy.c
+    src/common/error.c
+    src/platform/paths.c
+)
+target_link_libraries(test_service_policy PRIVATE shell32)
+
 wt_add_unit_test(test_doctor_plan
     tests/test_doctor_plan.c
     src/core/doctor_plan.c
@@ -412,6 +421,7 @@ add_custom_target(wintune_tests_all
         test_confidence
         test_tui_compare
         test_tui_theme
+        test_service_policy
         test_doctor_plan
         test_uninstall
         test_apply_preview

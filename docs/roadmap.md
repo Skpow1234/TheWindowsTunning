@@ -61,7 +61,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 41 | TUI before/after compare | Done |
 | 42 | Tray mini-doctor | Done |
 | 43 | Accessibility & SSH TUI | Done |
-| 44 | Service policy profiles | Planned |
+| 44 | Service policy profiles | Done |
 | 45 | Named-pipe ACL hardening | Planned |
 | 46 | Fleet report pack | Planned |
 | 47 | JSON schema v2 + compatibility | Planned |
@@ -1072,11 +1072,19 @@ wintune power --set performance --dry-run
 
 **Goal:** Named configs for interval, counters, retention of `last_scan.json`.
 
+**Status:** Done
+
 **Deliver:**
 
 ```bash
 wintune service install --profile balanced
+wintune service set-profile performance
+wintune service profile
 ```
+
+- Profiles: `balanced`, `performance`, `light`, `on-demand`
+- Policy file: `%ProgramData%\WinTune\service_policy.json` (removed on uninstall)
+- Rotates `last_scan.N.json` per `history_keep`
 
 **Depends on:** Phase 11.
 

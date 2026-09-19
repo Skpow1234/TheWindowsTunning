@@ -426,6 +426,7 @@ end-user release polish).
 | 41 | TUI before/after compare | Done |
 | 42 | Tray mini-doctor | Done |
 | 43 | Accessibility & SSH TUI | Done |
+| 44 | Service policy profiles | Done |
 | 41–53 | v3 depth (before/after compare, tray mini-doctor, fleet, …) | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and

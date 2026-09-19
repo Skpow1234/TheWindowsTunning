@@ -28,20 +28,57 @@ connections are rejected.
 
 ```bash
 wintune service status
-wintune service install      # admin required
-wintune service uninstall    # admin required
+wintune service install --profile balanced   # admin required
+wintune service profile
+wintune service set-profile performance      # admin to write ProgramData
+wintune service uninstall                    # admin required
 wintune service start
 wintune service stop
 ```
 
+### Policy profiles (Phase 44)
+
+Named configs control periodic scan interval, sample depth, and how many prior
+`last_scan.json` copies to keep under `%ProgramData%\WinTune\`.
+
+| Profile | Interval | Samples | Top procs | History |
+| --- | --- | --- | --- | --- |
+| `balanced` (default) | 15 min | 3 | 10 | 2 |
+| `performance` | 5 min | 5 | 15 | 3 |
+| `light` (`battery`) | 60 min | 1 | 5 | 1 |
+| `on-demand` (`manual`) | none | 3 | 10 | 1 |
+
+Policy file (explicit, removed on uninstall):
+
+```text
+%ProgramData%\WinTune\service_policy.json
+```
+
+History copies (when `history_keep` > 0):
+
+```text
+%ProgramData%\WinTune\last_scan.json
+%ProgramData%\WinTune\last_scan.1.json
+...
+```
+
+```powershell
+wintune service install --profile balanced
+wintune service set-profile light
+wintune service profile
+wintune service status
+```
+
+Profiles are never hidden: install/set/uninstall are explicit CLI actions.
+
 ### Install options (admin)
 
 ```powershell
-# Default: Local System, manual start
+# Default: Local System, manual start, balanced policy
 wintune service install
 
-# Start automatically with Windows
-wintune service install --auto-start
+# Start automatically with Windows + performance profile
+wintune service install --auto-start --profile performance
 
 # Choose the service account (four supported options)
 wintune service install --account system          # Local System (default)
