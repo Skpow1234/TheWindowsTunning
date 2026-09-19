@@ -374,6 +374,59 @@ static void wt_json_emit_boot_object(WT_JsonWriter *w, const WT_BootReport *boot
         wt_json_null(w);
     }
 
+    wt_json_key(w, "last_boot_kind");
+    wt_json_string(w, wt_boot_kind_name(boot->last_boot_kind));
+
+    wt_json_key(w, "history");
+    wt_json_begin_object(w);
+    wt_json_key(w, "count");
+    wt_json_uint64(w, (unsigned long long)boot->history.count);
+    wt_json_key(w, "avg_duration_ms");
+    wt_json_uint64(w, boot->history.avg_duration_ms);
+    wt_json_key(w, "avg_cold_ms");
+    wt_json_uint64(w, boot->history.avg_cold_ms);
+    wt_json_key(w, "avg_warm_ms");
+    wt_json_uint64(w, boot->history.avg_warm_ms);
+    wt_json_key(w, "cold_count");
+    wt_json_uint64(w, boot->history.cold_count);
+    wt_json_key(w, "warm_count");
+    wt_json_uint64(w, boot->history.warm_count);
+    wt_json_key(w, "unknown_count");
+    wt_json_uint64(w, boot->history.unknown_count);
+    wt_json_key(w, "slow_count");
+    wt_json_uint64(w, boot->history.slow_count);
+    wt_json_key(w, "degraded_count");
+    wt_json_uint64(w, boot->history.degraded_count);
+    wt_json_key(w, "entries");
+    wt_json_begin_array(w);
+    for (size_t i = 0; i < boot->history.count; ++i) {
+        const WT_BootHistoryEntry *e = &boot->history.entries[i];
+        wt_json_begin_object(w);
+        wt_json_key(w, "kind");
+        wt_json_string(w, wt_boot_kind_name(e->kind));
+        wt_json_key(w, "boot_duration_ms");
+        wt_json_uint64(w, e->boot_duration_ms);
+        wt_json_key(w, "main_path_ms");
+        e->main_path_ms > 0 ? wt_json_uint64(w, e->main_path_ms)
+                            : wt_json_null(w);
+        wt_json_key(w, "post_boot_ms");
+        e->post_boot_ms > 0 ? wt_json_uint64(w, e->post_boot_ms)
+                            : wt_json_null(w);
+        wt_json_key(w, "kernel_init_ms");
+        wt_json_uint64(w, e->kernel_init_ms);
+        wt_json_key(w, "is_degraded");
+        wt_json_bool(w, e->is_degraded);
+        wt_json_key(w, "boot_start_utc");
+        if (e->boot_start_utc[0] != '\0') {
+            wt_json_string(w, e->boot_start_utc);
+        } else {
+            wt_json_null(w);
+        }
+        wt_json_end_object(w);
+    }
+    wt_json_end_array(w);
+    wt_json_end_object(w);
+
     wt_json_key(w, "components");
     wt_json_begin_array(w);
     for (size_t i = 0; i < boot->component_count; ++i) {

@@ -118,6 +118,39 @@ int main(void)
     expect_true(wt_generate_recommendations(&report, &list) == WT_OK, "gen power");
     expect_true(list_has_id(&list, "WT-POWER-001"), "power on AC id");
 
+    /* Phase 32: single slow boot must not fire WT-BOOT-001. */
+    wt_scan_report_init(&report);
+    report.boot_ok = 1;
+    report.boot.boot_duration_ms = 90000;
+    report.boot.last_boot_kind = WT_BOOT_KIND_COLD;
+    report.boot.history.count = 1;
+    report.boot.history.entries[0].boot_duration_ms = 90000;
+    report.boot.history.entries[0].kind = WT_BOOT_KIND_COLD;
+    report.boot.history.slow_count = 1;
+    report.boot.history.cold_count = 1;
+    report.boot.history.avg_duration_ms = 90000;
+    expect_true(wt_generate_recommendations(&report, &list) == WT_OK,
+                "gen boot single");
+    expect_true(!list_has_id(&list, "WT-BOOT-001"), "no single-boot WT-BOOT-001");
+
+    /* Two slow boots in history => WT-BOOT-001. */
+    wt_scan_report_init(&report);
+    report.boot_ok = 1;
+    report.boot.boot_duration_ms = 95000;
+    report.boot.last_boot_kind = WT_BOOT_KIND_COLD;
+    report.boot.history.count = 2;
+    report.boot.history.entries[0].boot_duration_ms = 95000;
+    report.boot.history.entries[0].kind = WT_BOOT_KIND_COLD;
+    report.boot.history.entries[1].boot_duration_ms = 80000;
+    report.boot.history.entries[1].kind = WT_BOOT_KIND_WARM;
+    report.boot.history.slow_count = 2;
+    report.boot.history.cold_count = 1;
+    report.boot.history.warm_count = 1;
+    report.boot.history.avg_duration_ms = 87500;
+    expect_true(wt_generate_recommendations(&report, &list) == WT_OK,
+                "gen boot pattern");
+    expect_true(list_has_id(&list, "WT-BOOT-001"), "sustained slow boots");
+
     if (g_failed) {
         fputs("recommendations tests failed\n", stderr);
         return 1;

@@ -242,11 +242,19 @@ void wt_print_performance_report_text(FILE *out,
     if (report->boot_ok && report->boot.boot_duration_ms > 0) {
         wchar_t boot_dur[32];
         wt_format_duration_ms(report->boot.boot_duration_ms, boot_dur, 32);
-        fwprintf(out, L"  Last boot: %ls", boot_dur);
+        fwprintf(out, L"  Last boot: %ls (%hs)", boot_dur,
+                 wt_boot_kind_name(report->boot.last_boot_kind));
         if (report->boot.is_degraded) {
             fputs(" (degradation detected)", out);
         }
         fputc('\n', out);
+        if (report->boot.history.count > 1) {
+            fprintf(out,
+                    "  Boot history: %zu samples, avg %.1f s (%u slow)\n",
+                    report->boot.history.count,
+                    report->boot.history.avg_duration_ms / 1000.0,
+                    report->boot.history.slow_count);
+        }
     }
 
     wt_report_bottlenecks(out, report, recs);

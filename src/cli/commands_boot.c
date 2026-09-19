@@ -36,9 +36,48 @@ static void wt_print_boot_text(const WT_BootReport *boot)
     if (boot->boot_duration_ms > 0) {
         wchar_t dur[32];
         wt_format_duration_ms(boot->boot_duration_ms, dur, ARRAYSIZE(dur));
-        printf("Last boot duration: %ls\n", dur);
+        printf("Last boot duration: %ls", dur);
+        if (boot->last_boot_kind != WT_BOOT_KIND_UNKNOWN) {
+            printf(" (%s)", wt_boot_kind_name(boot->last_boot_kind));
+        }
+        printf("\n");
     } else {
         printf("Last boot duration: (unavailable)\n");
+    }
+
+    if (boot->history.count > 0) {
+        printf("\nBoot history (%zu recent):\n", boot->history.count);
+        printf("  Average: %.1f s  |  Slow (>=60s): %u  |  Degraded: %u\n",
+               boot->history.avg_duration_ms / 1000.0,
+               boot->history.slow_count, boot->history.degraded_count);
+        printf("  Cold: %u", boot->history.cold_count);
+        if (boot->history.cold_count > 0) {
+            printf(" (avg %.1f s)", boot->history.avg_cold_ms / 1000.0);
+        }
+        printf("  |  Warm/hybrid: %u", boot->history.warm_count);
+        if (boot->history.warm_count > 0) {
+            printf(" (avg %.1f s)", boot->history.avg_warm_ms / 1000.0);
+        }
+        if (boot->history.unknown_count > 0) {
+            printf("  |  Unknown: %u", boot->history.unknown_count);
+        }
+        printf("\n");
+        for (size_t i = 0; i < boot->history.count && i < 5; ++i) {
+            const WT_BootHistoryEntry *e = &boot->history.entries[i];
+            wchar_t t[32];
+            wt_format_duration_ms(e->boot_duration_ms, t, ARRAYSIZE(t));
+            printf("  [%zu] %-5s %ls", i + 1, wt_boot_kind_name(e->kind), t);
+            if (e->boot_start_utc[0] != '\0') {
+                printf("  %s", e->boot_start_utc);
+            }
+            if (e->is_degraded) {
+                printf("  (degraded)");
+            }
+            printf("\n");
+        }
+        if (boot->history.count > 5) {
+            printf("  ... %zu more\n", boot->history.count - 5);
+        }
     }
 
     if (boot->main_path_ms > 0 || boot->post_boot_ms > 0) {

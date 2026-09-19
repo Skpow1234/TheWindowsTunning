@@ -506,43 +506,77 @@ static void wt_check_boot(const WT_ScanReport *rep, WT_RecommendationList *out)
     }
 
     const WT_BootReport *b = &rep->boot;
+    const WT_BootHistory *h = &b->history;
+    int sustained_slow = 0;
+    int conf = 70;
 
-    if (b->boot_duration_ms >= WT_BOOT_SLOW_MS) {
+    /* Phase 32: avoid single-boot noise. Prefer a pattern across history. */
+    if (h->count >= 2 && h->slow_count >= 2) {
+        sustained_slow = 1;
+        conf = 88;
+    } else if (h->count >= 3 && h->avg_duration_ms >= WT_BOOT_SLOW_MS) {
+        sustained_slow = 1;
+        conf = 82;
+    } else if (h->count >= 2 && b->boot_duration_ms >= WT_BOOT_SLOW_MS &&
+               h->avg_duration_ms >= WT_BOOT_SLOW_MS) {
+        sustained_slow = 1;
+        conf = 78;
+    }
+
+    if (sustained_slow) {
         WT_Recommendation *r = wt_rec_add(out);
         if (r != NULL) {
             wt_str_set(r->id, sizeof(r->id), "WT-BOOT-001");
             wt_str_set(r->title, sizeof(r->title),
-                       "Last boot took longer than expected");
+                       "Recent boots are slower than expected");
             snprintf(r->reason, sizeof(r->reason),
-                     "Windows reported a boot duration of %lu ms (%.1f s). "
-                     "Boot times above 60 s often indicate slow drivers, "
-                     "startup apps, or disk contention during login.",
-                     b->boot_duration_ms, b->boot_duration_ms / 1000.0);
+                     "Across %zu recent boots, average duration is %lu ms "
+                     "(%.1f s); %u of %zu were above 60 s. Last boot was "
+                     "%s (%.1f s). Sustained slow boots often indicate "
+                     "startup apps, drivers, or disk contention — not a "
+                     "one-off spike.",
+                     h->count, h->avg_duration_ms,
+                     h->avg_duration_ms / 1000.0, h->slow_count, h->count,
+                     wt_boot_kind_name(b->last_boot_kind),
+                     b->boot_duration_ms / 1000.0);
             wt_str_set(r->action, sizeof(r->action),
                        "Run 'wintune boot analyze' and review startup apps.");
-            r->severity = (b->boot_duration_ms >= 120000u)
-                              ? WT_SEVERITY_MEDIUM : WT_SEVERITY_LOW;
+            r->severity = (h->avg_duration_ms >= 120000u ||
+                           b->boot_duration_ms >= 120000u)
+                              ? WT_SEVERITY_MEDIUM
+                              : WT_SEVERITY_LOW;
             r->risk = WT_RISK_NONE;
-            r->confidence_percent = 85;
+            r->confidence_percent = conf;
         }
     }
 
     if (b->is_degraded) {
+        int deg_conf = 80;
+        if (h->count >= 2 && h->degraded_count >= 2) {
+            deg_conf = 88;
+        } else if (h->count <= 1) {
+            /* Single-boot degradation: still report, but lower confidence. */
+            deg_conf = 60;
+        }
         WT_Recommendation *r = wt_rec_add(out);
         if (r != NULL) {
             wt_str_set(r->id, sizeof(r->id), "WT-BOOT-002");
             wt_str_set(r->title, sizeof(r->title),
                        "Windows detected boot performance degradation");
             snprintf(r->reason, sizeof(r->reason),
-                     "The Diagnostic-Performance log reports boot degradation. "
-                     "%s",
+                     "The Diagnostic-Performance log reports boot degradation "
+                     "on the last %s boot.%s%s",
+                     wt_boot_kind_name(b->last_boot_kind),
+                     (h->degraded_count > 1)
+                         ? " Multiple recent boots were degraded."
+                         : " Confirm with another reboot before major changes.",
                      b->degradation_summary[0] != L'\0'
-                         ? "See 'wintune boot analyze' for component details."
-                         : "Review slow components with 'wintune boot analyze'.");
+                         ? " See 'wintune boot analyze' for component details."
+                         : "");
             wt_str_set(r->action, sizeof(r->action), "wintune boot analyze");
             r->severity = WT_SEVERITY_MEDIUM;
             r->risk = WT_RISK_NONE;
-            r->confidence_percent = 80;
+            r->confidence_percent = deg_conf;
         }
     }
 

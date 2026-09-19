@@ -15,6 +15,8 @@
 
 #define WT_BOOT_SLOW_MS       60000u
 #define WT_BOOT_APP_SLOW_MS   3000u
+/* Fast Startup / hybrid boots typically show tiny kernel init times. */
+#define WT_BOOT_WARM_KERNEL_MS 300u
 
 static const wchar_t *g_boot_query =
     L"<QueryList>"
@@ -42,6 +44,15 @@ const char *wt_boot_component_kind_name(WT_BootComponentKind kind)
     case WT_BOOT_COMP_APPLICATION: return "application";
     case WT_BOOT_COMP_DEGRADATION: return "degradation";
     default:                       return "unknown";
+    }
+}
+
+const char *wt_boot_kind_name(WT_BootKind kind)
+{
+    switch (kind) {
+    case WT_BOOT_KIND_COLD: return "cold";
+    case WT_BOOT_KIND_WARM: return "warm";
+    default:                return "unknown";
     }
 }
 
@@ -172,8 +183,11 @@ static void wt_boot_apply_event100(const wchar_t *xml, WT_BootReport *report)
         report->main_path_ms = main_path;
     }
 
-    unsigned long kernel = wt_evt_xml_get_ulong(xml, L"BootKernelInitTime");
-    if (kernel > 0) {
+    unsigned long kernel = 0;
+    wchar_t kbuf[32];
+    if (wt_evt_xml_get_wstring(xml, L"BootKernelInitTime", kbuf,
+                               ARRAYSIZE(kbuf))) {
+        kernel = wcstoul(kbuf, NULL, 10);
         report->kernel_init_ms = kernel;
     }
 
@@ -189,6 +203,133 @@ static void wt_boot_apply_event100(const wchar_t *xml, WT_BootReport *report)
 
     unsigned long degraded = wt_evt_xml_get_ulong(xml, L"BootIsDegradation");
     report->is_degraded = (degraded != 0);
+}
+
+/* Classify cold vs warm/hybrid from Event 100 timing.
+ * Fast Startup (hybrid) restores a hibernated kernel, so BootKernelInitTime
+ * is typically tiny. Full power-off cold boots show larger kernel init. */
+static WT_BootKind wt_boot_classify_kind(unsigned long kernel_init_ms,
+                                         int is_reboot_after_install,
+                                         int kernel_field_present)
+{
+    if (is_reboot_after_install) {
+        return WT_BOOT_KIND_COLD;
+    }
+    if (!kernel_field_present) {
+        return WT_BOOT_KIND_UNKNOWN;
+    }
+    if (kernel_init_ms <= WT_BOOT_WARM_KERNEL_MS) {
+        return WT_BOOT_KIND_WARM;
+    }
+    return WT_BOOT_KIND_COLD;
+}
+
+static void wt_boot_fill_history_entry(const wchar_t *xml,
+                                       WT_BootHistoryEntry *e)
+{
+    wchar_t start[64];
+    unsigned long degraded;
+    unsigned long after_install;
+    int kernel_present = 0;
+
+    memset(e, 0, sizeof(*e));
+
+    e->boot_duration_ms = wt_evt_xml_get_ulong(xml, L"BootTime");
+    if (e->boot_duration_ms == 0) {
+        e->boot_duration_ms = wt_evt_xml_get_ulong(xml, L"BootTimeMs");
+    }
+    e->main_path_ms = wt_evt_xml_get_ulong(xml, L"MainPathBootTime");
+    if (e->main_path_ms == 0) {
+        e->main_path_ms = wt_evt_xml_get_ulong(xml, L"BootMainPathLoadTime");
+    }
+    e->post_boot_ms = wt_evt_xml_get_ulong(xml, L"BootPostBootTime");
+    e->driver_init_ms = wt_evt_xml_get_ulong(xml, L"BootDriverInitTime");
+
+    /* Kernel init of 0 is meaningful (warm); distinguish from missing field. */
+    if (wt_evt_xml_get_wstring(xml, L"BootKernelInitTime", start,
+                               ARRAYSIZE(start))) {
+        kernel_present = 1;
+        e->kernel_init_ms = wcstoul(start, NULL, 10);
+    }
+
+    degraded = wt_evt_xml_get_ulong(xml, L"BootIsDegradation");
+    e->is_degraded = (degraded != 0);
+
+    after_install = wt_evt_xml_get_ulong(xml, L"BootIsRebootAfterInstall");
+    e->is_reboot_after_install = (after_install != 0);
+
+    if (wt_evt_xml_get_wstring(xml, L"BootStartTime", start, ARRAYSIZE(start))) {
+        /* Keep a compact UTC-ish prefix for display/JSON. */
+        size_t n = wcslen(start);
+        if (n >= sizeof(e->boot_start_utc)) {
+            n = sizeof(e->boot_start_utc) - 1;
+        }
+        for (size_t i = 0; i < n; ++i) {
+            e->boot_start_utc[i] = (char)start[i];
+        }
+        e->boot_start_utc[n] = '\0';
+        /* Trim fractional seconds / timezone noise for readability. */
+        for (char *p = e->boot_start_utc; *p; ++p) {
+            if (*p == '.') {
+                *p = '\0';
+                break;
+            }
+        }
+    }
+
+    e->kind = wt_boot_classify_kind(e->kernel_init_ms, e->is_reboot_after_install,
+                                    kernel_present);
+}
+
+static void wt_boot_finalize_history(WT_BootReport *report)
+{
+    WT_BootHistory *h = &report->history;
+    unsigned long long sum = 0;
+    unsigned long long sum_cold = 0;
+    unsigned long long sum_warm = 0;
+
+    h->cold_count = 0;
+    h->warm_count = 0;
+    h->unknown_count = 0;
+    h->slow_count = 0;
+    h->degraded_count = 0;
+    h->avg_duration_ms = 0;
+    h->avg_cold_ms = 0;
+    h->avg_warm_ms = 0;
+
+    for (size_t i = 0; i < h->count; ++i) {
+        const WT_BootHistoryEntry *e = &h->entries[i];
+        sum += e->boot_duration_ms;
+        if (e->boot_duration_ms >= WT_BOOT_SLOW_MS) {
+            h->slow_count++;
+        }
+        if (e->is_degraded) {
+            h->degraded_count++;
+        }
+        if (e->kind == WT_BOOT_KIND_COLD) {
+            h->cold_count++;
+            sum_cold += e->boot_duration_ms;
+        } else if (e->kind == WT_BOOT_KIND_WARM) {
+            h->warm_count++;
+            sum_warm += e->boot_duration_ms;
+        } else {
+            h->unknown_count++;
+        }
+    }
+
+    if (h->count > 0) {
+        h->avg_duration_ms = (unsigned long)(sum / h->count);
+    }
+    if (h->cold_count > 0) {
+        h->avg_cold_ms = (unsigned long)(sum_cold / h->cold_count);
+    }
+    if (h->warm_count > 0) {
+        h->avg_warm_ms = (unsigned long)(sum_warm / h->warm_count);
+    }
+
+    if (h->count > 0) {
+        report->last_boot_kind = h->entries[0].kind;
+    }
 }
 
 static void wt_boot_apply_degradation_event(unsigned event_id, const wchar_t *xml,
@@ -347,10 +488,19 @@ WT_Result wt_collect_boot_from_event_log(WT_BootReport *report)
             }
 
             unsigned event_id = wt_boot_event_id_from_xml(xml);
-            if (event_id == 100 && !saw_event100) {
-                wt_boot_apply_event100(xml, report);
-                saw_event100 = 1;
-            } else if (event_id == 101 || event_id == 103) {
+            if (event_id == 100) {
+                if (report->history.count < WT_MAX_BOOT_HISTORY) {
+                    wt_boot_fill_history_entry(
+                        xml, &report->history.entries[report->history.count]);
+                    report->history.count++;
+                }
+                if (!saw_event100) {
+                    wt_boot_apply_event100(xml, report);
+                    saw_event100 = 1;
+                }
+            } else if ((event_id == 101 || event_id == 103) &&
+                       report->history.count <= 1) {
+                /* Degradation events that follow the latest Event 100 only. */
                 wt_boot_apply_degradation_event(event_id, xml, report);
             }
 
@@ -358,7 +508,7 @@ WT_Result wt_collect_boot_from_event_log(WT_BootReport *report)
             EvtClose(events[i]);
         }
 
-        if (saw_event100 && report->component_count >= 16) {
+        if (report->history.count >= WT_MAX_BOOT_HISTORY) {
             break;
         }
     }
@@ -372,6 +522,8 @@ WT_Result wt_collect_boot_from_event_log(WT_BootReport *report)
         }
         return WT_ERR_WIN32;
     }
+
+    wt_boot_finalize_history(report);
 
     if (report->is_degraded && report->degradation_summary[0] == L'\0') {
         StringCchCopyW(report->degradation_summary,

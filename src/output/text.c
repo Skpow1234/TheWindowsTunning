@@ -237,11 +237,22 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
     if (report->boot_ok && report->boot.boot_duration_ms > 0) {
         wchar_t boot_dur[32];
         wt_format_duration_ms(report->boot.boot_duration_ms, boot_dur, 32);
-        fwprintf(out, L"Last boot: %ls", boot_dur);
+        fwprintf(out, L"Last boot: %ls (%hs)", boot_dur,
+                 wt_boot_kind_name(report->boot.last_boot_kind));
         if (report->boot.is_degraded) {
             fprintf(out, " (degradation detected)");
         }
         fprintf(out, "\n");
+        if (report->boot.history.count > 1) {
+            fprintf(out,
+                    "  History: %zu boots, avg %.1f s, %u slow, "
+                    "%u cold / %u warm\n",
+                    report->boot.history.count,
+                    report->boot.history.avg_duration_ms / 1000.0,
+                    report->boot.history.slow_count,
+                    report->boot.history.cold_count,
+                    report->boot.history.warm_count);
+        }
         if (report->boot.component_count > 0) {
             fprintf(out, "  Slow components: %zu (see 'wintune boot analyze')\n",
                     report->boot.component_count);
