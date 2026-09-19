@@ -120,6 +120,9 @@ wintune version
 
 ## Release channels
 
+See [`channels.md`](channels.md) for stable vs beta, artifact matrix, and
+installer / Chocolatey notes.
+
 | Channel | Tag example | `CHANNEL.txt` |
 |---------|-------------|---------------|
 | **stable** | `v0.1.2` | `stable` |
@@ -157,10 +160,13 @@ Requires [Inno Setup](https://jrsoftware.org/isinfo.php) (`iscc` on PATH):
 
 ```powershell
 .\scripts\package.ps1 -Config Release -Arch x64 -Version 0.2.0 -Configure -Build -Zip
-iscc /DMyAppVersion=0.2.0 /DMyAppArch=x64 scripts\installer\wintune.iss
+.\scripts\installer.ps1 -Version 0.2.0 -Arch x64 -SkipIfMissingInno
+# or: iscc /DMyAppVersion=0.2.0 /DMyAppArch=x64 scripts\installer\wintune.iss
 ```
 
-Not built by default CI. Prefer the portable ZIP for most users.
+Release CI installs Inno via Chocolatey when possible and uploads `*-setup.exe`
+alongside the portable ZIP. Prefer the portable ZIP for most users. Details:
+[`channels.md`](channels.md).
 
 ---
 

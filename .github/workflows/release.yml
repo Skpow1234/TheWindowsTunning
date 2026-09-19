@@ -101,9 +101,16 @@ jobs:
           path: |
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64.zip
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64.zip.sha256
+          if-no-files-found: error
+
+      - name: Upload x64 installer (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: wintune-x64-setup
+          path: |
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64-setup.exe
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64-setup.exe.sha256
-          if-no-files-found: error
+          if-no-files-found: ignore
 
   package-arm64:
     name: Package (ARM64)
@@ -142,6 +149,26 @@ jobs:
         env:
           WINTUNE_SIGN_ENABLED: ${{ vars.WINTUNE_SIGN_ENABLED }}
 
+      - name: Install Inno Setup (optional installer)
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning "choco install innosetup failed — installer step will soft-skip"
+          }
+
+      - name: Build ARM64 Setup.exe (optional)
+        shell: pwsh
+        env:
+          WINTUNE_SIGN_ENABLED: ${{ vars.WINTUNE_SIGN_ENABLED }}
+          WINTUNE_SIGN_PFX_BASE64: ${{ secrets.WINTUNE_SIGN_PFX_BASE64 }}
+          WINTUNE_SIGN_PASSWORD: ${{ secrets.WINTUNE_SIGN_PASSWORD }}
+          WINTUNE_SIGN_TIMESTAMP: ${{ vars.WINTUNE_SIGN_TIMESTAMP }}
+        run: |
+          .\scripts\installer.ps1 -Version ${{ needs.resolve-version.outputs.value }} `
+            -Arch arm64 -Channel ${{ needs.resolve-version.outputs.channel }} `
+            -SignIfConfigured -SkipIfMissingInno
+
       - name: Upload ARM64 artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -149,6 +176,16 @@ jobs:
           path: |
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-arm64.zip
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-arm64.zip.sha256
+          if-no-files-found: error
+
+      - name: Upload ARM64 installer (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: wintune-arm64-setup
+          path: |
+            dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-arm64-setup.exe
+            dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-arm64-setup.exe.sha256
+          if-no-files-found: ignore
 
   release:
     name: Publish GitHub Release
@@ -167,10 +204,15 @@ jobs:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', needs.resolve-version.outputs.value) || github.ref_name }}
           name: WinTune ${{ needs.resolve-version.outputs.value }}
           generate_release_notes: true
+          fail_on_unmatched_files: false
           files: |
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64.zip
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64.zip.sha256
+            dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64-setup.exe
+            dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64-setup.exe.sha256
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-arm64.zip
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-arm64.zip.sha256
+            dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-arm64-setup.exe
+            dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-arm64-setup.exe.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
