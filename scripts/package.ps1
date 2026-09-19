@@ -151,15 +151,15 @@ if (-not (Test-Path -LiteralPath $StagedExe)) {
 $SignScript = Join-Path $PSScriptRoot "sign.ps1"
 if ($SignIfConfigured) {
     Write-Host "Authenticode (SignIfConfigured) ..."
-    & $SignScript -Path $StagedExe -SignIfConfigured -Verify -AllowUnsigned
+    & $SignScript -Path $StagedExe -SignIfConfigured -Verify -AllowUnsigned -WriteSigningStatus
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 } elseif ($VerifySignature) {
     Write-Host "Authenticode verify ..."
-    & $SignScript -Path $StagedExe -Verify -AllowUnsigned
+    & $SignScript -Path $StagedExe -Verify -AllowUnsigned -WriteSigningStatus
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 } else {
     # Default portable builds remain unsigned; record status for operators.
-    & $SignScript -Path $StagedExe -Verify -AllowUnsigned | Out-Null
+    & $SignScript -Path $StagedExe -Verify -AllowUnsigned -WriteSigningStatus | Out-Null
 }
 
 Write-Host ""

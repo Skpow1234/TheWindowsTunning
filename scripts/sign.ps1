@@ -27,7 +27,8 @@ param(
     [string]$PfxPath = "",
     [string]$Password = "",
     [string]$TimestampUrl = "",
-    [string]$Description = "WinTune"
+    [string]$Description = "WinTune",
+    [switch]$WriteSigningStatus
 )
 
 $ErrorActionPreference = "Stop"
@@ -62,6 +63,7 @@ function Write-SigningStatusFile {
         [string]$ExePath,
         [string]$Status
     )
+    if (-not $WriteSigningStatus) { return }
     $dir = Split-Path -Parent $ExePath
     if ([string]::IsNullOrWhiteSpace($dir)) { return }
     $out = Join-Path $dir "SIGNING.txt"
