@@ -1,4 +1,5 @@
 #include "core/recommendations.h"
+#include "core/confidence.h"
 #include "core/impact_score.h"
 #include "system/power.h"
 #include "system/boot.h"
@@ -68,6 +69,17 @@ static void wt_str_set(char *dst, size_t cap, const char *src)
     strncpy_s(dst, cap, src, _TRUNCATE);
 }
 
+static void wt_rec_set_confidence(WT_Recommendation *r, const WT_ScanReport *rep,
+                                  WT_ConfMetric metric, int base)
+{
+    if (r == NULL) {
+        return;
+    }
+    r->confidence_percent = wt_confidence_compute(rep, metric, base);
+    wt_confidence_basis(rep, metric, r->confidence_basis,
+                        sizeof(r->confidence_basis));
+}
+
 static void wt_check_power(const WT_ScanReport *rep, WT_RecommendationList *out)
 {
     if (!rep->power_ok) {
@@ -93,7 +105,7 @@ static void wt_check_power(const WT_ScanReport *rep, WT_RecommendationList *out)
         r->risk = WT_RISK_LOW;
         r->requires_admin = 0;
         r->rollback_available = 1;
-        r->confidence_percent = 85;
+        wt_rec_set_confidence(r, rep, WT_CONF_SNAPSHOT, 85);
     } else if (p->on_ac == 0 &&
                (p->scheme == WT_POWER_HIGH_PERF || p->scheme == WT_POWER_ULTIMATE)) {
         WT_Recommendation *r = wt_rec_add(out);
@@ -110,7 +122,7 @@ static void wt_check_power(const WT_ScanReport *rep, WT_RecommendationList *out)
         r->risk = WT_RISK_LOW;
         r->requires_admin = 0;
         r->rollback_available = 1;
-        r->confidence_percent = 80;
+        wt_rec_set_confidence(r, rep, WT_CONF_SNAPSHOT, 80);
     }
 
     /* Phase 29: plan may intentionally limit processor max state. */
@@ -143,7 +155,7 @@ static void wt_check_power(const WT_ScanReport *rep, WT_RecommendationList *out)
             r->severity = WT_SEVERITY_INFO;
             r->risk = WT_RISK_LOW;
             r->requires_admin = 0;
-            r->confidence_percent = 80;
+            wt_rec_set_confidence(r, rep, WT_CONF_SNAPSHOT, 80);
         }
     }
 
@@ -177,19 +189,32 @@ static void wt_check_power(const WT_ScanReport *rep, WT_RecommendationList *out)
             r->risk = WT_RISK_NONE;
             r->requires_admin = 0;
             r->rollback_available = 0;
-            r->confidence_percent = 70;
+            wt_rec_set_confidence(r, rep, WT_CONF_SNAPSHOT, 70);
         }
     }
 }
 
 static void wt_check_memory(const WT_ScanReport *rep, WT_RecommendationList *out)
 {
+    int conf;
     if (!rep->memory_ok || rep->memory.total_physical_bytes == 0) {
         return;
     }
     double avail_pct = (double)rep->memory.available_physical_bytes * 100.0 /
                        (double)rep->memory.total_physical_bytes;
     if (avail_pct >= WT_MEM_AVAIL_MED_PCT) {
+        return;
+    }
+
+    /* Multi-sample: prefer sustained pressure when we have sample stats. */
+    if (rep->memory_ok_samples > 1u &&
+        rep->memory_pressure_samples * 2u <= rep->memory_ok_samples &&
+        avail_pct >= WT_MEM_AVAIL_HIGH_PCT) {
+        return;
+    }
+
+    conf = wt_confidence_compute(rep, WT_CONF_MEMORY, 90);
+    if (!wt_confidence_should_emit(rep, WT_CONF_MEMORY, conf)) {
         return;
     }
 
@@ -208,7 +233,7 @@ static void wt_check_memory(const WT_ScanReport *rep, WT_RecommendationList *out
     r->risk = WT_RISK_NONE;
     r->requires_admin = 0;
     r->rollback_available = 0;
-    r->confidence_percent = 90;
+    wt_rec_set_confidence(r, rep, WT_CONF_MEMORY, 90);
 }
 
 static const WT_DiskVolumeMetrics *wt_hottest_volume(const WT_ScanReport *rep)
@@ -255,31 +280,11 @@ static int wt_disk_sustained_hot(const WT_ScanReport *rep)
 static int wt_disk_active_confidence(const WT_ScanReport *rep, int base_single,
                                      int base_multi)
 {
-    unsigned int ok = rep->disk_active_ok_samples;
-    unsigned int hot = rep->disk_active_hot_samples;
-    int conf;
-
-    if (rep->scan_sample_count <= 1 || ok <= 1u) {
-        return base_single;
-    }
-
-    conf = base_multi;
-    if ((hot * 2u) > ok) {
-        conf += 5;
-    }
-    if (rep->disk_active_max_percent >= 0.0 &&
-        rep->disk_active_max_percent >= WT_DISK_ACTIVE_PCT &&
-        rep->disk_active_percent < WT_DISK_ACTIVE_PCT) {
-        /* Majority-hot but average cooled — slightly less confident. */
-        conf -= 5;
-    }
-    if (conf > 95) {
-        conf = 95;
-    }
-    if (conf < 50) {
-        conf = 50;
-    }
-    return conf;
+    int base = (rep->scan_sample_count <= 1 ||
+                rep->disk_active_ok_samples <= 1u)
+                   ? base_single
+                   : base_multi;
+    return wt_confidence_compute(rep, WT_CONF_DISK, base);
 }
 
 static void wt_disk_sample_suffix(const WT_ScanReport *rep, char *buf,
@@ -326,6 +331,13 @@ static void wt_check_disk(const WT_ScanReport *rep, WT_RecommendationList *out)
          hot->active_percent >= WT_DISK_ACTIVE_PCT);
 
     wt_disk_sample_suffix(rep, sample_note, sizeof(sample_note));
+
+    if (total_hot) {
+        int dconf = wt_disk_active_confidence(rep, 70, 80);
+        if (!wt_confidence_should_emit(rep, WT_CONF_DISK, dconf)) {
+            total_hot = 0; /* suppress noisy single-sample disk alarm */
+        }
+    }
 
     if (total_hot) {
         WT_Recommendation *r = wt_rec_add(out);
@@ -380,6 +392,8 @@ static void wt_check_disk(const WT_ScanReport *rep, WT_RecommendationList *out)
                 r->confidence_percent =
                     wt_disk_active_confidence(rep, 70, 80);
             }
+            wt_confidence_basis(rep, WT_CONF_DISK, r->confidence_basis,
+                                sizeof(r->confidence_basis));
             wt_str_set(r->action, sizeof(r->action),
                        "Review disk-heavy processes; let scans/indexing finish.");
             r->severity = WT_SEVERITY_MEDIUM;
@@ -481,22 +495,56 @@ static void wt_check_disk(const WT_ScanReport *rep, WT_RecommendationList *out)
 
 static void wt_check_cpu(const WT_ScanReport *rep, WT_RecommendationList *out)
 {
-    if (rep->cpu_ok && rep->cpu.available &&
-        rep->cpu.total_usage_percent >= WT_CPU_BUSY_PCT) {
-        WT_Recommendation *r = wt_rec_add(out);
-        if (r == NULL) return;
-        wt_str_set(r->id, sizeof(r->id), "WT-CPU-001");
-        wt_str_set(r->title, sizeof(r->title), "CPU usage is high");
+    int conf;
+    int sustained;
+
+    if (!rep->cpu_ok || !rep->cpu.available ||
+        rep->cpu.total_usage_percent < WT_CPU_BUSY_PCT) {
+        return;
+    }
+
+    /* Prefer sustained hot CPU across samples when available. */
+    sustained = 1;
+    if (rep->cpu_ok_samples > 1u) {
+        sustained = ((rep->cpu_hot_samples * 2u) > rep->cpu_ok_samples) ||
+                    (rep->cpu.total_usage_percent >= WT_CPU_BUSY_PCT);
+    }
+
+    if (!sustained) {
+        return;
+    }
+
+    conf = wt_confidence_compute(rep, WT_CONF_CPU, 75);
+    if (!wt_confidence_should_emit(rep, WT_CONF_CPU, conf)) {
+        return;
+    }
+
+    WT_Recommendation *r = wt_rec_add(out);
+    if (r == NULL) {
+        return;
+    }
+    wt_str_set(r->id, sizeof(r->id), "WT-CPU-001");
+    wt_str_set(r->title, sizeof(r->title), "CPU usage is high");
+    if (rep->cpu_ok_samples > 1u) {
+        snprintf(r->reason, sizeof(r->reason),
+                 "Total CPU usage averaged %.1f%% (peak %.1f%%; %u of %u "
+                 "samples above %.0f%%). This is normal under active workloads "
+                 "but worth reviewing if unexpected.",
+                 rep->cpu.total_usage_percent,
+                 rep->cpu_max_percent >= 0.0 ? rep->cpu_max_percent
+                                             : rep->cpu.total_usage_percent,
+                 rep->cpu_hot_samples, rep->cpu_ok_samples, WT_CPU_BUSY_PCT);
+    } else {
         snprintf(r->reason, sizeof(r->reason),
                  "Total CPU usage was %.1f%% during the sample. This is normal "
                  "under active workloads but worth reviewing if unexpected.",
                  rep->cpu.total_usage_percent);
-        wt_str_set(r->action, sizeof(r->action),
-                   "Review top CPU consumers with 'wintune top'.");
-        r->severity = WT_SEVERITY_INFO;
-        r->risk = WT_RISK_NONE;
-        r->confidence_percent = 75;
     }
+    wt_str_set(r->action, sizeof(r->action),
+               "Review top CPU consumers with 'wintune top'.");
+    r->severity = WT_SEVERITY_INFO;
+    r->risk = WT_RISK_NONE;
+    wt_rec_set_confidence(r, rep, WT_CONF_CPU, 75);
 }
 
 static void wt_check_boot(const WT_ScanReport *rep, WT_RecommendationList *out)
@@ -546,37 +594,47 @@ static void wt_check_boot(const WT_ScanReport *rep, WT_RecommendationList *out)
                               ? WT_SEVERITY_MEDIUM
                               : WT_SEVERITY_LOW;
             r->risk = WT_RISK_NONE;
-            r->confidence_percent = conf;
+            r->confidence_percent =
+                wt_confidence_compute(rep, WT_CONF_BOOT, conf);
+            wt_confidence_basis(rep, WT_CONF_BOOT, r->confidence_basis,
+                                sizeof(r->confidence_basis));
         }
     }
 
     if (b->is_degraded) {
-        int deg_conf = 80;
+        int deg_base = 80;
+        int deg_conf;
         if (h->count >= 2 && h->degraded_count >= 2) {
-            deg_conf = 88;
+            deg_base = 88;
         } else if (h->count <= 1) {
-            /* Single-boot degradation: still report, but lower confidence. */
-            deg_conf = 60;
+            deg_base = 60;
         }
-        WT_Recommendation *r = wt_rec_add(out);
-        if (r != NULL) {
-            wt_str_set(r->id, sizeof(r->id), "WT-BOOT-002");
-            wt_str_set(r->title, sizeof(r->title),
-                       "Windows detected boot performance degradation");
-            snprintf(r->reason, sizeof(r->reason),
-                     "The Diagnostic-Performance log reports boot degradation "
-                     "on the last %s boot.%s%s",
-                     wt_boot_kind_name(b->last_boot_kind),
-                     (h->degraded_count > 1)
-                         ? " Multiple recent boots were degraded."
-                         : " Confirm with another reboot before major changes.",
-                     b->degradation_summary[0] != L'\0'
-                         ? " See 'wintune boot analyze' for component details."
-                         : "");
-            wt_str_set(r->action, sizeof(r->action), "wintune boot analyze");
-            r->severity = WT_SEVERITY_MEDIUM;
-            r->risk = WT_RISK_NONE;
-            r->confidence_percent = deg_conf;
+        deg_conf = wt_confidence_compute(rep, WT_CONF_BOOT, deg_base);
+        if (wt_confidence_should_emit(rep, WT_CONF_BOOT, deg_conf)) {
+            WT_Recommendation *r = wt_rec_add(out);
+            if (r != NULL) {
+                wt_str_set(r->id, sizeof(r->id), "WT-BOOT-002");
+                wt_str_set(r->title, sizeof(r->title),
+                           "Windows detected boot performance degradation");
+                snprintf(r->reason, sizeof(r->reason),
+                         "The Diagnostic-Performance log reports boot "
+                         "degradation on the last %s boot.%s%s",
+                         wt_boot_kind_name(b->last_boot_kind),
+                         (h->degraded_count > 1)
+                             ? " Multiple recent boots were degraded."
+                             : " Confirm with another reboot before major "
+                               "changes.",
+                         b->degradation_summary[0] != L'\0'
+                             ? " See 'wintune boot analyze' for component "
+                               "details."
+                             : "");
+                wt_str_set(r->action, sizeof(r->action), "wintune boot analyze");
+                r->severity = WT_SEVERITY_MEDIUM;
+                r->risk = WT_RISK_NONE;
+                r->confidence_percent = deg_conf;
+                wt_confidence_basis(rep, WT_CONF_BOOT, r->confidence_basis,
+                                    sizeof(r->confidence_basis));
+            }
         }
     }
 
@@ -913,8 +971,13 @@ static void wt_check_task_actions(const WT_ScanReport *report,
 
 static void wt_check_gpu(const WT_ScanReport *rep, WT_RecommendationList *out)
 {
+    int conf;
     if (!rep->gpu_ok || !rep->gpu.utilization_ok ||
         rep->gpu.max_utilization_percent < 90.0) {
+        return;
+    }
+    conf = wt_confidence_compute(rep, WT_CONF_GPU, 70);
+    if (!wt_confidence_should_emit(rep, WT_CONF_GPU, conf)) {
         return;
     }
     WT_Recommendation *r = wt_rec_add(out);
@@ -954,7 +1017,7 @@ static void wt_check_gpu(const WT_ScanReport *rep, WT_RecommendationList *out)
                "Review GPU-heavy apps; wait for encodes/games to finish.");
     r->severity = WT_SEVERITY_INFO;
     r->risk = WT_RISK_NONE;
-    r->confidence_percent = (rep->scan_sample_count > 1) ? 75 : 65;
+    wt_rec_set_confidence(r, rep, WT_CONF_GPU, 70);
 }
 
 WT_Result wt_generate_recommendations(const WT_ScanReport *report,

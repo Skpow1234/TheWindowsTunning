@@ -31,6 +31,7 @@ typedef struct WT_Recommendation {
     int requires_admin;
     int rollback_available;
     int confidence_percent;
+    char confidence_basis[96]; /* Phase 35: why this confidence */
 } WT_Recommendation;
 
 #define WT_MAX_RECOMMENDATIONS 32
