@@ -4,6 +4,7 @@
 #   .\scripts\package.ps1
 #   .\scripts\package.ps1 -Config Release -Arch x64 -Zip
 #   .\scripts\package.ps1 -Config Release -Arch arm64 -BuildDir build-arm64 -Zip -Version 0.1.2
+#   .\scripts\package.ps1 ... -Zip -SignIfConfigured   # optional Authenticode (Phase 52)
 
 param(
     [ValidateSet("Debug", "Release")]
@@ -17,7 +18,9 @@ param(
     [switch]$Configure,
     [switch]$Build,
     [switch]$Zip,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$SignIfConfigured,
+    [switch]$VerifySignature
 )
 
 $ErrorActionPreference = "Stop"
@@ -139,9 +142,29 @@ Set-Content -LiteralPath (Join-Path $StageDir "CHANNEL.txt") -Value $Channel `
 Set-Content -LiteralPath (Join-Path $StageDir "ARCH.txt") -Value $Arch `
     -NoNewline -Encoding utf8
 
+$StagedExe = Join-Path $StageDir "wintune.exe"
+if (-not (Test-Path -LiteralPath $StagedExe)) {
+    Write-Error "Staged executable missing: $StagedExe"
+    exit 1
+}
+
+$SignScript = Join-Path $PSScriptRoot "sign.ps1"
+if ($SignIfConfigured) {
+    Write-Host "Authenticode (SignIfConfigured) ..."
+    & $SignScript -Path $StagedExe -SignIfConfigured -Verify -AllowUnsigned
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+} elseif ($VerifySignature) {
+    Write-Host "Authenticode verify ..."
+    & $SignScript -Path $StagedExe -Verify -AllowUnsigned
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+} else {
+    # Default portable builds remain unsigned; record status for operators.
+    & $SignScript -Path $StagedExe -Verify -AllowUnsigned | Out-Null
+}
+
 Write-Host ""
 Write-Host "Package directory: $StageDir"
-$versionOut = & $Exe version 2>&1 | Out-String
+$versionOut = & $StagedExe version 2>&1 | Out-String
 Write-Host $versionOut.TrimEnd()
 if ($versionOut -match "Arch:\s+(\S+)") {
     $reported = $Matches[1].ToLowerInvariant()

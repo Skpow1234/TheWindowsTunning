@@ -108,6 +108,22 @@ Recommendations:
 
 ---
 
+## Maintenance window correlation
+
+**APIs:** multi-sample scan (CPU/disk) + Tool Help process names + Task Scheduler
+COM (`ITaskService`) for known Defender / Windows Update / optimize task paths.
+
+Command: `wintune maintenance` / `--json`.
+
+**Collect:**
+- Whether Defender, WU, or optimization processes/tasks were active in-window.
+- Whether CPU or disk was hot during the same samples (overlap).
+- Advisory only — schedule Active hours / scans off work hours.
+
+Recommendations: `WT-MAINT-001` … `004`. Never disable Defender or Windows Update.
+
+---
+
 ## Disk
 
 **APIs / counters:**

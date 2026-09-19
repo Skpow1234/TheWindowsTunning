@@ -2,6 +2,7 @@
 # Usage:
 #   .\scripts\release.ps1 -Version 0.1.2
 #   .\scripts\release.ps1 -Version v0.1.2 -Config Release -Arch x64
+#   .\scripts\release.ps1 -Version 0.1.2 -SignIfConfigured
 
 param(
     [Parameter(Mandatory = $true)]
@@ -12,7 +13,8 @@ param(
     [string]$Arch = "all",
     [ValidateSet("stable", "beta")]
     [string]$Channel = "stable",
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$SignIfConfigured
 )
 
 $ErrorActionPreference = "Stop"
@@ -40,6 +42,7 @@ foreach ($a in $archList) {
         Zip       = $true
     }
     if ($SkipBuild) { $args.SkipBuild = $true }
+    if ($SignIfConfigured) { $args.SignIfConfigured = $true }
     & $PackageScript @args
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
