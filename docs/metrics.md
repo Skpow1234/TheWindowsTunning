@@ -12,7 +12,9 @@ failures are recorded rather than fatal.
 - Prefer multiple samples over a short interval rather than a single noisy read.
 - Default single-sample window: **500 ms** PDH interval for CPU and disk activity.
 - Multi-sample scans: `wintune scan --samples N --interval MS` averages CPU and
-  disk active time across samples (up to 32).
+  disk active time across samples (up to 32). Disk merge also tracks peak
+  active % and how many samples were “hot” (>= 90%) so `WT-DISK-001` requires
+  sustained pressure, not one spike (Phase 30).
 - Recommendations are never derived from one noisy sample when multi-sample
   mode is used.
 
@@ -153,8 +155,16 @@ Scan JSON `disk` object includes system totals (`read_bytes_per_sec`,
 `throughput_available`) and each volume may include the same activity fields
 (`active_percent`, throughput, queue) when LogicalDisk counters succeed.
 
+Multi-sample scans (Phase 30) also expose:
+- `active_percent` — average across successful samples
+- `active_max_percent` — peak sample
+- `active_ok_samples` / `active_hot_samples` — count of successful samples and
+  how many were >= 90% active
+
 Recommendations:
-- `WT-DISK-001` — system-wide active time high; cites hottest volume when known.
+- `WT-DISK-001` — sustained system-wide active pressure (average >= 90% or a
+  majority of samples hot); cites hottest volume and sample counts when known.
+  A single spike among otherwise cool samples does not fire.
 - `WT-DISK-002` — low free space on a volume.
 - `WT-DISK-003` — high throughput without extreme active %.
 - `WT-DISK-004` — one volume’s LogicalDisk active time is high while

@@ -47,7 +47,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 27 | Per-process network (ETW) | Done |
 | 28 | GPU / display readiness (read-only) | Done |
 | 29 | Thermal & power budget (read-only) | Done |
-| 30 | Multi-sample disk smoothing | Planned |
+| 30 | Multi-sample disk smoothing | Done |
 | 31 | Reboot-spanning boot ETW | Planned |
 | 32 | Cold vs warm boot profiles | Planned |
 | 33 | Driver / service start waterfall | Planned |
@@ -779,10 +779,17 @@ wintune top --json
 
 **Goal:** Reduce one-spike false alarms for disk active time.
 
+**Status:** Done
+
 **Deliver:**
 
 - Average / sustained disk active % across `scan --samples`.
-- Confidence-aware `WT-DISK-001` (ties to Phase 35).
+- Track `disk_active_ok_samples`, `disk_active_hot_samples` (>= 90%), and
+  `disk_active_max_percent` in the scan merge.
+- Confidence-aware `WT-DISK-001`: fires when average >= 90% **or** a strict
+  majority of successful samples were hot (not a single spike).
+- Reason text cites N of M samples and peak; JSON exposes the new fields;
+  text/report show avg / peak / hot counts.
 
 **Depends on:** Phases 4, 15.
 
