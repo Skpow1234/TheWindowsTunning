@@ -50,6 +50,11 @@ WT_PowerScheme wt_power_scheme_from_token(const wchar_t *token);
  * Read-only. */
 WT_Result wt_power_get_active_guid_string(wchar_t *out, size_t count);
 
+/* Writes the canonical GUID string for a standard scheme (does not activate).
+ * Read-only. Returns WT_ERR_INVALID_ARGUMENT for WT_POWER_UNKNOWN. */
+WT_Result wt_power_scheme_guid_string(WT_PowerScheme scheme,
+                                      wchar_t *out, size_t count);
+
 /* Switches the active power scheme to one of the standard schemes. This is a
  * mutating action: it changes the system's active power plan via the official
  * Power Management API. Returns WT_ERR_NOT_FOUND if the requested scheme does

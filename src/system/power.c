@@ -257,6 +257,19 @@ static WT_Result wt_guid_from_string(const wchar_t *s, GUID *out)
     return WT_OK;
 }
 
+WT_Result wt_power_scheme_guid_string(WT_PowerScheme scheme,
+                                      wchar_t *out, size_t count)
+{
+    if (out == NULL || count == 0) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+    const GUID *g = wt_power_scheme_guid(scheme);
+    if (g == NULL) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+    return wt_guid_to_string(g, out, count);
+}
+
 WT_Result wt_power_get_active_guid_string(wchar_t *out, size_t count)
 {
     if (out == NULL || count == 0) {

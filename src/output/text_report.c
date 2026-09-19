@@ -326,6 +326,9 @@ void wt_print_performance_report_text(FILE *out,
                     wt_severity_to_string(r->severity),
                     wt_risk_to_string(r->risk),
                     r->confidence_percent);
+            if (r->confidence_basis[0] != '\0') {
+                fprintf(out, "    Confidence basis: %s\n", r->confidence_basis);
+            }
             fprintf(out, "    Why: %s\n", r->reason);
             fprintf(out, "    Action: %s\n", r->action);
         }

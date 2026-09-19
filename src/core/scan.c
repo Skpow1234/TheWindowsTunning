@@ -58,14 +58,84 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
                 acc->disk_active_hot_samples = 1;
             }
         }
+        /* Phase 35: CPU / memory sample stats. */
+        acc->cpu_ok_samples = 0;
+        acc->cpu_hot_samples = 0;
+        acc->cpu_max_percent = -1.0;
+        if (sample->cpu_ok && sample->cpu.available) {
+            acc->cpu_ok_samples = 1;
+            acc->cpu_max_percent = sample->cpu.total_usage_percent;
+            if (sample->cpu.total_usage_percent >= 85.0) {
+                acc->cpu_hot_samples = 1;
+            }
+        }
+        acc->memory_ok_samples = 0;
+        acc->memory_pressure_samples = 0;
+        acc->memory_max_used_percent = -1.0;
+        if (sample->memory_ok) {
+            acc->memory_ok_samples = 1;
+            acc->memory_max_used_percent = sample->memory.used_percent;
+            if (sample->memory.total_physical_bytes > 0) {
+                double avail = (double)sample->memory.available_physical_bytes *
+                               100.0 /
+                               (double)sample->memory.total_physical_bytes;
+                if (avail < 20.0) {
+                    acc->memory_pressure_samples = 1;
+                }
+            }
+        }
         return;
     }
 
-    if (sample->cpu_ok && sample->cpu.available && acc->cpu_ok) {
-        acc->cpu.total_usage_percent =
-            ((acc->cpu.total_usage_percent * (double)sample_index) +
-             sample->cpu.total_usage_percent) /
-            (double)(sample_index + 1);
+    if (sample->cpu_ok && sample->cpu.available) {
+        if (acc->cpu_ok) {
+            acc->cpu.total_usage_percent =
+                ((acc->cpu.total_usage_percent * (double)acc->cpu_ok_samples) +
+                 sample->cpu.total_usage_percent) /
+                (double)(acc->cpu_ok_samples + 1);
+        } else {
+            acc->cpu.total_usage_percent = sample->cpu.total_usage_percent;
+            acc->cpu_ok = 1;
+            acc->cpu.available = 1;
+        }
+        acc->cpu_ok_samples++;
+        if (acc->cpu_max_percent < 0.0 ||
+            sample->cpu.total_usage_percent > acc->cpu_max_percent) {
+            acc->cpu_max_percent = sample->cpu.total_usage_percent;
+        }
+        if (sample->cpu.total_usage_percent >= 85.0) {
+            acc->cpu_hot_samples++;
+        }
+    }
+
+    if (sample->memory_ok) {
+        if (acc->memory_ok) {
+            /* Keep latest totals; average used_percent. */
+            acc->memory.used_percent =
+                ((acc->memory.used_percent * (double)acc->memory_ok_samples) +
+                 sample->memory.used_percent) /
+                (double)(acc->memory_ok_samples + 1);
+            acc->memory.available_physical_bytes =
+                sample->memory.available_physical_bytes;
+            acc->memory.used_physical_bytes = sample->memory.used_physical_bytes;
+            acc->memory.total_physical_bytes = sample->memory.total_physical_bytes;
+        } else {
+            acc->memory = sample->memory;
+            acc->memory_ok = 1;
+        }
+        acc->memory_ok_samples++;
+        if (acc->memory_max_used_percent < 0.0 ||
+            sample->memory.used_percent > acc->memory_max_used_percent) {
+            acc->memory_max_used_percent = sample->memory.used_percent;
+        }
+        if (sample->memory.total_physical_bytes > 0) {
+            double avail = (double)sample->memory.available_physical_bytes *
+                           100.0 /
+                           (double)sample->memory.total_physical_bytes;
+            if (avail < 20.0) {
+                acc->memory_pressure_samples++;
+            }
+        }
     }
 
     if (sample->disk_active_ok) {
@@ -156,6 +226,28 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
     report->os_ok = (wt_collect_os_info(&report->os) == WT_OK);
     report->memory_ok = (wt_collect_memory_metrics(&report->memory) == WT_OK);
     report->cpu_ok = (wt_collect_cpu_metrics(sample_ms, &report->cpu) == WT_OK);
+
+    report->cpu_ok_samples = (report->cpu_ok && report->cpu.available) ? 1u : 0u;
+    report->cpu_max_percent =
+        (report->cpu_ok && report->cpu.available) ? report->cpu.total_usage_percent
+                                                  : -1.0;
+    report->cpu_hot_samples =
+        (report->cpu_ok && report->cpu.available &&
+         report->cpu.total_usage_percent >= 85.0)
+            ? 1u
+            : 0u;
+    report->memory_ok_samples = report->memory_ok ? 1u : 0u;
+    report->memory_max_used_percent =
+        report->memory_ok ? report->memory.used_percent : -1.0;
+    report->memory_pressure_samples = 0;
+    if (report->memory_ok && report->memory.total_physical_bytes > 0) {
+        double avail = (double)report->memory.available_physical_bytes * 100.0 /
+                       (double)report->memory.total_physical_bytes;
+        if (avail < 20.0) {
+            report->memory_pressure_samples = 1;
+        }
+    }
+
     report->disk_ok =
         (wt_collect_disk_volumes(report->volumes, WT_MAX_VOLUMES,
                                  &report->volume_count) == WT_OK);

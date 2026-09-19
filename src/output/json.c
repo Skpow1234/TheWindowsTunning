@@ -325,6 +325,12 @@ static void wt_json_emit_recommendation(WT_JsonWriter *w,
     wt_json_key(w, "requires_admin");     wt_json_bool(w, r->requires_admin);
     wt_json_key(w, "rollback_available"); wt_json_bool(w, r->rollback_available);
     wt_json_key(w, "confidence_percent"); wt_json_uint64(w, (unsigned long long)r->confidence_percent);
+    wt_json_key(w, "confidence_basis");
+    if (r->confidence_basis[0] != '\0') {
+        wt_json_string(w, r->confidence_basis);
+    } else {
+        wt_json_null(w);
+    }
     wt_json_end_object(w);
 }
 
@@ -549,6 +555,27 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     wt_json_uint64(&w, report->scan_sample_count);
     wt_json_key(&w, "sample_interval_ms");
     wt_json_uint64(&w, report->scan_sample_interval_ms);
+    wt_json_key(&w, "confidence");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "cpu_ok_samples");
+    wt_json_uint64(&w, report->cpu_ok_samples);
+    wt_json_key(&w, "cpu_hot_samples");
+    wt_json_uint64(&w, report->cpu_hot_samples);
+    wt_json_key(&w, "cpu_max_percent");
+    if (report->cpu_max_percent >= 0.0) {
+        wt_json_double(&w, report->cpu_max_percent);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "memory_ok_samples");
+    wt_json_uint64(&w, report->memory_ok_samples);
+    wt_json_key(&w, "memory_pressure_samples");
+    wt_json_uint64(&w, report->memory_pressure_samples);
+    wt_json_key(&w, "disk_active_ok_samples");
+    wt_json_uint64(&w, report->disk_active_ok_samples);
+    wt_json_key(&w, "disk_active_hot_samples");
+    wt_json_uint64(&w, report->disk_active_hot_samples);
+    wt_json_end_object(&w);
     wt_json_end_object(&w);
 
     /* system */

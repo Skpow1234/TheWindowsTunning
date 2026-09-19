@@ -36,6 +36,14 @@ typedef struct WT_ScanReport {
     double disk_write_bytes_per_sec;
     double disk_avg_queue_length;     /* -1 if n/a */
 
+    /* Phase 35: multi-sample CPU / memory confidence inputs */
+    double cpu_max_percent;           /* -1 if n/a */
+    unsigned int cpu_ok_samples;
+    unsigned int cpu_hot_samples;     /* samples with CPU >= 85% */
+    double memory_max_used_percent;   /* -1 if n/a */
+    unsigned int memory_ok_samples;
+    unsigned int memory_pressure_samples; /* available < 20% */
+
     WT_ProcessInfo top_processes[WT_MAX_TOP_PROCESSES];
     size_t top_process_count;
 

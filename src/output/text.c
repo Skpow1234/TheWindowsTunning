@@ -25,6 +25,9 @@ static void wt_print_recommendations_to(FILE *out, const WT_RecommendationList *
                 r->confidence_percent,
                 r->requires_admin ? " | requires admin" : "",
                 r->rollback_available ? " | reversible" : "");
+        if (r->confidence_basis[0] != '\0') {
+            fprintf(out, "  Confidence basis: %s\n", r->confidence_basis);
+        }
         fprintf(out, "  Why: %s\n", r->reason);
         fprintf(out, "  Action: %s\n", r->action);
         if (i + 1 < recs->count) {
