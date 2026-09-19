@@ -1219,6 +1219,116 @@ void wt_print_storage_json(const WT_StorageHealthReport *report, FILE *out)
     wt_json_finish(&w);
 }
 
+void wt_print_reliability_json(const WT_ReliabilityReport *report, FILE *out)
+{
+    WT_JsonWriter w;
+    size_t i;
+
+    wt_json_init(&w, out);
+    wt_json_begin_object(&w);
+    wt_json_emit_envelope_head(&w, "reliability");
+    wt_json_key(&w, "reliability");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "lookback_days");
+    wt_json_uint64(&w, report != NULL ? (unsigned long long)report->lookback_days
+                                      : 0ull);
+    wt_json_key(&w, "events_ok");
+    wt_json_bool(&w, report != NULL && report->events_ok);
+    wt_json_key(&w, "dumps_ok");
+    wt_json_bool(&w, report != NULL && report->dumps_ok);
+    wt_json_key(&w, "kernel_power_count");
+    wt_json_uint64(&w, report != NULL ? report->kernel_power_count : 0ull);
+    wt_json_key(&w, "unexpected_shutdown_count");
+    wt_json_uint64(&w, report != NULL ? report->unexpected_shutdown_count : 0ull);
+    wt_json_key(&w, "bugcheck_count");
+    wt_json_uint64(&w, report != NULL ? report->bugcheck_count : 0ull);
+    wt_json_key(&w, "app_crash_count");
+    wt_json_uint64(&w, report != NULL ? report->app_crash_count : 0ull);
+    wt_json_key(&w, "app_hang_count");
+    wt_json_uint64(&w, report != NULL ? report->app_hang_count : 0ull);
+    wt_json_key(&w, "wer_report_count");
+    wt_json_uint64(&w, report != NULL ? report->wer_report_count : 0ull);
+    if (report != NULL && report->last_unexpected_utc[0] != '\0') {
+        wt_json_key(&w, "last_unexpected_utc");
+        wt_json_string(&w, report->last_unexpected_utc);
+    }
+    if (report != NULL && report->last_bugcheck_utc[0] != '\0') {
+        wt_json_key(&w, "last_bugcheck_utc");
+        wt_json_string(&w, report->last_bugcheck_utc);
+        wt_json_key(&w, "last_bugcheck_detail");
+        wt_json_wstring(&w, report->last_bugcheck_detail);
+    }
+    wt_json_key(&w, "recent_events");
+    wt_json_begin_array(&w);
+    if (report != NULL) {
+        for (i = 0; i < report->recent_count; ++i) {
+            const WT_ReliabilityEvent *e = &report->recent[i];
+            wt_json_begin_object(&w);
+            wt_json_key(&w, "kind");
+            wt_json_string(&w, wt_reliability_kind_name(e->kind));
+            wt_json_key(&w, "event_id");
+            wt_json_uint64(&w, e->event_id);
+            wt_json_key(&w, "time_utc");
+            wt_json_string(&w, e->time_utc);
+            wt_json_key(&w, "detail");
+            wt_json_wstring(&w, e->detail);
+            wt_json_end_object(&w);
+        }
+    }
+    wt_json_end_array(&w);
+    wt_json_key(&w, "crash_apps");
+    wt_json_begin_array(&w);
+    if (report != NULL) {
+        for (i = 0; i < report->crash_app_count; ++i) {
+            wt_json_begin_object(&w);
+            wt_json_key(&w, "name");
+            wt_json_wstring(&w, report->crash_apps[i].name);
+            wt_json_key(&w, "count");
+            wt_json_uint64(&w, report->crash_apps[i].count);
+            wt_json_end_object(&w);
+        }
+    }
+    wt_json_end_array(&w);
+    wt_json_key(&w, "dump_metadata");
+    wt_json_begin_array(&w);
+    if (report != NULL) {
+        for (i = 0; i < report->dump_meta_count; ++i) {
+            const WT_ReliabilityDumpMeta *d = &report->dumps[i];
+            wt_json_begin_object(&w);
+            wt_json_key(&w, "name");
+            wt_json_wstring(&w, d->name);
+            wt_json_key(&w, "location");
+            wt_json_wstring(&w, d->location);
+            wt_json_key(&w, "size_bytes");
+            wt_json_uint64(&w, d->size_bytes);
+            wt_json_key(&w, "modified_utc");
+            wt_json_string(&w, d->modified_utc);
+            wt_json_key(&w, "is_directory");
+            wt_json_bool(&w, d->is_directory);
+            wt_json_end_object(&w);
+        }
+    }
+    wt_json_end_array(&w);
+    if (report != NULL && report->note[0] != L'\0') {
+        wt_json_key(&w, "note");
+        wt_json_wstring(&w, report->note);
+    }
+    wt_json_end_object(&w);
+    wt_json_key(&w, "safety");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "read_only");
+    wt_json_bool(&w, 1);
+    wt_json_key(&w, "never_open_dump_contents");
+    wt_json_bool(&w, 1);
+    wt_json_key(&w, "never_upload_dumps");
+    wt_json_bool(&w, 1);
+    wt_json_key(&w, "never_claim_repair");
+    wt_json_bool(&w, 1);
+    wt_json_end_object(&w);
+    wt_json_end_object(&w);
+    wt_json_finish(&w);
+}
+
 void wt_print_processes_json(const WT_ProcessInfo *items, size_t count, FILE *out)
 {
     WT_JsonWriter w;
