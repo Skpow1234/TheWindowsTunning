@@ -21,16 +21,22 @@ commands with documented paths and identity.
 | Data directory | `%ProgramData%\WinTune\` |
 | Cached scan | `%ProgramData%\WinTune\last_scan.json` |
 
-Pipe ACL: **SYSTEM** and **Built-in Administrators** only. Remote pipe
-connections are rejected.
+Pipe ACL (Phase 45): **SYSTEM** and **Built-in Administrators** only. Remote
+pipe connections are rejected (`PIPE_REJECT_REMOTE_CLIENTS`). Optional
+`admin-only` mode adds an explicit deny for Everyone / Anonymous / Network.
+
+Config file (removed on uninstall):
+
+```text
+%ProgramData%\WinTune\pipe_acl.json
+```
 
 ## Commands
 
 ```bash
 wintune service status
-wintune service install --profile balanced   # admin required
-wintune service profile
-wintune service set-profile performance      # admin to write ProgramData
+wintune service install --profile balanced --pipe-acl admin-only
+wintune service set-pipe-acl admin
 wintune service uninstall                    # admin required
 wintune service start
 wintune service stop
@@ -70,6 +76,24 @@ wintune service status
 ```
 
 Profiles are never hidden: install/set/uninstall are explicit CLI actions.
+
+### Named-pipe ACL (Phase 45)
+
+| Mode | SDDL intent | When to use |
+| --- | --- | --- |
+| `admin` (default) | Allow SYSTEM + Builtin Administrators | Normal local admin IPC |
+| `admin-only` | Same allow list + protected DACL; deny Everyone / Anonymous / Network | Stricter local trust boundary |
+
+```powershell
+wintune service install --pipe-acl admin-only
+wintune service set-pipe-acl admin
+wintune service stop && wintune service start   # reload pipe instances
+wintune service status
+```
+
+Remote clients are always rejected. If a non-admin process calls `--via-service`
+and the ACL denies access, WinTune prints a clear access-denied message (not a
+generic “service not reachable”).
 
 ### Install options (admin)
 

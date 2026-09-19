@@ -324,6 +324,15 @@ wt_add_unit_test(test_service_policy
 )
 target_link_libraries(test_service_policy PRIVATE shell32)
 
+wt_add_unit_test(test_service_ipc_acl
+    tests/test_service_ipc_acl.c
+    src/platform/service_ipc.c
+    src/common/error.c
+    src/common/log.c
+    src/platform/paths.c
+)
+target_link_libraries(test_service_ipc_acl PRIVATE advapi32 shell32)
+
 wt_add_unit_test(test_doctor_plan
     tests/test_doctor_plan.c
     src/core/doctor_plan.c
@@ -422,6 +431,7 @@ add_custom_target(wintune_tests_all
         test_tui_compare
         test_tui_theme
         test_service_policy
+        test_service_ipc_acl
         test_doctor_plan
         test_uninstall
         test_apply_preview

@@ -62,7 +62,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 42 | Tray mini-doctor | Done |
 | 43 | Accessibility & SSH TUI | Done |
 | 44 | Service policy profiles | Done |
-| 45 | Named-pipe ACL hardening | Planned |
+| 45 | Named-pipe ACL hardening | Done |
 | 46 | Fleet report pack | Planned |
 | 47 | JSON schema v2 + compatibility | Planned |
 | 48 | Storage health (read-only) | Planned |
@@ -1096,10 +1096,14 @@ wintune service profile
 
 **Goal:** Tighten local IPC trust boundaries.
 
+**Status:** Done
+
 **Deliver:**
 
-- Documented ACLs; optional local-admin-only pipe mode.
-- Clear errors when ACL denies callers.
+- Documented ACLs: `admin` (default) and `admin-only` (stricter deny ACEs).
+- Config: `%ProgramData%\WinTune\pipe_acl.json` (removed on uninstall).
+- CLI: `service install --pipe-acl …`, `service set-pipe-acl …`, status shows mode.
+- Clear `WT_ERR_ACCESS_DENIED` + user message when ACL rejects callers.
 
 **Depends on:** Phase 11.
 

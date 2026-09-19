@@ -427,6 +427,7 @@ end-user release polish).
 | 42 | Tray mini-doctor | Done |
 | 43 | Accessibility & SSH TUI | Done |
 | 44 | Service policy profiles | Done |
+| 45 | Named-pipe ACL hardening | Done |
 | 41–53 | v3 depth (before/after compare, tray mini-doctor, fleet, …) | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
