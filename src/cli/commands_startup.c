@@ -5,6 +5,7 @@
 #include "system/services.h"
 #include "system/boot.h"
 #include "actions/safe_actions.h"
+#include "actions/delay_plan.h"
 #include "system/tasks.h"
 #include "output/json.h"
 #include "platform/service_client.h"
@@ -14,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <wchar.h>
+#include <windows.h>
 
 static FILE *wt_open_output(const WT_CliOptions *opts, FILE **opened)
 {
@@ -88,6 +90,7 @@ static void wt_print_startup_text(const WT_StartupEntry *entries, size_t count,
     }
     printf("\nDisable one with: wintune startup disable \"<id>\"\n");
     printf("Delay one with:  wintune startup delay \"<id>\" --seconds 30\n");
+    printf("Or plan delays:  wintune startup delay-plan [--include-tasks]\n");
 }
 
 static void wt_print_startup_tasks_text(const WT_ScheduledTask *tasks, size_t count,
@@ -207,6 +210,178 @@ static int wt_startup_delay(const WT_CliOptions *opts)
     return (r == WT_OK) ? 0 : 1;
 }
 
+static void wt_print_delay_plan_text(const WT_DelayPlan *plan)
+{
+    printf("WinTune Startup Delay Plan\n\n");
+    printf("Base delay: %lu s  |  Stagger: +%lu s per item  |  Cap: %u s\n",
+           plan->base_seconds, plan->stagger_seconds, WT_DELAY_PLAN_MAX_SEC);
+    printf("Recommended: %zu  |  Protected/excluded: %zu\n\n",
+           plan->recommended_count, plan->excluded_count);
+
+    if (plan->count == 0) {
+        printf("No delay candidates found. High-impact third-party startups "
+               "and (with --include-tasks) logon tasks appear here.\n");
+        printf("Microsoft security startups are never auto-delayed.\n");
+        return;
+    }
+
+    printf("%-8s %-7s %-6s %-5s %ls\n", "Action", "Kind", "Delay", "Score",
+           L"Id / Name");
+    for (size_t i = 0; i < plan->count; ++i) {
+        const WT_DelayPlanItem *it = &plan->items[i];
+        if (it->recommended) {
+            printf("%-8s %-7s %-6lu %-5d %ls\n", "DELAY",
+                   wt_delay_plan_kind_name(it->kind), it->delay_seconds,
+                   it->impact_score, it->id);
+            wprintf(L"         %ls (%hs)\n", it->name,
+                    wt_publisher_origin_name(it->origin));
+        } else {
+            printf("%-8s %-7s %-6s %-5d %ls\n", "SKIP",
+                   wt_delay_plan_kind_name(it->kind), "-", it->impact_score,
+                   it->id);
+            printf("         %s\n", it->exclude_reason);
+        }
+    }
+
+    printf("\nPreview only — nothing was changed.\n");
+    printf("Apply with:  wintune startup delay-plan apply");
+    if (plan->include_tasks) {
+        printf(" --include-tasks");
+    }
+    if (plan->base_seconds != WT_DELAY_PLAN_DEFAULT_BASE_SEC) {
+        printf(" --seconds %lu", plan->base_seconds);
+    }
+    printf("\n");
+    printf("Each item confirms unless you pass --yes. Rollback via "
+           "'wintune rollback list'.\n");
+}
+
+static void wt_print_delay_plan_json(const WT_DelayPlan *plan, FILE *out)
+{
+    fprintf(out, "{\"command\":\"startup delay-plan\",\"base_seconds\":%lu,"
+                 "\"stagger_seconds\":%lu,\"include_tasks\":%s,"
+                 "\"recommended_count\":%zu,\"excluded_count\":%zu,\"items\":[",
+            plan->base_seconds, plan->stagger_seconds,
+            plan->include_tasks ? "true" : "false", plan->recommended_count,
+            plan->excluded_count);
+    for (size_t i = 0; i < plan->count; ++i) {
+        const WT_DelayPlanItem *it = &plan->items[i];
+        char id_u8[512];
+        char name_u8[256];
+        WideCharToMultiByte(CP_UTF8, 0, it->id, -1, id_u8, (int)sizeof(id_u8),
+                            NULL, NULL);
+        WideCharToMultiByte(CP_UTF8, 0, it->name, -1, name_u8,
+                            (int)sizeof(name_u8), NULL, NULL);
+        if (i > 0) {
+            fputc(',', out);
+        }
+        fprintf(out,
+                "{\"kind\":\"%s\",\"recommended\":%s,\"excluded\":%s,"
+                "\"delay_seconds\":%lu,\"impact_score\":%d,\"origin\":\"%s\","
+                "\"id\":\"",
+                wt_delay_plan_kind_name(it->kind),
+                it->recommended ? "true" : "false",
+                it->excluded ? "true" : "false", it->delay_seconds,
+                it->impact_score, wt_publisher_origin_name(it->origin));
+        for (const char *p = id_u8; *p; ++p) {
+            if (*p == '\\' || *p == '"') {
+                fputc('\\', out);
+            }
+            fputc(*p, out);
+        }
+        fprintf(out, "\",\"name\":\"");
+        for (const char *p = name_u8; *p; ++p) {
+            if (*p == '\\' || *p == '"') {
+                fputc('\\', out);
+            }
+            fputc(*p, out);
+        }
+        fprintf(out, "\"");
+        if (it->excluded && it->exclude_reason[0] != '\0') {
+            fprintf(out, ",\"exclude_reason\":\"%s\"", it->exclude_reason);
+        }
+        fprintf(out, "}");
+    }
+    fprintf(out, "]}\n");
+}
+
+static int wt_startup_delay_plan(const WT_CliOptions *opts)
+{
+    unsigned long base = WT_DELAY_PLAN_DEFAULT_BASE_SEC;
+    int include_tasks = (opts != NULL && opts->include_tasks);
+    int do_apply = 0;
+    WT_DelayPlan plan;
+    WT_Result r;
+
+    if (opts != NULL && opts->delay_seconds > 0) {
+        base = (unsigned long)opts->delay_seconds;
+    }
+    if (opts != NULL && opts->arg2 != NULL &&
+        wcscmp(opts->arg2, L"apply") == 0) {
+        do_apply = 1;
+    }
+
+    r = wt_delay_plan_build(&plan, base, include_tasks);
+    if (r != WT_OK) {
+        fprintf(stderr, "wintune: delay-plan failed (%s)\n",
+                wt_result_to_string(r));
+        return 1;
+    }
+
+    if (!do_apply) {
+        if (opts != NULL && opts->json) {
+            FILE *opened = NULL;
+            FILE *out = wt_open_output(opts, &opened);
+            if (out == NULL) {
+                return 1;
+            }
+            wt_print_delay_plan_json(&plan, out);
+            if (opened != NULL) {
+                fclose(opened);
+            }
+        } else {
+            wt_print_delay_plan_text(&plan);
+        }
+        return 0;
+    }
+
+    /* Apply path: show plan first (unless JSON-only automation with --yes). */
+    if (opts == NULL || !opts->json) {
+        wt_print_delay_plan_text(&plan);
+        printf("\n");
+    }
+
+    {
+        char msg[512];
+        r = wt_delay_plan_apply(&plan, opts != NULL && opts->yes, msg,
+                                sizeof(msg));
+        if (opts != NULL && opts->json) {
+            FILE *opened = NULL;
+            FILE *out = wt_open_output(opts, &opened);
+            if (out == NULL) {
+                return 1;
+            }
+            fprintf(out,
+                    "{\"command\":\"startup delay-plan apply\",\"ok\":%s,"
+                    "\"message\":\"",
+                    (r == WT_OK) ? "true" : "false");
+            for (const char *p = msg; *p; ++p) {
+                if (*p == '\\' || *p == '"') {
+                    fputc('\\', out);
+                }
+                fputc(*p, out);
+            }
+            fprintf(out, "\"}\n");
+            if (opened != NULL) {
+                fclose(opened);
+            }
+        } else if (msg[0] != '\0') {
+            printf("%s\n", msg);
+        }
+    }
+    return (r == WT_OK) ? 0 : 1;
+}
+
 int wt_cmd_startup(const WT_CliOptions *opts)
 {
     if (opts != NULL && opts->arg1 != NULL) {
@@ -219,9 +394,12 @@ int wt_cmd_startup(const WT_CliOptions *opts)
         if (wcscmp(opts->arg1, L"delay") == 0) {
             return wt_startup_delay(opts);
         }
+        if (wcscmp(opts->arg1, L"delay-plan") == 0) {
+            return wt_startup_delay_plan(opts);
+        }
         fwprintf(stderr,
                  L"wintune: unknown startup subcommand '%ls'. "
-                 L"Use 'disable <id>', 'enable <id>', or 'delay <id>'.\n",
+                 L"Use 'disable', 'enable', 'delay', or 'delay-plan'.\n",
                  opts->arg1);
         return 2;
     }
