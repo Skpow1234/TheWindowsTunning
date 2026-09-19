@@ -30,6 +30,11 @@ Scan-time recommendations `WT-STARTUP-002` and `WT-TASK-001` include a full
 ## Examples
 
 ```powershell
+# Preview first (no mutation, no rollback file)
+wintune apply WT-POWER-001 --dry-run
+wintune apply WT-POWER-001 --dry-run --json
+wintune startup disable "HKCU\Run:OneDrive" --dry-run
+
 # Power (no extra arguments)
 wintune apply WT-POWER-001
 wintune apply WT-POWER-001 --yes
@@ -42,6 +47,30 @@ wintune apply WT-TASK-DELAY "task:\Vendor\App" --seconds 30
 # Over SSH (non-interactive — use --yes)
 ssh user@host "wintune apply WT-POWER-001 --yes"
 ```
+
+## Dry-run / preview
+
+`--dry-run` (alias `--preview`) shows the exact change and the rollback payload
+that **would** be written, without touching power schemes, registry, Task
+Scheduler, or rollback files.
+
+```powershell
+wintune apply WT-POWER-001 --dry-run
+wintune apply WT-STARTUP-DISABLE "HKCU\Run:App" --dry-run --json
+wintune startup disable "HKCU\Run:App" --dry-run
+wintune power --set performance --dry-run
+```
+
+Preview fields:
+
+| Field | Meaning |
+|-------|---------|
+| `would_mutate` | Whether apply would change the system |
+| `previous_value` / `new_value` | Same encoding as a rollback record |
+| `requires_admin` | Whether elevation would be needed |
+| `blocked` | Action would be refused (protected/advisory) |
+
+Dry-run always stays local (it does not require `--via-service`).
 
 List startup and task ids with `wintune startup` and `wintune startup --include-tasks`.
 

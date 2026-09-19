@@ -417,7 +417,9 @@ end-user release polish).
 | 32 | Cold vs warm boot profiles (history + gated WT-BOOT-001) | Done |
 | 33 | Driver / service start waterfall (`boot analyze`) | Done |
 | 34 | Startup delay orchestration (`startup delay-plan`) | Done |
-| 35–53 | v3 depth (confidence engine, apply UX, fleet, signing, …) | Planned |
+| 35 | Recommendation confidence engine | Done |
+| 36 | Apply preview / dry-run | Done |
+| 37–53 | v3 depth (service restart rollback, fleet, signing, …) | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.
@@ -444,6 +446,7 @@ exit non-zero.
   rollback, including custom plans.
 - `apply` uses a central action map for power, startup disable/delay, and task
   disable/delay. Memory/disk/CPU/boot/update recommendations remain advisory.
+  Use `--dry-run` to preview the change and rollback payload without mutating.
   See [`docs/apply.md`](docs/apply.md).
 - `startup enable/disable` toggles the Windows StartupApproved flag (the same
   one Task Manager uses) and never deletes the underlying Run value or startup

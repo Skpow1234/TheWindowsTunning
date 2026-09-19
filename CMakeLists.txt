@@ -82,11 +82,13 @@ add_executable(wintune
     src/actions/delay_plan.c
     src/actions/action_map.c
     src/actions/apply.c
+    src/actions/apply_preview.c
 
     # core
     src/core/report_model.c
     src/core/scan.c
     src/core/recommendations.c
+    src/core/confidence.c
     src/core/impact_score.c
 
     # output
@@ -289,9 +291,40 @@ target_link_libraries(test_delay_plan PRIVATE
     wintrust version crypt32 shell32
 )
 
+wt_add_unit_test(test_confidence
+    tests/test_confidence.c
+    src/core/confidence.c
+    src/core/report_model.c
+    src/common/error.c
+)
+
+wt_add_unit_test(test_apply_preview
+    tests/test_apply_preview.c
+    src/actions/apply_preview.c
+    src/actions/action_map.c
+    src/actions/safe_actions.c
+    src/actions/rollback.c
+    src/system/power.c
+    src/system/startup.c
+    src/system/tasks.c
+    src/system/file_identity.c
+    src/system/privilege.c
+    src/core/impact_score.c
+    src/common/error.c
+    src/common/log.c
+    src/platform/paths.c
+    src/platform/time.c
+    src/platform/console.c
+)
+target_link_libraries(test_apply_preview PRIVATE
+    powrprof advapi32 taskschd ole32 oleaut32 rpcrt4
+    wintrust version crypt32 shell32
+)
+
 wt_add_unit_test(test_recommendations
     tests/test_recommendations.c
     src/core/recommendations.c
+    src/core/confidence.c
     src/core/impact_score.c
     src/core/report_model.c
     src/common/error.c
@@ -329,6 +362,8 @@ add_custom_target(wintune_tests_all
         test_cli_parser
         test_json
         test_recommendations
+        test_confidence
+        test_apply_preview
         test_delay_plan
         test_file_identity
         test_impact_score

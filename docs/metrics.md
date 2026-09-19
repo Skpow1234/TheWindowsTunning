@@ -17,6 +17,10 @@ failures are recorded rather than fatal.
   sustained pressure, not one spike (Phase 30).
 - Recommendations are never derived from one noisy sample when multi-sample
   mode is used.
+- Phase 35 confidence engine scores recommendations from sample count, scan
+  window duration, and peak−average spread; mild single-sample CPU/GPU/disk
+  alarms are suppressed (extreme ≥ 95% still allowed with lower confidence).
+  Each recommendation includes `confidence_basis` in text/JSON.
 
 ### Phase 15 commands
 

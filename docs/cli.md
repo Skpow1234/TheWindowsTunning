@@ -57,6 +57,7 @@ wintune help        # usage
 --safe-terminal    # conservative rendering for SSH/unknown terminals
 --output <path>    # write output to a file
 --yes              # confirm mutating actions (dangerous actions still blocked)
+--dry-run          # preview apply/startup/power changes without mutating (--preview alias)
 --via-service      # route privileged work through WinTune service
 --log-file <path>  # append verbose/debug logs to a file (also stderr)
 ```
@@ -200,6 +201,7 @@ Actions (confirmation required unless `--yes`):
 
 ```bash
 wintune startup disable "<id>"
+wintune startup disable "<id>" --dry-run
 wintune startup enable "<id>"
 wintune startup delay "<id>" --seconds 30
 wintune startup delay-plan [--seconds 30] [--include-tasks]
@@ -394,6 +396,8 @@ Applies a specific recommendation by ID through the central action map
 
 ```bash
 wintune apply WT-POWER-001
+wintune apply WT-POWER-001 --dry-run
+wintune apply WT-POWER-001 --dry-run --json
 wintune apply WT-POWER-001 --yes
 wintune apply WT-STARTUP-DISABLE "HKCU\Run:App"
 wintune apply WT-STARTUP-DELAY "HKCU\Run:App" --seconds 30
@@ -401,6 +405,8 @@ wintune apply WT-TASK-DELAY "task:\Vendor\App" --seconds 30
 wintune apply WT-POWER-001 --via-service --yes
 ```
 
+- `--dry-run` / `--preview` shows the exact change and rollback payload without
+  mutating (see [`docs/apply.md`](apply.md)).
 - Power recommendations need only the id; startup/task applies require a
   **target id** as the second argument (see `wintune startup`).
 - Never applies all recommendations blindly.

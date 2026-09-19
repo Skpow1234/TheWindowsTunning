@@ -52,8 +52,8 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 32 | Cold vs warm boot profiles | Done |
 | 33 | Driver / service start waterfall | Done |
 | 34 | Startup delay orchestration | Done |
-| 35 | Recommendation confidence engine | Planned |
-| 36 | Apply preview / dry-run | Planned |
+| 35 | Recommendation confidence engine | Done |
+| 36 | Apply preview / dry-run | Done |
 | 37 | Service restart rollback metadata | Planned |
 | 38 | Guided doctor plan | Planned |
 | 39 | Uninstall advisor (read-only) | Planned |
@@ -895,10 +895,16 @@ wintune boot disarm
 
 **Goal:** Confidence from sample count, variance, and duration.
 
+**Status:** Done
+
 **Deliver:**
 
-- Suppress noisy single-sample recommendations.
-- Expose confidence clearly in text + JSON.
+- Shared `wt_confidence_compute` / `wt_confidence_should_emit` (sample count,
+  scan window duration, peak−avg spread).
+- Multi-sample CPU/memory/disk stats on the scan report for variance inputs.
+- Suppress noisy single-sample CPU/GPU/disk (unless extreme ≥ 95%).
+- Recommendations expose `confidence_percent` + `confidence_basis` in text/JSON;
+  scan JSON includes a `confidence` summary object.
 
 **Depends on:** Phase 4.
 
@@ -908,12 +914,21 @@ wintune boot disarm
 
 **Goal:** Show exact change + rollback payload before mutating.
 
+**Status:** Done
+
 **Deliver:**
 
 ```bash
 wintune apply WT-POWER-001 --dry-run
 wintune startup disable <id> --dry-run
+wintune power --set performance --dry-run
 ```
+
+- Shared `WT_ApplyPreview` + `wt_apply_preview_*` (read-only; never writes
+  system state or rollback files).
+- Text and JSON preview of `would_mutate`, previous/new values, admin need.
+- `--dry-run` / `--preview` on apply, startup enable/disable/delay, and
+  `power --set`.
 
 **Depends on:** Phase 16.
 
