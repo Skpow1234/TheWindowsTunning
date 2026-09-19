@@ -429,7 +429,8 @@ end-user release polish).
 | 44 | Service policy profiles | Done |
 | 45 | Named-pipe ACL hardening | Done |
 | 46 | Fleet report pack | Done |
-| 47–53 | JSON schema v2, storage health, signing, installer, … | Planned |
+| 47 | JSON schema v2 + compatibility | Done |
+| 48–53 | Storage health, WER, signing, installer, … | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.

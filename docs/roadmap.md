@@ -64,7 +64,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 44 | Service policy profiles | Done |
 | 45 | Named-pipe ACL hardening | Done |
 | 46 | Fleet report pack | Done |
-| 47 | JSON schema v2 + compatibility | Planned |
+| 47 | JSON schema v2 + compatibility | Done |
 | 48 | Storage health (read-only) | Planned |
 | 49 | Memory dump / WER signals | Planned |
 | 50 | Pagefile & commit charge depth | Planned |
@@ -1135,10 +1135,15 @@ wintune fleet pack --input reports/ --output fleet-pack.zip
 
 **Goal:** Evolve JSON without breaking automation casually.
 
+**Status:** Done
+
 **Deliver:**
 
-- Schema bump with changelog; deprecation window.
-- Compatibility notes in `docs/json-schema.md` / fleet docs.
+- Default `schema_version` **`2.0.0`** with `schema_compat_min` + `document`.
+- Changelog of additive fields since 1.0; deprecation window via
+  `--schema-version 1` (exact `1.0.0` envelope pin).
+- Compatibility notes in `docs/json-schema.md` / `docs/fleet.md` /
+  `docs/json-changelog.md`.
 
 **Depends on:** Phase 17.
 

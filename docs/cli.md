@@ -64,6 +64,7 @@ wintune help        # usage
 --plan             # doctor: sequenced guided plan (optional focus mode)
 --via-service      # route privileged work through WinTune service
 --log-file <path>  # append verbose/debug logs to a file (also stderr)
+--schema-version 1|2  # JSON schema major pin (default 2; see json-schema.md)
 ```
 
 JSON schema, exit codes, and fleet patterns: [`json-schema.md`](json-schema.md),

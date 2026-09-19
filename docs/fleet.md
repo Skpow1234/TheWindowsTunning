@@ -4,7 +4,12 @@ WinTune is **local-first**: no cloud account, no telemetry upload, no central
 server. Phase 17 adds stable exit codes, versioned JSON, and batch-friendly
 output for homelab and small IT teams running diagnostics over SSH.
 
-See also: [`json-schema.md`](json-schema.md), [`ssh.md`](ssh.md).
+**JSON schema:** default **`2.0.0`** (Phase 47) with `schema_compat_min` /
+`document` envelope fields. Pin legacy envelopes with
+`--schema-version 1` during the deprecation window. See
+[`json-schema.md`](json-schema.md) and [`json-changelog.md`](json-changelog.md).
+
+See also: [`ssh.md`](ssh.md).
 
 ---
 
