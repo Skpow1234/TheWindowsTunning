@@ -9,7 +9,8 @@
 
 /* Action type tokens stored in rollback records. Stable strings: do not
  * rename casually, older records on disk must keep working. */
-#define WT_ROLLBACK_TYPE_POWER L"power_plan_change"
+#define WT_ROLLBACK_TYPE_POWER           L"power_plan_change"
+#define WT_ROLLBACK_TYPE_SERVICE_RESTART L"service_restart"
 
 /* A single rollback record. Values are stored verbatim so an action can be
  * undone later. For a power plan change, previous_value/new_value hold the

@@ -443,5 +443,18 @@ WT_Result wt_rollback_apply(const wchar_t *id, int assume_yes)
         return sr;
     }
 
+    if (strcmp(type, "service_restart") == 0) {
+        /* Audit-only: a restart cannot restore the prior process instance.
+         * Never auto-stop/start again (would be an unintended restart loop). */
+        (void)assume_yes;
+        fprintf(stderr,
+                "Rollback record '%ls' is a service-restart audit note.\n"
+                "Pre-restart state: %s\n"
+                "A service restart cannot be undone to the prior PID/session. "
+                "No action was taken.\n",
+                id, prev[0] ? prev : "(unknown)");
+        return WT_ERR_NOT_SUPPORTED;
+    }
+
     return WT_ERR_NOT_SUPPORTED;
 }
