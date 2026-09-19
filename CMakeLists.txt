@@ -106,6 +106,7 @@ add_executable(wintune
     src/tui/tui_theme.c
     src/tui/tui_widgets.c
     src/tui/tui_input.c
+    src/tui/tui_compare.c
 
     # cli
     src/cli/cli.c

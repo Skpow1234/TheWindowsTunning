@@ -1028,6 +1028,7 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
     state.view = WT_VIEW_OVERVIEW;
     state.sort = WT_PROCESS_SORT_CPU;
     state.include_network = (opts != NULL && opts->include_network);
+    (void)wt_tui_compare_load_pair(&state.compare);
     if (opts != NULL && opts->sort != NULL) {
         if (_wcsicmp(opts->sort, L"memory") == 0 ||
             _wcsicmp(opts->sort, L"mem") == 0) {
@@ -1197,6 +1198,9 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
                 wt_tui_render_services(&screen, &theme, svcs, svc_count,
                                        svc_loaded, state.svc_scroll, max_rows);
                 break;
+            case WT_VIEW_COMPARE:
+                wt_tui_render_compare(&screen, &theme, &state.compare);
+                break;
             case WT_VIEW_HELP:
                 wt_tui_render_help(&screen, &theme);
                 break;
@@ -1221,7 +1225,7 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
                 wt_tui_screen_line(
                     &screen,
                     "%sKeys:%s q quit | Space pause | t sort | w net | j/k scroll | "
-                    "e export | o/d/m/n/g/p/s views | ? help",
+                    "e export | b/a mark | c compare | o/d/m/n/g/p/s views | ? help",
                     wt_tui_dim(&theme), wt_tui_reset(&theme));
             }
             wt_tui_screen_flush(&screen, stdout);
@@ -1399,6 +1403,47 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
                 redraw = 1;
                 break;
             }
+            case WT_TUI_KEY_MARK_BEFORE: {
+                wt_tui_compare_capture(
+                    &state.compare.before, cpu,
+                    mem_ok ? mem.used_percent : -1.0, disk, rx, tx, net_ok,
+                    mem_ok ? mem.used_physical_bytes : 0ULL,
+                    mem_ok ? mem.total_physical_bytes : 0ULL, mem_ok);
+                if (wt_tui_compare_save_slot(L"before",
+                                             &state.compare.before) == WT_OK) {
+                    wt_tui_set_status(&state,
+                                      "marked before (sample window)", 2500);
+                } else {
+                    wt_tui_set_status(&state,
+                                      "before marked in-session (save failed)",
+                                      3000);
+                }
+                redraw = 1;
+                break;
+            }
+            case WT_TUI_KEY_MARK_AFTER: {
+                wt_tui_compare_capture(
+                    &state.compare.after, cpu,
+                    mem_ok ? mem.used_percent : -1.0, disk, rx, tx, net_ok,
+                    mem_ok ? mem.used_physical_bytes : 0ULL,
+                    mem_ok ? mem.total_physical_bytes : 0ULL, mem_ok);
+                if (wt_tui_compare_save_slot(L"after",
+                                             &state.compare.after) == WT_OK) {
+                    wt_tui_set_status(&state,
+                                      "marked after (sample window)", 2500);
+                } else {
+                    wt_tui_set_status(&state,
+                                      "after marked in-session (save failed)",
+                                      3000);
+                }
+                redraw = 1;
+                break;
+            }
+            case WT_TUI_KEY_COMPARE:
+                state.view = (state.view == WT_VIEW_COMPARE) ? WT_VIEW_OVERVIEW
+                                                             : WT_VIEW_COMPARE;
+                redraw = 1;
+                break;
             default:
                 break;
             }
