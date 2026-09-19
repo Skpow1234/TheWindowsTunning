@@ -420,7 +420,8 @@ end-user release polish).
 | 35 | Recommendation confidence engine | Done |
 | 36 | Apply preview / dry-run | Done |
 | 37 | Service restart rollback metadata | Done |
-| 38–53 | v3 depth (guided doctor plan, fleet, signing, …) | Planned |
+| 38 | Guided doctor plan | Done |
+| 39–53 | v3 depth (uninstall advisor, TUI sparklines, fleet, …) | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.

@@ -55,7 +55,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 35 | Recommendation confidence engine | Done |
 | 36 | Apply preview / dry-run | Done |
 | 37 | Service restart rollback metadata | Done |
-| 38 | Guided doctor plan | Planned |
+| 38 | Guided doctor plan | Done |
 | 39 | Uninstall advisor (read-only) | Planned |
 | 40 | TUI historical sparklines | Planned |
 | 41 | TUI before/after compare | Planned |
@@ -960,9 +960,13 @@ wintune power --set performance --dry-run
 
 **Goal:** Ordered checklist of safe applies with dependencies.
 
+**Status:** Done
+
 **Deliver:**
 
-- `doctor` (or `doctor --plan`) prints a sequenced plan.
+- `doctor` appends a sequenced Guided Doctor Plan (APPLY vs REVIEW).
+- `doctor --plan` / `doctor --plan --json` for plan-focused output.
+- Dependencies: blockers → power → resources → startup → tasks.
 - User still confirms each mutating step (no blind apply-all).
 
 **Depends on:** Phases 4, 35, 36.

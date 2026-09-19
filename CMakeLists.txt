@@ -90,6 +90,7 @@ add_executable(wintune
     src/core/recommendations.c
     src/core/confidence.c
     src/core/impact_score.c
+    src/core/doctor_plan.c
 
     # output
     src/output/table.c
@@ -298,6 +299,13 @@ wt_add_unit_test(test_confidence
     src/common/error.c
 )
 
+wt_add_unit_test(test_doctor_plan
+    tests/test_doctor_plan.c
+    src/core/doctor_plan.c
+    src/core/report_model.c
+    src/common/error.c
+)
+
 wt_add_unit_test(test_apply_preview
     tests/test_apply_preview.c
     src/actions/apply_preview.c
@@ -366,6 +374,7 @@ add_custom_target(wintune_tests_all
         test_json
         test_recommendations
         test_confidence
+        test_doctor_plan
         test_apply_preview
         test_delay_plan
         test_file_identity

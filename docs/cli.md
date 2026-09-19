@@ -58,6 +58,7 @@ wintune help        # usage
 --output <path>    # write output to a file
 --yes              # confirm mutating actions (dangerous actions still blocked)
 --dry-run          # preview apply/startup/power changes without mutating (--preview alias)
+--plan             # doctor: sequenced guided plan (optional focus mode)
 --via-service      # route privileged work through WinTune service
 --log-file <path>  # append verbose/debug logs to a file (also stderr)
 ```
@@ -467,12 +468,19 @@ See [`docs/tray.md`](tray.md).
 
 ## `wintune doctor`
 
-Friendly all-in-one command, equivalent to `scan + recommend + report summary`.
+Friendly all-in-one: `scan + recommend + summary + guided plan`.
 It never applies changes and is the best command for normal users.
 
 ```bash
 wintune doctor
+wintune doctor --plan
+wintune doctor --plan --json
 ```
+
+`--plan` focuses output on the sequenced checklist (still runs a scan to build
+recommendations). Default `doctor` text mode appends the same guided plan after
+the scan summary. Each APPLY step still requires its own confirmation (or
+`--dry-run` preview) — there is no apply-all / fix-everything path.
 
 ---
 
