@@ -275,6 +275,7 @@ wt_add_unit_test(test_recommendations
     src/system/power.c
     src/system/boot.c
     src/system/boot_etw.c
+    src/system/services.c
     src/system/updates.c
     src/system/blockers.c
     src/system/startup.c

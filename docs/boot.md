@@ -124,6 +124,24 @@ how many boots were slow (≥ 60 s) or degraded.
 (at least two slow samples, or a multi-boot average ≥ 60 s). A single slow boot
 is shown in history but does not alarm.
 
+## Driver / service waterfall (Phase 33)
+
+For the latest boot, WinTune collects degradation events **101–110** and builds
+an **impact-ordered waterfall** (longest attributed delay first):
+
+| Event | Typical kind |
+| --- | --- |
+| 101 | application |
+| 102 / 109 | driver / device |
+| 103 | service |
+| 104–110 | other boot path delays |
+
+Each row may include start offset (ms after `BootStartTime`) and a matched
+Win32 service name/state/PID when the SCM list matches. See
+`wintune boot analyze` and JSON `boot.components` / `waterfall_total_ms`.
+
+## Integration with scan / doctor / report
+
 `wintune scan`, `wintune doctor`, and `wintune report` include a **boot**
 section when data is available (JSON key `"boot"`). Recommendations may include:
 

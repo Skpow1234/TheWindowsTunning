@@ -50,7 +50,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 30 | Multi-sample disk smoothing | Done |
 | 31 | Reboot-spanning boot ETW | Done |
 | 32 | Cold vs warm boot profiles | Done |
-| 33 | Driver / service start waterfall | Planned |
+| 33 | Driver / service start waterfall | Done |
 | 34 | Startup delay orchestration | Planned |
 | 35 | Recommendation confidence engine | Planned |
 | 36 | Apply preview / dry-run | Planned |
@@ -851,10 +851,18 @@ wintune boot disarm
 
 **Goal:** Ordered timeline of slow SCM/driver starts during boot.
 
+**Status:** Done
+
 **Deliver:**
 
-- Waterfall summary in `boot analyze`.
-- Correlate with services list when PIDs/names match.
+- Collect Diagnostics-Performance events **101–110** for the latest boot
+  (apps, drivers, services, devices, prefetch, policy, …).
+- Waterfall summary in `boot analyze`: sorted by impact (duration), with
+  optional start offset from `BootStartTime`, event id, and SCM match.
+- Correlate component names with Win32 services (`service_name`, state, PID)
+  when display/service names match.
+- JSON: `components[]` gains `event_id`, `start_offset_ms`, `service_*`;
+  `waterfall_total_ms` sums attributed delays.
 
 **Depends on:** Phases 10, 31.
 
