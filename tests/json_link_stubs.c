@@ -15,6 +15,12 @@ const char *wt_boot_component_kind_name(WT_BootComponentKind kind)
     return "unknown";
 }
 
+const char *wt_boot_kind_name(WT_BootKind kind)
+{
+    (void)kind;
+    return "unknown";
+}
+
 WT_Result wt_format_filetime_iso8601_utc(const FILETIME *ft, char *out,
                                          size_t out_cap)
 {

@@ -4,6 +4,7 @@
 #include "platform/time.h"
 #include "system/power.h"
 #include "system/file_identity.h"
+#include "tui/tui_compare.h"
 
 #include <stdio.h>
 
@@ -335,6 +336,17 @@ void wt_print_performance_report_text(FILE *out,
     }
 
     wt_report_risk_notes(out, recs);
+
+    {
+        WT_TuiComparePair pair;
+        if (wt_tui_compare_load_pair(&pair) == WT_OK &&
+            (pair.before.valid || pair.after.valid)) {
+            wt_report_section(out, "Before / after compare");
+            wt_tui_compare_print(out, &pair);
+            fputs("  (Captured in TUI with b/a; deltas are sample-window only.)\n",
+                  out);
+        }
+    }
 
     wt_report_section(out, "Further inspection");
     fputs("  Boot analysis:   wintune boot analyze\n", out);
