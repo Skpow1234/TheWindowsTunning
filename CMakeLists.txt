@@ -132,6 +132,7 @@ add_executable(wintune
     src/cli/commands_blockers.c
     src/cli/commands_storage.c
     src/cli/commands_reliability.c
+    src/cli/commands_memory.c
     src/cli/commands_apps.c
     src/cli/commands_services.c
     src/cli/commands_power.c

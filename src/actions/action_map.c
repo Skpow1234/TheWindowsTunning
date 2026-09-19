@@ -16,6 +16,8 @@ static const WT_ApplySpec g_apply_specs[] = {
 
 static const wchar_t *g_advisory_ids[] = {
     L"WT-MEMORY-001",
+    L"WT-MEMORY-002",
+    L"WT-MEMORY-003",
     L"WT-DISK-001",
     L"WT-DISK-002",
     L"WT-DISK-003",

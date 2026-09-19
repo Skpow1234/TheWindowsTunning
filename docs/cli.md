@@ -27,6 +27,7 @@ wintune updates      # Windows Update and reboot readiness
 wintune blockers     # apps/files blocking restart or updates
 wintune storage      # storage reliability / failure-prediction (read-only)
 wintune reliability  # recent crashes / unexpected shutdowns (WER signals)
+wintune memory       # physical RAM, commit charge, hard-fault rate
 wintune apps         # uninstall advisor (read-only; never uninstalls)
 wintune boot        # boot/login performance analysis (Phase 10)
 wintune service     # WinTune Windows Service install/manage (Phase 11)
@@ -310,6 +311,25 @@ wintune reliability --json
 - Never opens dump contents, never uploads dumps, never claims to repair
   corruption.
 - Advisories: `WT-RELIABILITY-001` … `003` (also via `recommend` / `doctor`).
+
+---
+
+## `wintune memory`
+
+Physical RAM, **commit charge** (limit / peak), and hard-fault rate
+(Phase 50). Explains memory pressure without a RAM cleaner.
+
+```bash
+wintune memory
+wintune memory --json
+wintune memory --interval 500   # PDH sample for Pages Input/sec
+```
+
+- Never empties working sets or “cleans RAM”.
+- Advisories: `WT-MEMORY-001` (low available), `WT-MEMORY-002` (high commit),
+  `WT-MEMORY-003` (high hard-fault rate under pressure).
+
+See [`metrics.md`](metrics.md).
 
 ---
 

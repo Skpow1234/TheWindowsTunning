@@ -22,6 +22,9 @@
  * deterministic and easy to justify. */
 #define WT_MEM_AVAIL_HIGH_PCT    10.0  /* < this available => HIGH severity */
 #define WT_MEM_AVAIL_MED_PCT     20.0  /* < this available => MEDIUM severity */
+#define WT_MEM_COMMIT_HIGH_PCT   90.0
+#define WT_MEM_COMMIT_MED_PCT    85.0
+#define WT_MEM_HARD_FAULT_HIGH   200.0 /* Pages Input/sec */
 #define WT_DISK_ACTIVE_PCT       90.0
 #define WT_DISK_FREE_HIGH_PCT    5.0
 #define WT_DISK_FREE_MED_PCT     10.0
@@ -231,13 +234,104 @@ static void wt_check_memory(const WT_ScanReport *rep, WT_RecommendationList *out
              "available memory can cause paging and slowdowns.",
              avail_pct, rep->memory.used_percent);
     wt_str_set(r->action, sizeof(r->action),
-               "Close or delay memory-heavy apps; review 'wintune top'.");
+               "Close or delay memory-heavy apps; review 'wintune top' / "
+               "'wintune memory'.");
     r->severity = (avail_pct < WT_MEM_AVAIL_HIGH_PCT)
                       ? WT_SEVERITY_HIGH : WT_SEVERITY_MEDIUM;
     r->risk = WT_RISK_NONE;
     r->requires_admin = 0;
     r->rollback_available = 0;
     wt_rec_set_confidence(r, rep, WT_CONF_MEMORY, 90);
+}
+
+static void wt_check_memory_commit(const WT_ScanReport *rep,
+                                   WT_RecommendationList *out)
+{
+    WT_Recommendation *r;
+    double commit_pct;
+
+    if (!rep->memory_ok || !rep->memory.commit_ok ||
+        rep->memory.commit_limit_bytes == 0) {
+        return;
+    }
+    commit_pct = rep->memory.commit_percent;
+    if (commit_pct < WT_MEM_COMMIT_MED_PCT) {
+        return;
+    }
+
+    r = wt_rec_add(out);
+    if (r == NULL) {
+        return;
+    }
+    wt_str_set(r->id, sizeof(r->id), "WT-MEMORY-002");
+    wt_str_set(r->title, sizeof(r->title), "Commit charge is high");
+    snprintf(r->reason, sizeof(r->reason),
+             "System commit charge is %.1f%% of the commit limit "
+             "(peak was also tracked). High commit means Windows may page "
+             "heavily; this is not fixed by \"RAM cleaners\".",
+             commit_pct);
+    wt_str_set(r->action, sizeof(r->action),
+               "Close or delay commit-heavy apps; review 'wintune memory' and "
+               "'wintune top'. Never empty working sets as an optimization.");
+    r->severity = (commit_pct >= WT_MEM_COMMIT_HIGH_PCT) ? WT_SEVERITY_HIGH
+                                                         : WT_SEVERITY_MEDIUM;
+    r->risk = WT_RISK_NONE;
+    r->requires_admin = 0;
+    r->rollback_available = 0;
+    r->confidence_percent = 88;
+    wt_str_set(r->confidence_basis, sizeof(r->confidence_basis),
+               "GetPerformanceInfo CommitTotal/Limit");
+}
+
+static void wt_check_memory_hard_faults(const WT_ScanReport *rep,
+                                        WT_RecommendationList *out)
+{
+    WT_Recommendation *r;
+    WT_MemoryMetrics m;
+    double avail_pct = 100.0;
+
+    if (!rep->memory_ok) {
+        return;
+    }
+    m = rep->memory;
+    if (!m.hard_faults_ok) {
+        /* One short Pages Input/sec sample for recommend/doctor. */
+        if (wt_collect_memory_metrics_ex(&m, 400) != WT_OK || !m.hard_faults_ok) {
+            return;
+        }
+    }
+    if (m.hard_faults_per_sec < WT_MEM_HARD_FAULT_HIGH) {
+        return;
+    }
+    /* Only warn when also under some memory/commit pressure. */
+    if (m.total_physical_bytes > 0) {
+        avail_pct = (double)m.available_physical_bytes * 100.0 /
+                    (double)m.total_physical_bytes;
+    }
+    if (m.commit_ok && m.commit_percent < WT_MEM_COMMIT_MED_PCT &&
+        avail_pct >= WT_MEM_AVAIL_MED_PCT) {
+        return;
+    }
+
+    r = wt_rec_add(out);
+    if (r == NULL) {
+        return;
+    }
+    wt_str_set(r->id, sizeof(r->id), "WT-MEMORY-003");
+    wt_str_set(r->title, sizeof(r->title), "High hard-fault (paging) rate");
+    snprintf(r->reason, sizeof(r->reason),
+             "Memory Pages Input/sec is about %.0f. Sustained hard faults mean "
+             "the disk is serving page traffic, which feels like system "
+             "slowness.",
+             m.hard_faults_per_sec);
+    wt_str_set(r->action, sizeof(r->action),
+               "Reduce concurrent heavy apps; wait for scans/backups to "
+               "finish. Run: wintune memory. WinTune never trims working sets.");
+    r->severity = WT_SEVERITY_MEDIUM;
+    r->risk = WT_RISK_NONE;
+    r->confidence_percent = 75;
+    wt_str_set(r->confidence_basis, sizeof(r->confidence_basis),
+               "PDH Memory\\Pages Input/sec");
 }
 
 static const WT_DiskVolumeMetrics *wt_hottest_volume(const WT_ScanReport *rep)
@@ -1249,6 +1343,8 @@ WT_Result wt_generate_recommendations(const WT_ScanReport *report,
 
     wt_check_power(report, out);
     wt_check_memory(report, out);
+    wt_check_memory_commit(report, out);
+    wt_check_memory_hard_faults(report, out);
     wt_check_disk(report, out);
     wt_check_storage_health(out);
     wt_check_reliability(out);

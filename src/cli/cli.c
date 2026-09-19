@@ -23,6 +23,7 @@
 #include "cli/commands_fleet.h"
 #include "cli/commands_storage.h"
 #include "cli/commands_reliability.h"
+#include "cli/commands_memory.h"
 #include "tui/tui.h"
 #include "common/error.h"
 #include "common/log.h"
@@ -57,6 +58,7 @@ static void wt_print_usage(void)
         "  blockers    Apps/files blocking restart or updates\n"
         "  storage     Storage reliability / failure-prediction (read-only)\n"
         "  reliability Recent crashes / unexpected shutdowns (WER signals)\n"
+        "  memory      Physical RAM, commit charge, hard-fault rate\n"
         "  apps        Uninstall advisor (read-only ARP / winget guidance)\n"
         "  boot        Boot/login performance analysis (ETW-backed)\n"
         "  service     Install/manage the WinTune background agent\n"
@@ -136,7 +138,8 @@ static int wt_command_is_known(const wchar_t *cmd)
 {
     static const wchar_t *known[] = {
         L"scan", L"top", L"tui", L"startup", L"tasks", L"updates", L"blockers",
-        L"storage", L"reliability", L"apps", L"boot", L"service", L"services",
+        L"storage", L"reliability", L"memory", L"apps", L"boot", L"service",
+        L"services",
         L"power",
         L"recommend", L"apply", L"report", L"doctor", L"tray", L"rollback",
         L"fleet"
@@ -293,6 +296,8 @@ int wt_cli_run(int argc, wchar_t **argv)
         rc = wt_cmd_storage(&opts);
     } else if (wcscmp(command, L"reliability") == 0) {
         rc = wt_cmd_reliability(&opts);
+    } else if (wcscmp(command, L"memory") == 0) {
+        rc = wt_cmd_memory(&opts);
     } else if (wcscmp(command, L"apps") == 0) {
         rc = wt_cmd_apps(&opts);
     } else if (wcscmp(command, L"services") == 0) {
