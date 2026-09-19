@@ -25,6 +25,7 @@ wintune startup     # startup entries and estimated impact
 wintune tasks        # scheduled tasks (logon/boot startup impact)
 wintune updates      # Windows Update and reboot readiness
 wintune blockers     # apps/files blocking restart or updates
+wintune storage      # storage reliability / failure-prediction (read-only)
 wintune apps         # uninstall advisor (read-only; never uninstalls)
 wintune boot        # boot/login performance analysis (Phase 10)
 wintune service     # WinTune Windows Service install/manage (Phase 11)
@@ -263,6 +264,38 @@ See [`updates.md`](updates.md). When reboot is pending, also run `wintune blocke
 ---
 
 ## `wintune blockers`
+
+Shows applications and files that may block restart or updates (Restart Manager).
+
+```bash
+wintune blockers
+wintune blockers --json
+```
+
+WinTune never closes applications automatically.
+
+---
+
+## `wintune storage`
+
+Read-only storage reliability summary using Windows failure-prediction IOCTLs
+(when the driver supports them). Identifies physical disks, bus/media hints,
+and predicted failure status.
+
+```bash
+wintune storage
+wintune storage --json
+```
+
+- Never wipes, formats, or “repairs” disks.
+- When failure is predicted: back up data and use the vendor’s diagnostic tool.
+- Advisory recommendation: `WT-DISK-005` (also surfaced by `recommend` / `doctor`).
+
+See [`metrics.md`](metrics.md) (Storage health).
+
+---
+
+## `wintune apps`
 
 Reports applications and file locks that may block restart or update completion
 (Phase 14). Read-only; never closes applications.
