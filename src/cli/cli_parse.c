@@ -50,6 +50,8 @@ int wt_cli_parse_argv(int argc, wchar_t **argv, WT_CliOptions *opts,
         else if (wcscmp(t, L"--no-unicode") == 0)   opts->no_unicode = 1;
         else if (wcscmp(t, L"--safe-terminal") == 0) opts->safe_terminal = 1;
         else if (wcscmp(t, L"--yes") == 0)          opts->yes = 1;
+        else if (wcscmp(t, L"--dry-run") == 0 || wcscmp(t, L"--preview") == 0)
+            opts->dry_run = 1;
         else if (wcscmp(t, L"--watch") == 0)        opts->watch = 1;
         else if (wcscmp(t, L"--no-recommendations") == 0) opts->no_recommendations = 1;
         else if (wcscmp(t, L"--include-services") == 0) opts->include_services = 1;

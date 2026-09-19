@@ -20,6 +20,7 @@ typedef struct WT_CliOptions {
     int no_unicode;
     int safe_terminal;
     int yes;
+    int dry_run;                /* --dry-run / --preview (Phase 36) */
     const wchar_t *output_path; /* NULL unless --output <path> was given */
 
     /* Command-specific options. */

@@ -75,6 +75,7 @@ static void wt_print_usage(void)
         "  --safe-terminal   Conservative rendering for SSH/unknown terminals\n"
         "  --output <path>   Write output to a file\n"
         "  --yes             Confirm mutating actions (dangerous actions stay blocked)\n"
+        "  --dry-run         Preview apply/startup changes without mutating\n"
         "  --via-service     Use the local WinTune service for privileged work\n"
         "  --json-errors     Emit machine-readable JSON on failure\n"
         "  --compact-json    Minified JSON (no pretty-printing)\n"

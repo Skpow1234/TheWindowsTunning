@@ -307,6 +307,9 @@ wt_add_unit_test(test_apply_preview
     src/system/power.c
     src/system/startup.c
     src/system/tasks.c
+    src/system/boot.c
+    src/system/boot_etw.c
+    src/system/services.c
     src/system/file_identity.c
     src/system/privilege.c
     src/core/impact_score.c
@@ -317,7 +320,7 @@ wt_add_unit_test(test_apply_preview
     src/platform/console.c
 )
 target_link_libraries(test_apply_preview PRIVATE
-    powrprof advapi32 taskschd ole32 oleaut32 rpcrt4
+    powrprof advapi32 wevtapi taskschd ole32 oleaut32 rpcrt4
     wintrust version crypt32 shell32
 )
 
