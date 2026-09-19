@@ -500,6 +500,7 @@ exit non-zero.
 - [`docs/metrics.md`](docs/metrics.md) — what is measured and how
 - [`docs/ci.md`](docs/ci.md) — GitHub Actions, lint, and releases
 - [`docs/packaging.md`](docs/packaging.md) — portable ZIP, PATH helper, optional installer
+- [`docs/channels.md`](docs/channels.md) — stable/beta channels and release artifacts
 - [`docs/release-checklist.md`](docs/release-checklist.md) — pre-tag release checklist
 - [`docs/signing.md`](docs/signing.md) — optional Authenticode guidance
 - [`docs/winget.md`](docs/winget.md) — draft winget package (optional publish)
