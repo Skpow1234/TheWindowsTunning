@@ -25,10 +25,14 @@ wintune tasks delay "<id>" --seconds 30
 wintune startup --include-tasks
 wintune startup --include-tasks --measured
 wintune startup delay "<id>" --seconds 30
+wintune startup delay-plan --include-tasks
+wintune startup delay-plan apply --include-tasks
 ```
 
 `startup --include-tasks` shows logon/boot scheduled tasks below the registry
 and Startup-folder entries. Use `wintune tasks list` for the full table.
+`delay-plan` (Phase 34) builds a staggered delay preview and can apply it
+safely with per-item confirmation.
 
 ## Task ids
 

@@ -202,7 +202,14 @@ Actions (confirmation required unless `--yes`):
 wintune startup disable "<id>"
 wintune startup enable "<id>"
 wintune startup delay "<id>" --seconds 30
+wintune startup delay-plan [--seconds 30] [--include-tasks]
+wintune startup delay-plan apply [--yes] [--seconds 30] [--include-tasks]
 ```
+
+`delay-plan` previews staggered delays for high-impact third-party startups
+(and optional logon tasks). Microsoft security / health items are listed as
+SKIP and never auto-delayed. Apply confirms per item (or use `--yes`); each
+change writes a rollback record.
 
 Microsoft and security startup items are not disabled by default.
 

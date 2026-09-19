@@ -79,6 +79,7 @@ add_executable(wintune
     # actions
     src/actions/rollback.c
     src/actions/safe_actions.c
+    src/actions/delay_plan.c
     src/actions/action_map.c
     src/actions/apply.c
 
@@ -263,6 +264,31 @@ wt_add_unit_test(test_file_identity
 )
 target_link_libraries(test_file_identity PRIVATE wintrust version crypt32)
 
+wt_add_unit_test(test_delay_plan
+    tests/test_delay_plan.c
+    src/actions/delay_plan.c
+    src/actions/safe_actions.c
+    src/actions/rollback.c
+    src/system/startup.c
+    src/system/tasks.c
+    src/system/boot.c
+    src/system/boot_etw.c
+    src/system/services.c
+    src/system/file_identity.c
+    src/system/privilege.c
+    src/system/power.c
+    src/core/impact_score.c
+    src/common/error.c
+    src/common/log.c
+    src/platform/paths.c
+    src/platform/time.c
+    src/platform/console.c
+)
+target_link_libraries(test_delay_plan PRIVATE
+    powrprof advapi32 wevtapi taskschd ole32 oleaut32 rpcrt4
+    wintrust version crypt32 shell32
+)
+
 wt_add_unit_test(test_recommendations
     tests/test_recommendations.c
     src/core/recommendations.c
@@ -303,6 +329,7 @@ add_custom_target(wintune_tests_all
         test_cli_parser
         test_json
         test_recommendations
+        test_delay_plan
         test_file_identity
         test_impact_score
 )

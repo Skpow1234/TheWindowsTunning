@@ -51,7 +51,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 31 | Reboot-spanning boot ETW | Done |
 | 32 | Cold vs warm boot profiles | Done |
 | 33 | Driver / service start waterfall | Done |
-| 34 | Startup delay orchestration | Planned |
+| 34 | Startup delay orchestration | Done |
 | 35 | Recommendation confidence engine | Planned |
 | 36 | Apply preview / dry-run | Planned |
 | 37 | Service restart rollback metadata | Planned |
@@ -872,10 +872,16 @@ wintune boot disarm
 
 **Goal:** Safe staggered delays for user-approved items.
 
+**Status:** Done
+
 **Deliver:**
 
-- Preview of a delay plan; per-item confirmation; rollback.
-- CLI support building on existing `startup delay` / `tasks delay`.
+- `wintune startup delay-plan` — preview staggered delays (base + per-item
+  stagger); shows protected Microsoft security items as SKIP.
+- `wintune startup delay-plan apply` — per-item confirmation (or `--yes`);
+  uses existing `startup delay` / `tasks delay` + rollback records.
+- `--include-tasks` adds logon/boot third-party tasks; `--seconds N` sets base.
+- Never blind delay-all; never auto-delay Microsoft security / health startups.
 
 **Depends on:** Phases 12, 16.
 

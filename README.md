@@ -416,7 +416,8 @@ end-user release polish).
 | 31 | Reboot-spanning boot ETW (`boot arm` / `status` / `disarm`) | Done |
 | 32 | Cold vs warm boot profiles (history + gated WT-BOOT-001) | Done |
 | 33 | Driver / service start waterfall (`boot analyze`) | Done |
-| 34–53 | v3 depth (startup delay UX, apply UX, fleet, signing, …) | Planned |
+| 34 | Startup delay orchestration (`startup delay-plan`) | Done |
+| 35–53 | v3 depth (confidence engine, apply UX, fleet, signing, …) | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.
