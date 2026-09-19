@@ -49,7 +49,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 29 | Thermal & power budget (read-only) | Done |
 | 30 | Multi-sample disk smoothing | Done |
 | 31 | Reboot-spanning boot ETW | Done |
-| 32 | Cold vs warm boot profiles | Planned |
+| 32 | Cold vs warm boot profiles | Done |
 | 33 | Driver / service start waterfall | Planned |
 | 34 | Startup delay orchestration | Planned |
 | 35 | Recommendation confidence engine | Planned |
@@ -831,10 +831,17 @@ wintune boot disarm
 
 **Goal:** Classify recent boots and recommend from patterns.
 
+**Status:** Done
+
 **Deliver:**
 
-- Cold vs warm labels; multi-boot history summary.
-- Avoid single-boot noise in boot recommendations.
+- Cold vs warm/hybrid labels from Event 100 `BootKernelInitTime` (Fast Startup
+  typically shows tiny kernel init; full power-off cold boots do not).
+- Multi-boot history (up to 8 Event 100 samples): averages, slow/degraded
+  counts, per-entry kind + timestamp.
+- `WT-BOOT-001` requires a sustained pattern (≥2 slow boots or multi-sample
+  average ≥ 60 s) — a single slow boot no longer alarms.
+- Surfaced in `boot analyze`, scan/doctor text, and JSON `boot.history`.
 
 **Depends on:** Phase 31 (or Phase 10 event history where enough).
 

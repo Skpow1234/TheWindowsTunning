@@ -107,7 +107,22 @@ Lists startup entries and correlates them with measured boot/login component
 delays when names match. Impact labels upgrade from heuristics to measured
 values when data is available.
 
-## Integration with scan / doctor / report
+## Cold vs warm profiles (Phase 32)
+
+`boot analyze` reads up to **8** recent Event 100 samples and classifies each:
+
+| Kind | Heuristic |
+| --- | --- |
+| `cold` | `BootKernelInitTime` > 300 ms, or reboot-after-install |
+| `warm` | `BootKernelInitTime` ≤ 300 ms (typical Fast Startup / hybrid) |
+| `unknown` | Kernel init field missing |
+
+History summary includes average duration, cold/warm counts and averages, and
+how many boots were slow (≥ 60 s) or degraded.
+
+**Recommendations:** `WT-BOOT-001` fires only when slow boots form a **pattern**
+(at least two slow samples, or a multi-boot average ≥ 60 s). A single slow boot
+is shown in history but does not alarm.
 
 `wintune scan`, `wintune doctor`, and `wintune report` include a **boot**
 section when data is available (JSON key `"boot"`). Recommendations may include:

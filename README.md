@@ -413,9 +413,9 @@ end-user release polish).
 | 27 | Per-process network (TCP EStats) | Done |
 | 28 | GPU / display readiness (read-only) | Done |
 | 29 | Thermal & power budget (read-only) | Done |
-| 30 | Multi-sample disk smoothing | Done |
 | 31 | Reboot-spanning boot ETW (`boot arm` / `status` / `disarm`) | Done |
-| 32–53 | v3 depth (boot profiles, apply UX, fleet, signing, …) | Planned |
+| 32 | Cold vs warm boot profiles (history + gated WT-BOOT-001) | Done |
+| 33–53 | v3 depth (driver waterfall, apply UX, fleet, signing, …) | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.
