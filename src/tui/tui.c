@@ -3,6 +3,7 @@
 #include "tui/tui_theme.h"
 #include "tui/tui_widgets.h"
 #include "tui/tui_input.h"
+#include "tui/tui_compare.h"
 
 #include "cli/cli.h"
 #include "platform/console.h"
@@ -42,6 +43,7 @@ typedef enum WT_TuiView {
     WT_VIEW_GPU,
     WT_VIEW_POWER,
     WT_VIEW_SERVICES,
+    WT_VIEW_COMPARE,
     WT_VIEW_HELP
 } WT_TuiView;
 
@@ -67,6 +69,7 @@ typedef struct WT_TuiState {
     char status[160];
     ULONGLONG status_until_ms;
     WT_TuiHistory hist;
+    WT_TuiComparePair compare;
 } WT_TuiState;
 
 static volatile int g_tui_stop = 0;
@@ -678,13 +681,101 @@ static void wt_tui_render_help(WT_TuiScreen *s, const WT_TuiTheme *t)
     wt_tui_screen_line(s, "  PgUp/PgDn  Page scroll");
     wt_tui_screen_line(s, "  Space Pause / resume refresh");
     wt_tui_screen_line(s, "  e     Export snapshot to Documents\\WinTune\\Reports");
+    wt_tui_screen_line(s, "  b/a   Mark before / after snapshot (for compare)");
+    wt_tui_screen_line(s, "  c     Before/after compare view (measured deltas only)");
     wt_tui_screen_line(s, "  r     Refresh now");
     wt_tui_screen_line(s, "  ?/h   Toggle this help");
     wt_tui_screen_line(s, "  q     Quit (Esc / Ctrl+C also quit)");
     wt_tui_screen_line(s, "");
     wt_tui_empty_line(s, t, "Minimum size: 48x14. Themes: --theme default|compact|mono");
     wt_tui_empty_line(s, t, "Net columns: TCP Extended Stats only; UDP not included.");
+    wt_tui_empty_line(s, t, "Compare deltas are sample differences — not lasting gains.");
     wt_tui_empty_line(s, t, "WinTune never changes the system from the dashboard.");
+}
+
+static void wt_tui_render_compare(WT_TuiScreen *s, const WT_TuiTheme *t,
+                                  const WT_TuiComparePair *pair)
+{
+    char bcpu[16] = "(none)", acpu[16] = "(none)";
+    char bmem[16] = "(none)", amem[16] = "(none)";
+    char bdsk[16] = "(none)", adsk[16] = "(none)";
+
+    if (pair == NULL || (!pair->before.valid && !pair->after.valid)) {
+        wt_tui_empty_line(s, t,
+                          "No snapshots yet. Press b (before), then a (after).");
+        wt_tui_empty_line(s, t,
+                          "Deltas are sample differences only - not lasting gains.");
+        return;
+    }
+
+    wt_tui_screen_line(s, "            %-14s  %-14s", "Before", "After");
+    wt_tui_screen_line(s, "  Captured  %-14.14s  %-14.14s",
+                       pair->before.valid ? pair->before.captured_utc : "(none)",
+                       pair->after.valid ? pair->after.captured_utc : "(none)");
+
+    if (pair->before.valid) {
+        if (pair->before.cpu_percent >= 0.0)
+            StringCchPrintfA(bcpu, sizeof(bcpu), "%.1f%%",
+                             pair->before.cpu_percent);
+        else
+            StringCchCopyA(bcpu, sizeof(bcpu), "n/a");
+        if (pair->before.mem_percent >= 0.0)
+            StringCchPrintfA(bmem, sizeof(bmem), "%.1f%%",
+                             pair->before.mem_percent);
+        else
+            StringCchCopyA(bmem, sizeof(bmem), "n/a");
+        if (pair->before.disk_percent >= 0.0)
+            StringCchPrintfA(bdsk, sizeof(bdsk), "%.1f%%",
+                             pair->before.disk_percent);
+        else
+            StringCchCopyA(bdsk, sizeof(bdsk), "n/a");
+    }
+    if (pair->after.valid) {
+        if (pair->after.cpu_percent >= 0.0)
+            StringCchPrintfA(acpu, sizeof(acpu), "%.1f%%",
+                             pair->after.cpu_percent);
+        else
+            StringCchCopyA(acpu, sizeof(acpu), "n/a");
+        if (pair->after.mem_percent >= 0.0)
+            StringCchPrintfA(amem, sizeof(amem), "%.1f%%",
+                             pair->after.mem_percent);
+        else
+            StringCchCopyA(amem, sizeof(amem), "n/a");
+        if (pair->after.disk_percent >= 0.0)
+            StringCchPrintfA(adsk, sizeof(adsk), "%.1f%%",
+                             pair->after.disk_percent);
+        else
+            StringCchCopyA(adsk, sizeof(adsk), "n/a");
+    }
+    wt_tui_screen_line(s, "  CPU       %-14s  %-14s", bcpu, acpu);
+    wt_tui_screen_line(s, "  Memory    %-14s  %-14s", bmem, amem);
+    wt_tui_screen_line(s, "  Disk      %-14s  %-14s", bdsk, adsk);
+
+    WT_TuiCompareDelta d;
+    wt_tui_compare_delta(pair, &d);
+    if (d.both_valid) {
+        wt_tui_screen_line(s, "");
+        wt_tui_screen_line(s, "  Delta (after - before):");
+        if (pair->before.cpu_percent >= 0.0 && pair->after.cpu_percent >= 0.0) {
+            wt_tui_screen_line(s, "  CPU       %+.1f pp", d.cpu_pp);
+        }
+        if (pair->before.mem_percent >= 0.0 && pair->after.mem_percent >= 0.0) {
+            wt_tui_screen_line(s, "  Memory    %+.1f pp", d.mem_pp);
+        }
+        if (pair->before.disk_percent >= 0.0 && pair->after.disk_percent >= 0.0) {
+            wt_tui_screen_line(s, "  Disk      %+.1f pp", d.disk_pp);
+        }
+        if (pair->before.net_rx_bps >= 0.0 && pair->after.net_rx_bps >= 0.0) {
+            wt_tui_screen_line(s, "  Net down  %+.0f B/s", d.net_rx_bps);
+            wt_tui_screen_line(s, "  Net up    %+.0f B/s", d.net_tx_bps);
+        }
+        wt_tui_screen_line(s, "");
+        wt_tui_empty_line(s, t,
+                          "Sample-window deltas only - not lasting gains.");
+    } else {
+        wt_tui_screen_line(s, "");
+        wt_tui_empty_line(s, t, "Capture both b and a to see deltas.");
+    }
 }
 
 static const char *wt_tui_view_title(WT_TuiView view)
@@ -696,6 +787,7 @@ static const char *wt_tui_view_title(WT_TuiView view)
     case WT_VIEW_GPU:      return "GPU";
     case WT_VIEW_POWER:    return "Power";
     case WT_VIEW_SERVICES: return "Services";
+    case WT_VIEW_COMPARE:  return "Before / After";
     case WT_VIEW_HELP:     return "Help";
     default:               return "Top Processes";
     }

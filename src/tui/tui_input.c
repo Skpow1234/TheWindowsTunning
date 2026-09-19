@@ -41,6 +41,9 @@ WT_TuiKey wt_tui_poll_key(void)
     case 'j': case 'J':                    return WT_TUI_KEY_SCROLL_DOWN;
     case 'k': case 'K':                    return WT_TUI_KEY_SCROLL_UP;
     case 'e': case 'E':                    return WT_TUI_KEY_EXPORT;
+    case 'b': case 'B':                    return WT_TUI_KEY_MARK_BEFORE;
+    case 'a': case 'A':                    return WT_TUI_KEY_MARK_AFTER;
+    case 'c': case 'C':                    return WT_TUI_KEY_COMPARE;
     default:                               return WT_TUI_KEY_NONE;
     }
 }

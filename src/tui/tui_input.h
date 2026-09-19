@@ -24,7 +24,10 @@ typedef enum WT_TuiKey {
     WT_TUI_KEY_SCROLL_DOWN,
     WT_TUI_KEY_PAGE_UP,
     WT_TUI_KEY_PAGE_DOWN,
-    WT_TUI_KEY_EXPORT
+    WT_TUI_KEY_EXPORT,
+    WT_TUI_KEY_MARK_BEFORE,
+    WT_TUI_KEY_MARK_AFTER,
+    WT_TUI_KEY_COMPARE
 } WT_TuiKey;
 
 /* Non-blocking: returns the next mapped key press, or WT_TUI_KEY_NONE if no key
