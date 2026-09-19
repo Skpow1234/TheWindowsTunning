@@ -20,6 +20,7 @@ static const wchar_t *g_advisory_ids[] = {
     L"WT-DISK-002",
     L"WT-DISK-003",
     L"WT-DISK-004",
+    L"WT-DISK-005",
     L"WT-CPU-001",
     L"WT-GPU-001",
     L"WT-POWER-003",

@@ -9,6 +9,7 @@
 #include "system/tasks.h"
 #include "system/file_identity.h"
 #include "system/uninstall.h"
+#include "system/storage_health.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -492,6 +493,69 @@ static void wt_check_disk(const WT_ScanReport *rep, WT_RecommendationList *out)
                 r->confidence_percent = 95;
             }
         }
+    }
+}
+
+static void wt_check_storage_health(WT_RecommendationList *out)
+{
+    WT_StorageHealthReport health;
+    WT_Result r = wt_collect_storage_health(&health);
+    size_t i;
+
+    if (r != WT_OK && health.disk_count == 0) {
+        return;
+    }
+    if (!health.any_degraded) {
+        return;
+    }
+
+    for (i = 0; i < health.disk_count; ++i) {
+        const WT_StorageDiskHealth *d = &health.disks[i];
+        WT_Recommendation *rec;
+        if (d->status != WT_STORAGE_HEALTH_DEGRADED) {
+            continue;
+        }
+        rec = wt_rec_add(out);
+        if (rec == NULL) {
+            break;
+        }
+        wt_str_set(rec->id, sizeof(rec->id), "WT-DISK-005");
+        wt_str_set(rec->title, sizeof(rec->title),
+                   "Storage failure prediction reported");
+        {
+            char model_utf8[128];
+            model_utf8[0] = '\0';
+            if (d->model[0] != L'\0') {
+                (void)WideCharToMultiByte(CP_UTF8, 0, d->model, -1, model_utf8,
+                                          (int)sizeof(model_utf8), NULL, NULL);
+            }
+            if (model_utf8[0] != '\0') {
+                snprintf(rec->reason, sizeof(rec->reason),
+                         "PhysicalDrive%u (%s) reported a predicted failure "
+                         "via Windows storage health. Continuing to use a "
+                         "failing disk risks data loss.",
+                         d->physical_drive, model_utf8);
+            } else {
+                snprintf(rec->reason, sizeof(rec->reason),
+                         "PhysicalDrive%u reported a predicted failure via "
+                         "Windows storage health. Continuing to use a failing "
+                         "disk risks data loss.",
+                         d->physical_drive);
+            }
+        }
+        wt_str_set(rec->action, sizeof(rec->action),
+                   "Back up important data now. Run your disk vendor's "
+                   "diagnostic tool. WinTune does not wipe, format, or repair "
+                   "disks.");
+        rec->severity = WT_SEVERITY_HIGH;
+        rec->risk = WT_RISK_NONE;
+        rec->requires_admin = 0;
+        rec->rollback_available = 0;
+        rec->confidence_percent = 90;
+        wt_str_set(rec->confidence_basis, sizeof(rec->confidence_basis),
+                   "IOCTL_STORAGE_PREDICT_FAILURE");
+        /* One advisory is enough even if multiple disks fail. */
+        break;
     }
 }
 
@@ -1075,6 +1139,7 @@ WT_Result wt_generate_recommendations(const WT_ScanReport *report,
     wt_check_power(report, out);
     wt_check_memory(report, out);
     wt_check_disk(report, out);
+    wt_check_storage_health(out);
     wt_check_cpu(report, out);
     wt_check_gpu(report, out);
     wt_check_boot(report, out);

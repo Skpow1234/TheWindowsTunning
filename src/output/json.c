@@ -1148,6 +1148,77 @@ void wt_print_blockers_json(const WT_BlockerReport *report, FILE *out)
     wt_json_finish(&w);
 }
 
+void wt_print_storage_json(const WT_StorageHealthReport *report, FILE *out)
+{
+    WT_JsonWriter w;
+    size_t i;
+
+    wt_json_init(&w, out);
+    wt_json_begin_object(&w);
+    wt_json_emit_envelope_head(&w, "storage");
+    wt_json_key(&w, "storage");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "disk_count");
+    wt_json_uint64(&w, report != NULL ? (unsigned long long)report->disk_count
+                                      : 0ull);
+    wt_json_key(&w, "any_degraded");
+    wt_json_bool(&w, report != NULL && report->any_degraded);
+    wt_json_key(&w, "any_warning");
+    wt_json_bool(&w, report != NULL && report->any_warning);
+    wt_json_key(&w, "any_unavailable");
+    wt_json_bool(&w, report != NULL && report->any_unavailable);
+    if (report != NULL && report->note[0] != L'\0') {
+        wt_json_key(&w, "note");
+        wt_json_wstring(&w, report->note);
+    }
+    wt_json_key(&w, "disks");
+    wt_json_begin_array(&w);
+    if (report != NULL) {
+        for (i = 0; i < report->disk_count; ++i) {
+            const WT_StorageDiskHealth *d = &report->disks[i];
+            wt_json_begin_object(&w);
+            wt_json_key(&w, "physical_drive");
+            wt_json_uint64(&w, d->physical_drive);
+            wt_json_key(&w, "status");
+            wt_json_string(&w, wt_storage_health_status_name(d->status));
+            wt_json_key(&w, "predict_failure");
+            if (d->predict_failure < 0) {
+                wt_json_null(&w);
+            } else {
+                wt_json_bool(&w, d->predict_failure != 0);
+            }
+            wt_json_key(&w, "model");
+            wt_json_wstring(&w, d->model);
+            wt_json_key(&w, "serial");
+            wt_json_wstring(&w, d->serial);
+            wt_json_key(&w, "bus_type");
+            wt_json_wstring(&w, d->bus_type);
+            wt_json_key(&w, "media_hint");
+            wt_json_wstring(&w, d->media_hint);
+            wt_json_key(&w, "descriptor_ok");
+            wt_json_bool(&w, d->descriptor_ok);
+            wt_json_key(&w, "predict_ok");
+            wt_json_bool(&w, d->predict_ok);
+            if (d->note[0] != L'\0') {
+                wt_json_key(&w, "note");
+                wt_json_wstring(&w, d->note);
+            }
+            wt_json_end_object(&w);
+        }
+    }
+    wt_json_end_array(&w);
+    wt_json_end_object(&w);
+    wt_json_key(&w, "safety");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "read_only");
+    wt_json_bool(&w, 1);
+    wt_json_key(&w, "never_wipe_format_repair");
+    wt_json_bool(&w, 1);
+    wt_json_end_object(&w);
+    wt_json_end_object(&w);
+    wt_json_finish(&w);
+}
+
 void wt_print_processes_json(const WT_ProcessInfo *items, size_t count, FILE *out)
 {
     WT_JsonWriter w;

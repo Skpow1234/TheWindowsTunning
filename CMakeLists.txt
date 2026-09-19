@@ -66,6 +66,7 @@ add_executable(wintune
     src/system/updates.c
     src/system/blockers.c
     src/system/services.c
+    src/system/storage_health.c
     src/system/file_identity.c
     src/system/boot.c
     src/system/boot_etw.c
@@ -128,6 +129,7 @@ add_executable(wintune
     src/cli/commands_tasks.c
     src/cli/commands_updates.c
     src/cli/commands_blockers.c
+    src/cli/commands_storage.c
     src/cli/commands_apps.c
     src/cli/commands_services.c
     src/cli/commands_power.c
