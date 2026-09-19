@@ -108,7 +108,8 @@ static int wt_app_matches_startup(const WT_InstalledApp *app,
 static void wt_uninstall_flag_candidates(WT_UninstallAdvice *out,
                                          const WT_StartupEntry *entries,
                                          size_t entry_count,
-                                         int correlate_startup)
+                                         int correlate_startup,
+                                         int include_large)
 {
     for (size_t i = 0; i < out->count; ++i) {
         WT_InstalledApp *a = &out->apps[i];
@@ -148,9 +149,8 @@ static void wt_uninstall_flag_candidates(WT_UninstallAdvice *out,
             }
         }
 
-        /* Large third-party install without Microsoft publisher — calm review
-         * when EstimatedSize is available and substantial (> 750 MiB). */
-        if (!a->candidate && a->estimated_kb >= (750ul * 1024ul)) {
+        if (!a->candidate && include_large &&
+            a->estimated_kb >= (2048ul * 1024ul)) {
             a->candidate = 1;
             StringCchPrintfA(a->reason, sizeof(a->reason),
                              "Large third-party install (~%lu MB estimated). "
@@ -235,7 +235,8 @@ static WT_Result wt_uninstall_enum_key(HKEY root, const wchar_t *subpath,
 }
 
 WT_Result wt_collect_uninstall_advice(WT_UninstallAdvice *out,
-                                      int correlate_startup)
+                                      int correlate_startup,
+                                      int include_large)
 {
     if (out == NULL) {
         return WT_ERR_INVALID_ARGUMENT;
@@ -279,7 +280,8 @@ WT_Result wt_collect_uninstall_advice(WT_UninstallAdvice *out,
         }
     }
 
-    wt_uninstall_flag_candidates(out, entries, entry_count, correlate_startup);
+    wt_uninstall_flag_candidates(out, entries, entry_count, correlate_startup,
+                                 include_large);
 
     if (entries != NULL) {
         free(entries);

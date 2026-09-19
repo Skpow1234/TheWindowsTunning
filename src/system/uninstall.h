@@ -37,8 +37,11 @@ typedef struct WT_UninstallAdvice {
 
 /* Read-only ARP / Uninstall registry scan. Never runs UninstallString.
  * When correlate_startup is non-zero, marks apps that match high-impact
- * startup entries as candidates. */
+ * startup entries as uninstall-review candidates (leftover / login impact).
+ * When include_large is non-zero, also flags large third-party installs
+ * (>= ~2 GiB EstimatedSize) as optional size-based review items. */
 WT_Result wt_collect_uninstall_advice(WT_UninstallAdvice *out,
-                                      int correlate_startup);
+                                      int correlate_startup,
+                                      int include_large);
 
 #endif /* WINTUNE_UNINSTALL_H */

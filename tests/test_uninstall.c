@@ -17,7 +17,7 @@ static void expect_true(int cond, const char *label)
 
 int main(void)
 {
-    expect_true(wt_collect_uninstall_advice(NULL, 0) == WT_ERR_INVALID_ARGUMENT,
+    expect_true(wt_collect_uninstall_advice(NULL, 0, 0) == WT_ERR_INVALID_ARGUMENT,
                 "null out");
 
     WT_UninstallAdvice *advice =
@@ -27,7 +27,7 @@ int main(void)
         return 1;
     }
 
-    WT_Result r = wt_collect_uninstall_advice(advice, 0);
+    WT_Result r = wt_collect_uninstall_advice(advice, 0, 0);
     expect_true(r == WT_OK, "collect without startup");
     expect_true(advice->scanned_keys > 0, "scanned some keys");
     expect_true(advice->count > 0, "found some apps");
