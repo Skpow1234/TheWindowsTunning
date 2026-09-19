@@ -70,6 +70,7 @@ add_executable(wintune
     src/system/boot.c
     src/system/boot_etw.c
     src/system/privilege.c
+    src/system/uninstall.c
 
     # service (Phase 11)
     src/service/service_install.c
@@ -120,6 +121,7 @@ add_executable(wintune
     src/cli/commands_tasks.c
     src/cli/commands_updates.c
     src/cli/commands_blockers.c
+    src/cli/commands_apps.c
     src/cli/commands_services.c
     src/cli/commands_power.c
     src/cli/commands_apply.c
@@ -306,6 +308,25 @@ wt_add_unit_test(test_doctor_plan
     src/common/error.c
 )
 
+wt_add_unit_test(test_uninstall
+    tests/test_uninstall.c
+    src/system/uninstall.c
+    src/system/startup.c
+    src/system/boot.c
+    src/system/boot_etw.c
+    src/system/services.c
+    src/system/file_identity.c
+    src/core/impact_score.c
+    src/common/error.c
+    src/common/log.c
+    src/platform/paths.c
+    src/platform/time.c
+    src/platform/console.c
+)
+target_link_libraries(test_uninstall PRIVATE
+    advapi32 wevtapi wintrust version crypt32 shell32
+)
+
 wt_add_unit_test(test_apply_preview
     tests/test_apply_preview.c
     src/actions/apply_preview.c
@@ -351,6 +372,7 @@ wt_add_unit_test(test_recommendations
     src/system/startup.c
     src/system/tasks.c
     src/system/file_identity.c
+    src/system/uninstall.c
     src/system/os_info.c
 )
 target_link_libraries(test_recommendations PRIVATE
@@ -375,6 +397,7 @@ add_custom_target(wintune_tests_all
         test_recommendations
         test_confidence
         test_doctor_plan
+        test_uninstall
         test_apply_preview
         test_delay_plan
         test_file_identity

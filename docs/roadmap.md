@@ -56,7 +56,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 36 | Apply preview / dry-run | Done |
 | 37 | Service restart rollback metadata | Done |
 | 38 | Guided doctor plan | Done |
-| 39 | Uninstall advisor (read-only) | Planned |
+| 39 | Uninstall advisor (read-only) | Done |
 | 40 | TUI historical sparklines | Planned |
 | 41 | TUI before/after compare | Planned |
 | 42 | Tray mini-doctor | Planned |
@@ -979,10 +979,14 @@ wintune power --set performance --dry-run
 
 **Goal:** Point humans at official uninstall paths for high-impact leftovers.
 
+**Status:** Done
+
 **Deliver:**
 
-- Detect candidates from uninstall registry metadata when useful.
-- Print Settings / `winget list` / ARP guidance only.
+- `wintune apps` — read-only ARP/Uninstall registry scan.
+- Candidates from high-impact startup correlation and/or large third-party size.
+- Guidance only: Settings / `winget list` / ARP — never runs UninstallString.
+- `WT-UNINSTALL-001` advisory recommendation when candidates exist.
 
 **Never:** Silent uninstall; force-remove Program Files.
 

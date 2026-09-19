@@ -25,6 +25,7 @@ wintune startup     # startup entries and estimated impact
 wintune tasks        # scheduled tasks (logon/boot startup impact)
 wintune updates      # Windows Update and reboot readiness
 wintune blockers     # apps/files blocking restart or updates
+wintune apps         # uninstall advisor (read-only; never uninstalls)
 wintune boot        # boot/login performance analysis (Phase 10)
 wintune service     # WinTune Windows Service install/manage (Phase 11)
 wintune services    # Windows SCM service listing
@@ -267,6 +268,23 @@ wintune blockers --json
 ```
 
 See [`blockers.md`](blockers.md).
+
+---
+
+## `wintune apps`
+
+Uninstall advisor (Phase 39). Read-only scan of Add/Remove Programs (Uninstall)
+registry metadata. Flags calm review candidates when they match high-impact
+startup entries or are large third-party installs.
+
+```bash
+wintune apps
+wintune apps --json
+```
+
+WinTune **never** uninstalls software and never runs `UninstallString`. Guidance
+points you to Settings, `winget list` / `winget uninstall`, or Programs and
+Features. Do not delete Program Files by hand.
 
 ---
 
