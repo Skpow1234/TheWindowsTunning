@@ -8,9 +8,12 @@
 #include "system/boot.h"
 #include "system/file_identity.h"
 
+#include <string.h>
+#include <wchar.h>
 #include <windows.h>
 
 static int g_json_compact = 0;
+static int g_json_emit_major = 2; /* default schema 2.0 */
 
 void wt_json_set_compact(WT_JsonWriter *w, int compact)
 {
@@ -19,14 +22,65 @@ void wt_json_set_compact(WT_JsonWriter *w, int compact)
     }
 }
 
+void wt_json_set_emit_major(int major)
+{
+    if (major == 1) {
+        g_json_emit_major = 1;
+    } else {
+        g_json_emit_major = 2;
+    }
+}
+
+int wt_json_emit_major(void)
+{
+    return g_json_emit_major;
+}
+
+const char *wt_json_emit_schema_version(void)
+{
+    if (g_json_emit_major <= 1) {
+        return WT_JSON_SCHEMA_VERSION_V1;
+    }
+    return WT_JSON_SCHEMA_VERSION;
+}
+
+void wt_json_emit_schema_meta(WT_JsonWriter *w, const char *document)
+{
+    if (w == NULL) {
+        return;
+    }
+    wt_json_key(w, "schema_version");
+    wt_json_string(w, wt_json_emit_schema_version());
+    if (g_json_emit_major >= 2) {
+        wt_json_key(w, "schema_compat_min");
+        wt_json_string(w, WT_JSON_SCHEMA_COMPAT_MIN);
+        if (document != NULL && document[0] != '\0') {
+            wt_json_key(w, "document");
+            wt_json_string(w, document);
+        }
+    }
+}
+
 void wt_json_apply_cli_options(const WT_CliOptions *opts)
 {
     g_json_compact = 0;
+    g_json_emit_major = 2;
     if (opts == NULL) {
         return;
     }
     if (opts->compact_json || opts->ndjson) {
         g_json_compact = 1;
+    }
+    if (opts->schema_version != NULL) {
+        if (wcscmp(opts->schema_version, L"1") == 0 ||
+            wcscmp(opts->schema_version, L"1.0") == 0 ||
+            wcscmp(opts->schema_version, L"1.0.0") == 0) {
+            g_json_emit_major = 1;
+        } else if (wcscmp(opts->schema_version, L"2") == 0 ||
+                   wcscmp(opts->schema_version, L"2.0") == 0 ||
+                   wcscmp(opts->schema_version, L"2.0.0") == 0) {
+            g_json_emit_major = 2;
+        }
     }
 }
 
@@ -294,13 +348,13 @@ static void wt_json_emit_process(WT_JsonWriter *w, const WT_ProcessInfo *p)
     wt_json_end_object(w);
 }
 
-static void wt_json_emit_envelope_head(WT_JsonWriter *w)
+static void wt_json_emit_envelope_head(WT_JsonWriter *w, const char *document)
 {
     char ts[32];
     if (wt_now_iso8601_utc(ts, sizeof(ts)) != WT_OK) {
         ts[0] = '\0';
     }
-    wt_json_key(w, "schema_version"); wt_json_string(w, WT_JSON_SCHEMA_VERSION);
+    wt_json_emit_schema_meta(w, document);
     wt_json_key(w, "version");       wt_json_string(w, WT_VERSION_STRING);
     wt_json_key(w, "timestamp_utc"); wt_json_string(w, ts);
 
@@ -547,7 +601,7 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     wt_json_init(&w, out);
 
     wt_json_begin_object(&w);
-    wt_json_emit_envelope_head(&w);
+    wt_json_emit_envelope_head(&w, "scan");
 
     wt_json_key(&w, "scan");
     wt_json_begin_object(&w);
@@ -871,7 +925,7 @@ void wt_print_recommendations_json(const WT_RecommendationList *recs, FILE *out)
     wt_json_init(&w, out);
 
     wt_json_begin_object(&w);
-    wt_json_emit_envelope_head(&w);
+    wt_json_emit_envelope_head(&w, "recommendations");
     wt_json_emit_recommendations_array(&w, recs);
     wt_json_end_object(&w);
     wt_json_finish(&w);
@@ -883,7 +937,7 @@ void wt_print_startup_json(const WT_StartupEntry *items, size_t count, FILE *out
     wt_json_init(&w, out);
 
     wt_json_begin_object(&w);
-    wt_json_emit_envelope_head(&w);
+    wt_json_emit_envelope_head(&w, "startup");
     wt_json_key(&w, "startup");
     wt_json_begin_array(&w);
     for (size_t i = 0; i < count; ++i) {
@@ -919,7 +973,7 @@ void wt_print_tasks_json(const WT_ScheduledTask *items, size_t count, FILE *out)
     wt_json_init(&w, out);
 
     wt_json_begin_object(&w);
-    wt_json_emit_envelope_head(&w);
+    wt_json_emit_envelope_head(&w, "tasks");
     wt_json_key(&w, "tasks");
     wt_json_begin_array(&w);
     for (size_t i = 0; i < count; ++i) {
@@ -958,7 +1012,7 @@ void wt_print_services_json(const WT_ServiceInfo *items, size_t count, FILE *out
     wt_json_init(&w, out);
 
     wt_json_begin_object(&w);
-    wt_json_emit_envelope_head(&w);
+    wt_json_emit_envelope_head(&w, "services");
     wt_json_key(&w, "services");
     wt_json_begin_array(&w);
     for (size_t i = 0; i < count; ++i) {
@@ -994,7 +1048,7 @@ void wt_print_boot_json(const WT_BootReport *boot, FILE *out)
     wt_json_init(&w, out);
 
     wt_json_begin_object(&w);
-    wt_json_emit_envelope_head(&w);
+    wt_json_emit_envelope_head(&w, "boot");
     wt_json_key(&w, "boot");
     wt_json_emit_boot_object(&w, boot);
     wt_json_end_object(&w);
@@ -1007,7 +1061,7 @@ void wt_print_updates_json(const WT_UpdateStatus *status, FILE *out)
     wt_json_init(&w, out);
 
     wt_json_begin_object(&w);
-    wt_json_emit_envelope_head(&w);
+    wt_json_emit_envelope_head(&w, "updates");
     wt_json_key(&w, "updates");
     wt_json_emit_updates_object(&w, status);
     wt_json_end_object(&w);
@@ -1087,7 +1141,7 @@ void wt_print_blockers_json(const WT_BlockerReport *report, FILE *out)
     wt_json_init(&w, out);
 
     wt_json_begin_object(&w);
-    wt_json_emit_envelope_head(&w);
+    wt_json_emit_envelope_head(&w, "blockers");
     wt_json_key(&w, "blockers");
     wt_json_emit_blockers_object(&w, report);
     wt_json_end_object(&w);
@@ -1100,7 +1154,7 @@ void wt_print_processes_json(const WT_ProcessInfo *items, size_t count, FILE *ou
     wt_json_init(&w, out);
 
     wt_json_begin_object(&w);
-    wt_json_emit_envelope_head(&w);
+    wt_json_emit_envelope_head(&w, "processes");
     wt_json_key(&w, "processes");
     wt_json_begin_array(&w);
     for (size_t i = 0; i < count; ++i) {

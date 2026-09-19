@@ -48,6 +48,7 @@ int wt_cmd_recommend(const WT_CliOptions *opts)
             out = opened;
         }
 
+        wt_cli_configure_json_output(opts);
         wt_print_recommendations_json(&recs, out);
 
         if (opened != NULL) {

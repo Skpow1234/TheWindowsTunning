@@ -14,8 +14,12 @@
 #include "system/updates.h"
 #include "system/blockers.h"
 
-/* Stable JSON schema version (independent of wintune tool version). */
-#define WT_JSON_SCHEMA_VERSION "1.0.0"
+/* Stable JSON schema version (independent of wintune tool version).
+ * 2.0.0 documents accumulated additive fields (Phases 18–46) and adds
+ * envelope metadata. Core 1.0 keys remain stable — see schema_compat_min. */
+#define WT_JSON_SCHEMA_VERSION "2.0.0"
+#define WT_JSON_SCHEMA_COMPAT_MIN "1.0.0"
+#define WT_JSON_SCHEMA_VERSION_V1 "1.0.0"
 
 struct WT_CliOptions;
 
@@ -35,8 +39,16 @@ typedef struct WT_JsonWriter {
 void wt_json_init(WT_JsonWriter *w, FILE *out);
 void wt_json_set_compact(WT_JsonWriter *w, int compact);
 
-/* Applies --compact-json / --ndjson from CLI options to subsequent emitters. */
+/* Applies --compact-json / --ndjson / --schema-version from CLI options. */
 void wt_json_apply_cli_options(const struct WT_CliOptions *opts);
+
+/* Emit major: 1 = legacy pin (deprecation window), 2 = current default. */
+void wt_json_set_emit_major(int major);
+int wt_json_emit_major(void);
+const char *wt_json_emit_schema_version(void);
+
+/* Writes schema_version and, for v2+, schema_compat_min + optional document. */
+void wt_json_emit_schema_meta(WT_JsonWriter *w, const char *document);
 void wt_json_begin_object(WT_JsonWriter *w);
 void wt_json_end_object(WT_JsonWriter *w);
 void wt_json_begin_array(WT_JsonWriter *w);

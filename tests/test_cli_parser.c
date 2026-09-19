@@ -103,6 +103,15 @@ int main(void)
         expect_wstr(opts.output_path, L"fleet-pack.zip", "output");
     }
 
+    {
+        wchar_t *argv[] = {
+            L"wintune", L"scan", L"--json", L"--schema-version", L"1"
+        };
+        expect_int(wt_cli_parse_argv(5, argv, &opts, &cmd), WT_EXIT_OK,
+                   "schema-version");
+        expect_wstr(opts.schema_version, L"1", "schema pin 1");
+    }
+
     expect_int(wt_power_scheme_from_token(L"performance"), WT_POWER_HIGH_PERF,
                "power token performance");
     expect_int(wt_power_scheme_from_token(L"balanced"), WT_POWER_BALANCED,

@@ -88,6 +88,7 @@ static void wt_print_usage(void)
         "  --ndjson          One JSON document per line (e.g. top --watch --json)\n"
         "  --log-file <path> Append verbose/debug logs to a file (also stderr)\n"
         "  --theme <name>    TUI theme: default|compact|mono|high-contrast|ssh\n"
+        "  --schema-version  JSON schema major: 1 (legacy pin) or 2 (default)\n"
         "  --include-network Opt-in per-process TCP rates (extra overhead; top/tui)\n",
         WT_VERSION_STRING);
 }
@@ -237,6 +238,7 @@ int wt_cli_run(int argc, wchar_t **argv)
         /* --ndjson implies compact single-line documents. */
         opts.compact_json = 1;
     }
+    wt_cli_configure_json_output(&opts);
     WT_LOGD("parsed command=%ls json=%d interactive=%d remote=%d",
             command ? command : L"(none)", opts.json,
             wt_session_is_interactive(), wt_session_is_remote());

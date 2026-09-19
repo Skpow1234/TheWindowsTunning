@@ -33,8 +33,7 @@ static int wt_fleet_emit_json(const WT_CliOptions *opts, const wchar_t *input,
     wt_cli_configure_json_output(opts);
     wt_json_init(&w, stdout);
     wt_json_begin_object(&w);
-    wt_json_key(&w, "schema_version");
-    wt_json_string(&w, WT_JSON_SCHEMA_VERSION);
+    wt_json_emit_schema_meta(&w, "fleet_pack_result");
     wt_json_key(&w, "kind");
     wt_json_string(&w, "fleet_pack_result");
     wt_json_key(&w, "created_utc");

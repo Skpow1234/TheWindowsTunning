@@ -174,6 +174,24 @@ int wt_cli_parse_argv(int argc, wchar_t **argv, WT_CliOptions *opts,
                 return WT_EXIT_USAGE;
             }
         }
+        else if (wcscmp(t, L"--schema-version") == 0) {
+            if (i + 1 < argc) {
+                const wchar_t *v = argv[++i];
+                if (wcscmp(v, L"1") != 0 && wcscmp(v, L"1.0") != 0 &&
+                    wcscmp(v, L"1.0.0") != 0 && wcscmp(v, L"2") != 0 &&
+                    wcscmp(v, L"2.0") != 0 && wcscmp(v, L"2.0.0") != 0) {
+                    fprintf(stderr,
+                            "wintune: --schema-version must be 1 or 2 "
+                            "(or 1.0.0 / 2.0.0)\n");
+                    return WT_EXIT_USAGE;
+                }
+                opts->schema_version = v;
+            } else {
+                fprintf(stderr,
+                        "wintune: --schema-version requires 1 or 2\n");
+                return WT_EXIT_USAGE;
+            }
+        }
         else if (t[0] == L'-') {
             fwprintf(stderr, L"wintune: unknown option '%ls'\n", t);
             return WT_EXIT_USAGE;

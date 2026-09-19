@@ -15,10 +15,11 @@ void wt_json_emit_error(FILE *out,
                         const char *message,
                         int exit_code)
 {
-    (void)opts;
     if (out == NULL) {
         return;
     }
+
+    wt_json_apply_cli_options(opts);
 
     WT_JsonWriter w;
     wt_json_init(&w, out);
@@ -30,8 +31,7 @@ void wt_json_emit_error(FILE *out,
     }
 
     wt_json_begin_object(&w);
-    wt_json_key(&w, "schema_version");
-    wt_json_string(&w, WT_JSON_SCHEMA_VERSION);
+    wt_json_emit_schema_meta(&w, "error");
     wt_json_key(&w, "version");
     wt_json_string(&w, WT_VERSION_STRING);
     wt_json_key(&w, "timestamp_utc");

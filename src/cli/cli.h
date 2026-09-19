@@ -70,6 +70,9 @@ typedef struct WT_CliOptions {
     /* tui */
     const wchar_t *theme;       /* --theme default|compact|mono|high-contrast|ssh */
 
+    /* JSON schema pin (Phase 47): "1"/"1.0.0" legacy, "2"/"2.0.0" current */
+    const wchar_t *schema_version;
+
     /* Positional arguments following the command, e.g.
      *   wintune apply WT-POWER-001       -> arg1 = "WT-POWER-001"
      *   wintune services restart <name>  -> arg1 = "restart", arg2 = "<name>"
