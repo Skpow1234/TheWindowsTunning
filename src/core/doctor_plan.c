@@ -79,6 +79,9 @@ static int wt_doctor_category_rank(const char *id)
     if (strncmp(id, "WT-STARTUP-", 11) == 0) {
         return 50;
     }
+    if (strncmp(id, "WT-UNINSTALL-", 13) == 0) {
+        return 55;
+    }
     if (strncmp(id, "WT-TASK-", 8) == 0) {
         return 60;
     }

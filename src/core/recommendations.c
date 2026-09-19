@@ -8,6 +8,7 @@
 #include "system/startup.h"
 #include "system/tasks.h"
 #include "system/file_identity.h"
+#include "system/uninstall.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -969,6 +970,41 @@ static void wt_check_task_actions(const WT_ScanReport *report,
     }
 }
 
+static void wt_check_uninstall(const WT_ScanReport *report,
+                               WT_RecommendationList *out)
+{
+    (void)report;
+    WT_UninstallAdvice advice;
+    if (wt_collect_uninstall_advice(&advice, 1) != WT_OK) {
+        return;
+    }
+    if (advice.candidate_count == 0) {
+        return;
+    }
+
+    WT_Recommendation *r = wt_rec_add(out);
+    if (r == NULL) {
+        return;
+    }
+    wt_str_set(r->id, sizeof(r->id), "WT-UNINSTALL-001");
+    wt_str_set(r->title, sizeof(r->title),
+               "Review installed apps that may be safe to remove");
+    snprintf(r->reason, sizeof(r->reason),
+             "%zu installed-app candidate(s) look worth a calm uninstall review "
+             "(high-impact startup match and/or large third-party install). "
+             "WinTune never uninstalls software.",
+             advice.candidate_count);
+    wt_str_set(r->action, sizeof(r->action),
+               "wintune apps   (then Settings / winget - you uninstall)");
+    r->severity = WT_SEVERITY_LOW;
+    r->risk = WT_RISK_NONE;
+    r->requires_admin = 0;
+    r->rollback_available = 0;
+    r->confidence_percent = 70;
+    wt_str_set(r->confidence_basis, sizeof(r->confidence_basis),
+               "ARP metadata + startup correlation");
+}
+
 static void wt_check_gpu(const WT_ScanReport *rep, WT_RecommendationList *out)
 {
     int conf;
@@ -1038,6 +1074,7 @@ WT_Result wt_generate_recommendations(const WT_ScanReport *report,
     wt_check_blockers(report, out);
     wt_check_startup_actions(report, out);
     wt_check_task_actions(report, out);
+    wt_check_uninstall(report, out);
 
     return WT_OK;
 }

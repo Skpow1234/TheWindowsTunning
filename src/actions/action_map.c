@@ -34,6 +34,7 @@ static const wchar_t *g_advisory_ids[] = {
     L"WT-BLOCKER-001",
     L"WT-STARTUP-002",
     L"WT-TASK-001",
+    L"WT-UNINSTALL-001",
 };
 
 const WT_ApplySpec *wt_apply_spec_lookup(const wchar_t *rec_id)
