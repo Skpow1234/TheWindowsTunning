@@ -430,7 +430,8 @@ end-user release polish).
 | 45 | Named-pipe ACL hardening | Done |
 | 46 | Fleet report pack | Done |
 | 47 | JSON schema v2 + compatibility | Done |
-| 48–53 | Storage health, WER, signing, installer, … | Planned |
+| 48 | Storage health (read-only) | Done |
+| 49–53 | WER signals, pagefile, signing, installer, … | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.

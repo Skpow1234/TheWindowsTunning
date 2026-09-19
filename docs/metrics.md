@@ -174,6 +174,27 @@ Recommendations:
 - `WT-DISK-004` — one volume’s LogicalDisk active time is high while
   PhysicalDisk(_Total) is not (localized pressure).
 
+## Storage health (Phase 48)
+
+Read-only reliability signals via Windows storage APIs (not PDH):
+
+```text
+\\.\PhysicalDriveN
+IOCTL_STORAGE_QUERY_PROPERTY   (identity / bus)
+IOCTL_STORAGE_PREDICT_FAILURE  (failure prediction when supported)
+```
+
+Command: `wintune storage` / `wintune storage --json`.
+
+- Reports model, serial, bus, SSD/HDD hint, and predict-failure status.
+- Some NVMe/USB devices return “not supported” — that is normal.
+- **Never** wipe, format, or repair disks.
+
+Recommendation:
+
+- `WT-DISK-005` — failure prediction reported → back up + vendor diagnostics
+  (advisory only).
+
 ---
 
 ## Network

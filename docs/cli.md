@@ -297,20 +297,6 @@ See [`metrics.md`](metrics.md) (Storage health).
 
 ## `wintune apps`
 
-Reports applications and file locks that may block restart or update completion
-(Phase 14). Read-only; never closes applications.
-
-```bash
-wintune blockers
-wintune blockers --json
-```
-
-See [`blockers.md`](blockers.md).
-
----
-
-## `wintune apps`
-
 Uninstall advisor (Phase 39). Read-only scan of Add/Remove Programs (Uninstall)
 registry metadata. Flags calm review candidates when they match high-impact
 startup entries or are large third-party installs.

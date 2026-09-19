@@ -70,6 +70,7 @@ needs a true breaking rename. Prefer checking the **major** component
 | `boot` | `boot` |
 | `updates` | `updates` |
 | `blockers` | `blockers` |
+| `storage` | `storage` |
 | `error` | `--json-errors` failure document |
 | `fleet_pack_result` | `fleet pack --json` |
 

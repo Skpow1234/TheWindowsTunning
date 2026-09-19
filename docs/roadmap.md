@@ -65,7 +65,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 45 | Named-pipe ACL hardening | Done |
 | 46 | Fleet report pack | Done |
 | 47 | JSON schema v2 + compatibility | Done |
-| 48 | Storage health (read-only) | Planned |
+| 48 | Storage health (read-only) | Done |
 | 49 | Memory dump / WER signals | Planned |
 | 50 | Pagefile & commit charge depth | Planned |
 | 51 | Scheduled maintenance windows | Planned |
@@ -1155,9 +1155,13 @@ wintune fleet pack --input reports/ --output fleet-pack.zip
 
 **Goal:** Reliability / failure-prediction signals when available.
 
+**Status:** Done
+
 **Deliver:**
 
-- Read-only health summary; recommend backup / vendor tools when degraded.
+- `wintune storage` / `--json`: physical disk identity + failure prediction.
+- Advisory `WT-DISK-005` when prediction reports failure (backup + vendor tools).
+- APIs: `IOCTL_STORAGE_PREDICT_FAILURE`, `IOCTL_STORAGE_QUERY_PROPERTY`.
 
 **Never:** Disk wipe, format, “repair” that deletes user data.
 
