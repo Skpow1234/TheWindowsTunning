@@ -198,6 +198,7 @@ target_link_libraries(wintune PRIVATE
     wintrust
     version
     crypt32
+    rpcrt4
 )
 
 enable_testing()

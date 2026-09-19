@@ -413,7 +413,9 @@ end-user release polish).
 | 27 | Per-process network (TCP EStats) | Done |
 | 28 | GPU / display readiness (read-only) | Done |
 | 29 | Thermal & power budget (read-only) | Done |
-| 30–53 | v3 depth (disk smoothing, boot v2, apply UX, fleet, signing, …) | Planned |
+| 30 | Multi-sample disk smoothing | Done |
+| 31 | Reboot-spanning boot ETW (`boot arm` / `status` / `disarm`) | Done |
+| 32–53 | v3 depth (boot profiles, apply UX, fleet, signing, …) | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.
@@ -468,7 +470,7 @@ exit non-zero.
 - [`docs/cli.md`](docs/cli.md) — command reference
 - [`docs/tui.md`](docs/tui.md) — terminal dashboard
 - [`docs/ssh.md`](docs/ssh.md) — remote usage
-- [`docs/boot.md`](docs/boot.md) — boot/login analysis (Phase 10)
+- [`docs/boot.md`](docs/boot.md) — boot/login analysis (Phases 10 & 31)
 - [`docs/tasks.md`](docs/tasks.md) — scheduled tasks and startup delay (Phase 12)
 - [`docs/updates.md`](docs/updates.md) — Windows Update and reboot readiness (Phase 13)
 - [`docs/blockers.md`](docs/blockers.md) — Restart Manager and reboot blockers (Phase 14)

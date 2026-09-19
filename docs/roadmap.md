@@ -48,7 +48,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 28 | GPU / display readiness (read-only) | Done |
 | 29 | Thermal & power budget (read-only) | Done |
 | 30 | Multi-sample disk smoothing | Done |
-| 31 | Reboot-spanning boot ETW | Planned |
+| 31 | Reboot-spanning boot ETW | Done |
 | 32 | Cold vs warm boot profiles | Planned |
 | 33 | Driver / service start waterfall | Planned |
 | 34 | Startup delay orchestration | Planned |
@@ -801,10 +801,25 @@ wintune top --json
 
 **Goal:** Measure the *next* boot, not only post-boot event logs.
 
+**Status:** Done
+
 **Deliver:**
 
-- Arm ETW for next reboot; analyze after login.
-- Summarized timeline in `boot analyze` / `doctor`.
+- Arm ETW Autologger for next reboot (`wintune boot arm`); status / disarm.
+- After reboot, `boot analyze` / `scan` / `doctor` auto-pick the reboot `.etl`
+  under `%ProgramData%\WinTune\traces\` and stop the session.
+- Summarized timeline remains event-log-first; ETL is event-count supplement
+  (never a raw dump).
+
+**Commands:**
+
+```bash
+wintune boot arm
+wintune boot status
+# reboot ...
+wintune boot analyze
+wintune boot disarm
+```
 
 **Depends on:** Phase 10.
 

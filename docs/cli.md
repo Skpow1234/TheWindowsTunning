@@ -269,6 +269,9 @@ Analyzes boot and login performance from Windows Diagnostic-Performance events
 wintune boot analyze
 wintune boot analyze trace.etl
 wintune boot trace --duration 60000
+wintune boot arm                 # Autologger for next reboot (admin; Phase 31)
+wintune boot status
+wintune boot disarm
 wintune boot analyze --json
 ```
 
