@@ -2,10 +2,12 @@
 #include "cli/cli.h"
 #include "cli/cli_exit.h"
 #include "system/power.h"
+#include "actions/apply_preview.h"
 #include "actions/safe_actions.h"
 #include "platform/service_client.h"
 
 #include <stdio.h>
+#include <wchar.h>
 
 static void wt_power_source_label(const WT_PowerInfo *p, char *buf, size_t cap)
 {
@@ -151,6 +153,21 @@ int wt_cmd_power(const WT_CliOptions *opts)
         }
         char msg[512] = {0};
         WT_Result r;
+
+        if (opts->dry_run) {
+            WT_ApplyPreview preview;
+            r = wt_apply_preview_power(target, &preview);
+            if (wt_cli_is_json_mode(opts)) {
+                wt_apply_preview_print_json(stdout, &preview);
+            } else {
+                wt_apply_preview_print_text(stdout, &preview);
+            }
+            return wt_cli_exit_from_result(opts, r, L"power",
+                                           preview.summary[0] != '\0'
+                                               ? preview.summary
+                                               : NULL);
+        }
+
         if (wt_cli_should_route_via_service(opts)) {
             if (!wt_service_client_is_available(2000)) {
                 return wt_cli_exit_from_result(

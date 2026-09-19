@@ -6,6 +6,7 @@
 #include "system/boot.h"
 #include "actions/safe_actions.h"
 #include "actions/delay_plan.h"
+#include "actions/apply_preview.h"
 #include "system/tasks.h"
 #include "output/json.h"
 #include "platform/service_client.h"
@@ -150,12 +151,25 @@ static int wt_startup_set_enabled(const WT_CliOptions *opts, int enable)
     if (opts->arg2 == NULL) {
         fprintf(stderr,
                 "wintune: startup %s requires an entry id\n"
-                "Usage: wintune startup %s <id>\n"
+                "Usage: wintune startup %s <id> [--dry-run]\n"
                 "List ids with 'wintune startup'.\n",
                 enable ? "enable" : "disable",
                 enable ? "enable" : "disable");
         return 2;
     }
+
+    if (opts->dry_run) {
+        WT_ApplyPreview preview;
+        WT_Result r = wt_apply_preview_startup_enabled(opts->arg2, enable,
+                                                       &preview);
+        if (wt_cli_is_json_mode(opts)) {
+            wt_apply_preview_print_json(stdout, &preview);
+        } else {
+            wt_apply_preview_print_text(stdout, &preview);
+        }
+        return (r == WT_OK) ? 0 : 1;
+    }
+
     char msg[512] = {0};
     WT_Result r;
     if (wt_cli_should_route_via_service(opts)) {
@@ -181,12 +195,24 @@ static int wt_startup_delay(const WT_CliOptions *opts)
     if (opts->arg2 == NULL) {
         fprintf(stderr,
                 "wintune: startup delay requires an entry id\n"
-                "Usage: wintune startup delay \"<id>\" --seconds 30\n");
+                "Usage: wintune startup delay \"<id>\" --seconds 30 [--dry-run]\n");
         return 2;
     }
     if (opts->delay_seconds <= 0) {
         fprintf(stderr, "wintune: startup delay requires --seconds <N>\n");
         return 2;
+    }
+
+    if (opts->dry_run) {
+        WT_ApplyPreview preview;
+        WT_Result r = wt_apply_preview_startup_delay(
+            opts->arg2, (unsigned long)opts->delay_seconds, &preview);
+        if (wt_cli_is_json_mode(opts)) {
+            wt_apply_preview_print_json(stdout, &preview);
+        } else {
+            wt_apply_preview_print_text(stdout, &preview);
+        }
+        return (r == WT_OK) ? 0 : 1;
     }
 
     char msg[512] = {0};
