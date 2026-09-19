@@ -1,4 +1,5 @@
 #include "service/service.h"
+#include "service/service_policy.h"
 #include "platform/paths.h"
 #include "platform/service_ipc.h"
 #include "system/privilege.h"
@@ -298,6 +299,7 @@ WT_Result wt_service_uninstall(void)
 
     CloseServiceHandle(svc);
     CloseServiceHandle(scm);
+    (void)wt_service_policy_remove();
     return WT_OK;
 }
 

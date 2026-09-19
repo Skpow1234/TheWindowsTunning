@@ -1,4 +1,5 @@
 #include "service/service.h"
+#include "service/service_policy.h"
 
 #include "cli/cli.h"
 #include "core/scan.h"
@@ -17,8 +18,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
-
-#define WT_SERVICE_SCAN_INTERVAL_MS (15u * 60u * 1000u)
 
 static int wt_json_extract_cmd(const char *json, char *cmd_out, size_t cmd_cap)
 {
@@ -204,7 +203,13 @@ static WT_Result wt_service_make_action_response(const char *cmd, WT_Result resu
 
 WT_Result wt_service_run_scan_and_cache(void)
 {
+    WT_ServicePolicy policy;
+    (void)wt_service_policy_load(&policy);
+
     WT_ScanOptions opts = {0};
+    opts.sample_count = policy.sample_count;
+    opts.top_limit = policy.top_process_limit;
+
     WT_ScanWriteCtx ctx;
     memset(&ctx, 0, sizeof(ctx));
 
@@ -230,6 +235,7 @@ WT_Result wt_service_run_scan_and_cache(void)
         if (wt_paths_program_data_dir(dir, ARRAYSIZE(dir)) == WT_OK) {
             (void)wt_paths_ensure_dir(dir);
         }
+        (void)wt_service_policy_rotate_last_scan(&policy);
         FILE *f = NULL;
         if (_wfopen_s(&f, path, L"wb") == 0 && f != NULL) {
             fwrite(json, 1, json_len, f);
@@ -298,14 +304,19 @@ WT_Result wt_service_handle_request(const char *request_json,
             GetFileAttributesW(scan_path) != INVALID_FILE_ATTRIBUTES) {
             has_scan = 1;
         }
-        char buf[512];
+        WT_ServicePolicy policy;
+        (void)wt_service_policy_load(&policy);
+        char buf[640];
         snprintf(buf, sizeof(buf),
                  "{\"ok\":true,\"cmd\":\"status\",\"running\":true,"
                  "\"elevated\":%s,\"last_scan_cached\":%s,"
+                 "\"policy\":\"%s\",\"scan_interval_ms\":%u,"
+                 "\"sample_count\":%u,\"history_keep\":%u,"
                  "\"timestamp_utc\":\"%s\"}",
                  wt_is_process_elevated() ? "true" : "false",
-                 has_scan ? "true" : "false",
-                 ts[0] != '\0' ? ts : "");
+                 has_scan ? "true" : "false", policy.name,
+                 policy.scan_interval_ms, policy.sample_count,
+                 policy.history_keep, ts[0] != '\0' ? ts : "");
         size_t n = strlen(buf);
         char *copy = (char *)malloc(n + 1u);
         if (copy == NULL) {
@@ -528,5 +539,7 @@ WT_Result wt_service_handle_request(const char *request_json,
 
 unsigned wt_service_scan_interval_ms(void)
 {
-    return WT_SERVICE_SCAN_INTERVAL_MS;
+    WT_ServicePolicy policy;
+    (void)wt_service_policy_load(&policy);
+    return policy.scan_interval_ms;
 }

@@ -64,18 +64,34 @@ static DWORD WINAPI wt_service_worker(LPVOID param)
 
     (void)wt_service_run_scan_and_cache();
 
-    g_scan_timer = CreateWaitableTimerW(NULL, FALSE, NULL);
-    if (g_scan_timer != NULL) {
-        LARGE_INTEGER due;
-        due.QuadPart = -(LONGLONG)wt_service_scan_interval_ms() * 10000LL;
-        (void)SetWaitableTimer(g_scan_timer, &due,
-                               (LONG)wt_service_scan_interval_ms(), NULL, NULL, FALSE);
+    g_scan_timer = NULL;
+    unsigned interval = wt_service_scan_interval_ms();
+    if (interval > 0) {
+        g_scan_timer = CreateWaitableTimerW(NULL, FALSE, NULL);
+        if (g_scan_timer != NULL) {
+            LARGE_INTEGER due;
+            due.QuadPart = -(LONGLONG)interval * 10000LL;
+            (void)SetWaitableTimer(g_scan_timer, &due, (LONG)interval, NULL,
+                                   NULL, FALSE);
+        }
     }
 
     while (InterlockedCompareExchange(&g_running, 1, 1) == 1) {
         if (g_scan_timer != NULL &&
             WaitForSingleObject(g_scan_timer, 0) == WAIT_OBJECT_0) {
             (void)wt_service_run_scan_and_cache();
+            /* Reload interval if policy file changed (set-profile). */
+            unsigned next = wt_service_scan_interval_ms();
+            if (next == 0) {
+                CancelWaitableTimer(g_scan_timer);
+                CloseHandle(g_scan_timer);
+                g_scan_timer = NULL;
+            } else {
+                LARGE_INTEGER due;
+                due.QuadPart = -(LONGLONG)next * 10000LL;
+                (void)SetWaitableTimer(g_scan_timer, &due, (LONG)next, NULL,
+                                       NULL, FALSE);
+            }
         }
 
         HANDLE pipe = INVALID_HANDLE_VALUE;
