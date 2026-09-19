@@ -121,7 +121,7 @@ wintune version
 ## Release channels
 
 See [`channels.md`](channels.md) for stable vs beta, artifact matrix, and
-installer / Chocolatey notes.
+installer notes.
 
 | Channel | Tag example | `CHANNEL.txt` |
 |---------|-------------|---------------|
@@ -164,7 +164,7 @@ Requires [Inno Setup](https://jrsoftware.org/isinfo.php) (`iscc` on PATH):
 # or: iscc /DMyAppVersion=0.2.0 /DMyAppArch=x64 scripts\installer\wintune.iss
 ```
 
-Release CI installs Inno via Chocolatey when possible and uploads `*-setup.exe`
+Release CI installs Inno Setup when possible and uploads `*-setup.exe`
 alongside the portable ZIP. Prefer the portable ZIP for most users. Details:
 [`channels.md`](channels.md).
 

@@ -44,12 +44,10 @@ stage directory. The Release job auto-detects `beta` from the version string.
 - Setup.exe uploads when the installer job succeeds (Inno installed on the
   runner); missing Inno skips the installer without failing the release.
 
-## Chocolatey / winget
+## winget
 
-- **winget:** draft manifests under `packaging/winget/` — see [`winget.md`](winget.md).
-- **Chocolatey:** not packaged yet; portable ZIP + optional installer cover
-  distribution. A future `packaging/chocolatey/` package may wrap the same
-  GitHub Release assets — no adware, no silent auto-start.
+Draft manifests live under `packaging/winget/` — see [`winget.md`](winget.md).
+Portable ZIP + optional Setup.exe cover distribution today.
 
 ## Safety
 

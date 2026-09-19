@@ -562,7 +562,7 @@ Phase 21 is the **consumer** release: a shippable product artifact.
 - Signing guidance: [`signing.md`](signing.md).
 - CI build/lint + GitHub Releases ZIPs + SHA-256 (`scripts/release.ps1`).
 
-**Optional / deferred:** winget/Chocolatey; Authenticode signing in CI.
+**Optional / deferred:** winget; Authenticode signing in CI.
 
 **Example user flow:**
 
@@ -1256,7 +1256,6 @@ wintune fleet pack --input reports/ --output fleet-pack.zip
 - `scripts/installer.ps1` + Inno ISS updates (`MyAppVersionInfo` for betas).
 - Release workflow: optional Inno install → Setup.exe upload (soft-skip if missing).
 - [`channels.md`](channels.md): stable/beta matrix; portable ZIP remains primary.
-- `packaging/chocolatey/README.md` placeholder (no adware; future nuspec).
 
 **Depends on:** Phases 21, 52 (signing recommended before wide installer push).
 

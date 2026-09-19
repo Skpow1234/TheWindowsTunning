@@ -77,9 +77,10 @@ jobs:
       - name: Install Inno Setup (optional installer)
         shell: pwsh
         run: |
-          choco install innosetup -y --no-progress
+          winget install --id JRSoftware.InnoSetup -e --disable-interactivity `
+            --accept-source-agreements --accept-package-agreements
           if ($LASTEXITCODE -ne 0) {
-            Write-Warning "choco install innosetup failed — installer step will soft-skip"
+            Write-Warning "winget install Inno Setup failed — installer step will soft-skip"
           }
 
       - name: Build x64 Setup.exe (optional)
@@ -152,9 +153,10 @@ jobs:
       - name: Install Inno Setup (optional installer)
         shell: pwsh
         run: |
-          choco install innosetup -y --no-progress
+          winget install --id JRSoftware.InnoSetup -e --disable-interactivity `
+            --accept-source-agreements --accept-package-agreements
           if ($LASTEXITCODE -ne 0) {
-            Write-Warning "choco install innosetup failed — installer step will soft-skip"
+            Write-Warning "winget install Inno Setup failed — installer step will soft-skip"
           }
 
       - name: Build ARM64 Setup.exe (optional)

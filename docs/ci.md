@@ -147,7 +147,6 @@ Optional PFX signing via secrets is documented in [`signing.md`](signing.md).
 Not in default PR CI yet:
 
 - Publishing the draft winget manifests under `packaging/winget/` to winget-pkgs
-- Chocolatey package (placeholder under `packaging/chocolatey/`)
 
 Release workflow optionally builds Inno Setup.exe when `iscc` is available
 (see [`channels.md`](channels.md) and [`signing.md`](signing.md)).
