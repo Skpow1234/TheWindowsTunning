@@ -23,7 +23,9 @@ WT_Result wt_action_set_power_plan(WT_PowerScheme target,
                                    char *msg, size_t msg_cap);
 
 /* Restarts a Windows service (stop, then start) after confirmation. Requires
- * elevation. Refuses a small denylist of critical/security services. */
+ * elevation. Refuses a small denylist of critical/security services. On
+ * success, writes an audit rollback record with pre/post state+PID (restart
+ * cannot restore the prior process instance). */
 WT_Result wt_action_restart_service(const wchar_t *name,
                                     int assume_yes,
                                     char *msg, size_t msg_cap);

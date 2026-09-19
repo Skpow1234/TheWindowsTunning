@@ -46,6 +46,12 @@ int wt_cmd_rollback(const WT_CliOptions *opts)
                      "No rollback record with id '%ls'.", opts->arg2);
             return wt_cli_exit_from_result(opts, r, L"rollback", msg);
         }
+        if (r == WT_ERR_NOT_SUPPORTED) {
+            return wt_cli_exit_from_result(
+                opts, r, L"rollback",
+                "This rollback record is audit-only (e.g. service restart) "
+                "and cannot restore prior runtime state.");
+        }
         return wt_cli_exit_from_result(opts, r, L"rollback",
                                        wt_result_to_string(r));
     }

@@ -145,9 +145,13 @@ static int wt_service_is_protected(const wchar_t *name)
 {
     static const wchar_t *protected_names[] = {
         L"RpcSs", L"DcomLaunch", L"RpcEptMapper", L"LSM", L"Power",
-        L"WinDefend", L"MpsSvc", L"SecurityHealthService", L"wscsvc",
-        L"CryptSvc", L"BFE", L"gpsvc", L"Schedule", L"ProfSvc",
-        L"Themes", L"Winmgmt", L"EventLog", L"PlugPlay"
+        L"WinDefend", L"WdNisSvc", L"Sense", L"MpsSvc", L"BFE",
+        L"SecurityHealthService", L"wscsvc", L"CryptSvc",
+        L"gpsvc", L"Schedule", L"ProfSvc", L"Themes", L"Winmgmt",
+        L"EventLog", L"PlugPlay",
+        /* Windows Update / servicing — never restart via WinTune */
+        L"wuauserv", L"UsoSvc", L"WaaSMedicSvc", L"TrustedInstaller",
+        L"msiserver"
     };
     for (size_t i = 0; i < ARRAYSIZE(protected_names); ++i) {
         if (_wcsicmp(name, protected_names[i]) == 0) {
@@ -157,17 +161,47 @@ static int wt_service_is_protected(const wchar_t *name)
     return 0;
 }
 
+static const char *wt_service_dw_state_name(DWORD state)
+{
+    switch (state) {
+    case SERVICE_STOPPED:          return "Stopped";
+    case SERVICE_START_PENDING:    return "StartPending";
+    case SERVICE_STOP_PENDING:     return "StopPending";
+    case SERVICE_RUNNING:          return "Running";
+    case SERVICE_CONTINUE_PENDING: return "ContinuePending";
+    case SERVICE_PAUSE_PENDING:    return "PausePending";
+    case SERVICE_PAUSED:           return "Paused";
+    default:                       return "Unknown";
+    }
+}
+
+static int wt_service_query_snapshot(SC_HANDLE svc, DWORD *state_out,
+                                     DWORD *pid_out)
+{
+    SERVICE_STATUS_PROCESS ssp;
+    DWORD needed = 0;
+    if (!QueryServiceStatusEx(svc, SC_STATUS_PROCESS_INFO,
+                              (LPBYTE)&ssp, sizeof(ssp), &needed)) {
+        return 0;
+    }
+    if (state_out != NULL) {
+        *state_out = ssp.dwCurrentState;
+    }
+    if (pid_out != NULL) {
+        *pid_out = ssp.dwProcessId;
+    }
+    return 1;
+}
+
 static int wt_service_wait_state(SC_HANDLE svc, DWORD desired, DWORD timeout_ms)
 {
     DWORD waited = 0;
-    SERVICE_STATUS_PROCESS ssp;
-    DWORD needed = 0;
     while (waited < timeout_ms) {
-        if (!QueryServiceStatusEx(svc, SC_STATUS_PROCESS_INFO,
-                                  (LPBYTE)&ssp, sizeof(ssp), &needed)) {
+        DWORD state = 0;
+        if (!wt_service_query_snapshot(svc, &state, NULL)) {
             return 0;
         }
-        if (ssp.dwCurrentState == desired) {
+        if (state == desired) {
             return 1;
         }
         Sleep(200);
@@ -222,6 +256,16 @@ WT_Result wt_action_restart_service(const wchar_t *name,
                                                      : WT_ERR_WIN32;
     }
 
+    DWORD pre_state = 0;
+    DWORD pre_pid = 0;
+    if (!wt_service_query_snapshot(svc, &pre_state, &pre_pid)) {
+        StringCchPrintfA(msg, msg_cap,
+                         "Could not query status for service '%ls'.", name);
+        CloseServiceHandle(svc);
+        CloseServiceHandle(scm);
+        return WT_ERR_WIN32;
+    }
+
     char prompt[256];
     StringCchPrintfA(prompt, sizeof(prompt), "Restart service '%ls'?", name);
     if (!wt_action_confirm(prompt, assume_yes)) {
@@ -232,11 +276,7 @@ WT_Result wt_action_restart_service(const wchar_t *name,
     }
 
     WT_Result result = WT_OK;
-    SERVICE_STATUS_PROCESS ssp;
-    DWORD needed = 0;
-    if (QueryServiceStatusEx(svc, SC_STATUS_PROCESS_INFO,
-                             (LPBYTE)&ssp, sizeof(ssp), &needed) &&
-        ssp.dwCurrentState != SERVICE_STOPPED) {
+    if (pre_state != SERVICE_STOPPED) {
         SERVICE_STATUS st;
         if (!ControlService(svc, SERVICE_CONTROL_STOP, &st)) {
             StringCchPrintfA(msg, msg_cap, "Failed to stop service '%ls'.", name);
@@ -257,7 +297,45 @@ WT_Result wt_action_restart_service(const wchar_t *name,
                              "Service '%ls' was started but is not yet running.", name);
             result = WT_ERR_TIMEOUT;
         } else {
-            StringCchPrintfA(msg, msg_cap, "Service '%ls' restarted.", name);
+            DWORD post_state = 0;
+            DWORD post_pid = 0;
+            (void)wt_service_query_snapshot(svc, &post_state, &post_pid);
+
+            WT_RollbackRecord rec;
+            ZeroMemory(&rec, sizeof(rec));
+            StringCchCopyW(rec.action_type, ARRAYSIZE(rec.action_type),
+                           WT_ROLLBACK_TYPE_SERVICE_RESTART);
+            StringCchCopyW(rec.action_id, ARRAYSIZE(rec.action_id), name);
+            StringCchPrintfW(rec.description, ARRAYSIZE(rec.description),
+                             L"Service restart '%s': %hs pid %lu -> %hs pid %lu",
+                             name,
+                             wt_service_dw_state_name(pre_state),
+                             (unsigned long)pre_pid,
+                             wt_service_dw_state_name(post_state),
+                             (unsigned long)post_pid);
+            /* Audit payload: name|state|pid (prior runtime cannot be restored). */
+            StringCchPrintfW(rec.previous_value, ARRAYSIZE(rec.previous_value),
+                             L"%s|%hs|%lu", name,
+                             wt_service_dw_state_name(pre_state),
+                             (unsigned long)pre_pid);
+            StringCchPrintfW(rec.new_value, ARRAYSIZE(rec.new_value),
+                             L"%s|%hs|%lu", name,
+                             wt_service_dw_state_name(post_state),
+                             (unsigned long)post_pid);
+
+            WT_Result rr = wt_rollback_write(&rec);
+            if (rr == WT_OK) {
+                StringCchPrintfA(msg, msg_cap,
+                                 "Service '%ls' restarted. Audit/rollback id: %ls "
+                                 "(restart is not reversible to the prior process).",
+                                 name, rec.id);
+            } else {
+                WT_LOGW("could not write service restart audit record (%s)",
+                        wt_result_to_string(rr));
+                StringCchPrintfA(msg, msg_cap,
+                                 "Service '%ls' restarted. (audit record not saved)",
+                                 name);
+            }
         }
     }
 
