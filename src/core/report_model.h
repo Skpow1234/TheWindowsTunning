@@ -29,6 +29,9 @@ typedef struct WT_ScanReport {
     WT_DiskVolumeMetrics volumes[WT_MAX_VOLUMES];
     size_t volume_count;
     double disk_active_percent;
+    double disk_active_max_percent;   /* peak across samples; -1 if n/a */
+    unsigned int disk_active_ok_samples;
+    unsigned int disk_active_hot_samples; /* samples with active >= 90% */
     double disk_read_bytes_per_sec;   /* PhysicalDisk(_Total); -1 if n/a */
     double disk_write_bytes_per_sec;
     double disk_avg_queue_length;     /* -1 if n/a */
