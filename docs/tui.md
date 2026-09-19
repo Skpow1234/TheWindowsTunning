@@ -34,7 +34,7 @@ VS Code terminal, and SSH sessions.
 
 | Theme     | Behavior                                      |
 | --------- | --------------------------------------------- |
-| `default` | Full gauges + CPU/RAM/disk sparklines         |
+| `default` | Full gauges + CPU/RAM/disk/net sparklines     |
 | `compact` | Shorter gauges, fewer process rows, no sparks |
 | `mono`    | No ANSI colors (same as `--no-color` intent)  |
 
@@ -114,14 +114,21 @@ The TUI must **never** apply system changes without confirmation.
 
 ## Snapshot export
 
-Press `e` to write a text snapshot:
+Press `e` to write a snapshot triad under Documents:
 
 ```text
 %USERPROFILE%\Documents\WinTune\Reports\wintune-tui-YYYYMMDD-HHMMSS.txt
+%USERPROFILE%\Documents\WinTune\Reports\wintune-tui-YYYYMMDD-HHMMSS.json
+%USERPROFILE%\Documents\WinTune\Reports\wintune-tui-YYYYMMDD-HHMMSS.csv
 ```
 
-Contents: CPU/RAM/disk summary plus the current process table. Read-only; no
-system changes.
+- `.txt` — current gauges, in-session history table, process table
+- `.json` — `current` + `history[]` (cpu/mem/disk %, net rx/tx bytes/sec)
+- `.csv` — history timeseries only
+
+Read-only; no system changes. History is a ring of the last 24 refresh samples
+(CPU/RAM/disk percent + net down/up rates). Net sparklines (`dn~` / `up~`) are
+scaled relative to the window peak.
 
 ---
 

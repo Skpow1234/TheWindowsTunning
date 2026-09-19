@@ -57,7 +57,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 37 | Service restart rollback metadata | Done |
 | 38 | Guided doctor plan | Done |
 | 39 | Uninstall advisor (read-only) | Done |
-| 40 | TUI historical sparklines | Planned |
+| 40 | TUI historical sparklines | Done |
 | 41 | TUI before/after compare | Planned |
 | 42 | Tray mini-doctor | Planned |
 | 43 | Accessibility & SSH TUI | Planned |
@@ -998,9 +998,13 @@ wintune power --set performance --dry-run
 
 **Goal:** Short in-session history for CPU/RAM/disk/net.
 
+**Status:** Done
+
 **Deliver:**
 
-- Ring buffers in TUI; export CSV/JSON snapshot including history.
+- 24-sample ring buffer (CPU/RAM/disk % + net rx/tx B/s).
+- Sparklines: `cpu~` / `ram~` / `dsk~` / `dn~` / `up~` (compact theme skips).
+- Export `e` → `.txt` + `.json` + `.csv` including history.
 
 **Depends on:** Phase 20.
 

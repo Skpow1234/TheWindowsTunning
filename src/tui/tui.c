@@ -49,6 +49,8 @@ typedef struct WT_TuiHistory {
     double cpu[WT_TUI_HIST_LEN];
     double mem[WT_TUI_HIST_LEN];
     double disk[WT_TUI_HIST_LEN];
+    double net_rx[WT_TUI_HIST_LEN]; /* bytes/sec */
+    double net_tx[WT_TUI_HIST_LEN]; /* bytes/sec */
     size_t count;
     size_t next;
 } WT_TuiHistory;
@@ -167,7 +169,8 @@ static void wt_tui_rate(double bytes_per_sec, char *out, size_t cap)
     snprintf(out, cap, "%.1f %s", v, unit);
 }
 
-static void wt_tui_hist_push(WT_TuiHistory *h, double cpu, double mem, double disk)
+static void wt_tui_hist_push(WT_TuiHistory *h, double cpu, double mem,
+                             double disk, double net_rx, double net_tx)
 {
     if (h == NULL) {
         return;
@@ -175,6 +178,8 @@ static void wt_tui_hist_push(WT_TuiHistory *h, double cpu, double mem, double di
     h->cpu[h->next] = cpu < 0.0 ? 0.0 : cpu;
     h->mem[h->next] = mem < 0.0 ? 0.0 : mem;
     h->disk[h->next] = disk < 0.0 ? 0.0 : disk;
+    h->net_rx[h->next] = net_rx < 0.0 ? 0.0 : net_rx;
+    h->net_tx[h->next] = net_tx < 0.0 ? 0.0 : net_tx;
     h->next = (h->next + 1) % WT_TUI_HIST_LEN;
     if (h->count < WT_TUI_HIST_LEN) {
         h->count++;
@@ -192,6 +197,26 @@ static void wt_tui_hist_copy(const WT_TuiHistory *h, const double *src,
     size_t start = (h->next + WT_TUI_HIST_LEN - n) % WT_TUI_HIST_LEN;
     for (size_t i = 0; i < n; ++i) {
         out[i] = src[(start + i) % WT_TUI_HIST_LEN];
+    }
+}
+
+/* Scales absolute samples into 0..100 relative to the window max (for net). */
+static void wt_tui_hist_normalize(const double *src, size_t n, double *out)
+{
+    double max = 0.0;
+    for (size_t i = 0; i < n; ++i) {
+        if (src[i] > max) {
+            max = src[i];
+        }
+    }
+    if (max <= 0.0) {
+        for (size_t i = 0; i < n; ++i) {
+            out[i] = 0.0;
+        }
+        return;
+    }
+    for (size_t i = 0; i < n; ++i) {
+        out[i] = (src[i] / max) * 100.0;
     }
 }
 
@@ -288,6 +313,18 @@ static void wt_tui_render_gauges(WT_TuiScreen *s, const WT_TuiTheme *t,
         wt_tui_rate(tx, txs, sizeof(txs));
     }
     wt_tui_screen_line(s, "NET   down %-12s  up %-12s", rxs, txs);
+
+    if (hist != NULL && hist->count > 1 && t->preset != WT_TUI_THEME_COMPACT) {
+        double rx_s[WT_TUI_HIST_LEN], tx_s[WT_TUI_HIST_LEN];
+        double rx_n[WT_TUI_HIST_LEN], tx_n[WT_TUI_HIST_LEN];
+        size_t n = 0;
+        wt_tui_hist_copy(hist, hist->net_rx, rx_s, &n);
+        wt_tui_hist_normalize(rx_s, n, rx_n);
+        wt_tui_sparkline_line(s, t, "dn~", rx_n, n);
+        wt_tui_hist_copy(hist, hist->net_tx, tx_s, &n);
+        wt_tui_hist_normalize(tx_s, n, tx_n);
+        wt_tui_sparkline_line(s, t, "up~", tx_n, n);
+    }
 }
 
 static void wt_tui_render_processes(WT_TuiScreen *s, const WT_TuiTheme *t,
@@ -685,6 +722,7 @@ static void wt_tui_clamp_scroll(size_t *scroll, size_t count, int page)
 static int wt_tui_export_snapshot(const WT_TuiState *st,
                                   double cpu, double disk,
                                   const WT_MemoryMetrics *mem, int mem_ok,
+                                  double rx, double tx, int net_ok,
                                   const WT_ProcessInfo *procs, size_t proc_count,
                                   char *msg, size_t msg_cap)
 {
@@ -697,32 +735,60 @@ static int wt_tui_export_snapshot(const WT_TuiState *st,
 
     SYSTEMTIME stime;
     GetLocalTime(&stime);
-    wchar_t path[MAX_PATH];
+    wchar_t stem[MAX_PATH];
     if (FAILED(StringCchPrintfW(
-            path, ARRAYSIZE(path),
-            L"%s\\wintune-tui-%04u%02u%02u-%02u%02u%02u.txt", dir,
+            stem, ARRAYSIZE(stem),
+            L"%s\\wintune-tui-%04u%02u%02u-%02u%02u%02u", dir,
             stime.wYear, stime.wMonth, stime.wDay, stime.wHour, stime.wMinute,
             stime.wSecond))) {
         StringCchCopyA(msg, msg_cap, "export failed: path too long");
         return 0;
     }
 
+    double cpu_h[WT_TUI_HIST_LEN], mem_h[WT_TUI_HIST_LEN], disk_h[WT_TUI_HIST_LEN];
+    double rx_h[WT_TUI_HIST_LEN], tx_h[WT_TUI_HIST_LEN];
+    size_t hist_n = 0;
+    wt_tui_hist_copy(&st->hist, st->hist.cpu, cpu_h, &hist_n);
+    wt_tui_hist_copy(&st->hist, st->hist.mem, mem_h, &hist_n);
+    wt_tui_hist_copy(&st->hist, st->hist.disk, disk_h, &hist_n);
+    wt_tui_hist_copy(&st->hist, st->hist.net_rx, rx_h, &hist_n);
+    wt_tui_hist_copy(&st->hist, st->hist.net_tx, tx_h, &hist_n);
+
+    wchar_t path_txt[MAX_PATH], path_json[MAX_PATH], path_csv[MAX_PATH];
+    StringCchPrintfW(path_txt, ARRAYSIZE(path_txt), L"%s.txt", stem);
+    StringCchPrintfW(path_json, ARRAYSIZE(path_json), L"%s.json", stem);
+    StringCchPrintfW(path_csv, ARRAYSIZE(path_csv), L"%s.csv", stem);
+
     FILE *f = NULL;
-    if (_wfopen_s(&f, path, L"wb") != 0 || f == NULL) {
-        StringCchCopyA(msg, msg_cap, "export failed: open file");
+    if (_wfopen_s(&f, path_txt, L"wb") != 0 || f == NULL) {
+        StringCchCopyA(msg, msg_cap, "export failed: open .txt");
         return 0;
     }
 
     fprintf(f, "WinTune TUI snapshot\n");
-    fprintf(f, "sort=%s paused=%s\n", wt_tui_sort_name(st->sort),
-            st->paused ? "yes" : "no");
+    fprintf(f, "sort=%s paused=%s history_samples=%zu\n",
+            wt_tui_sort_name(st->sort), st->paused ? "yes" : "no", hist_n);
     fprintf(f, "CPU: %s%.1f%%\n", cpu < 0 ? "n/a " : "", cpu < 0 ? 0.0 : cpu);
     if (mem_ok) {
         fprintf(f, "Memory: %.1f%% used\n", mem->used_percent);
     }
-    fprintf(f, "Disk active: %s%.0f%%\n\n", disk < 0 ? "n/a " : "",
+    fprintf(f, "Disk active: %s%.0f%%\n", disk < 0 ? "n/a " : "",
             disk < 0 ? 0.0 : disk);
-    fprintf(f, "PID      Process                   CPU%%     Memory      Disk\n");
+    if (net_ok) {
+        char rxs[24], txs[24];
+        wt_tui_rate(rx, rxs, sizeof(rxs));
+        wt_tui_rate(tx, txs, sizeof(txs));
+        fprintf(f, "Net: down %s  up %s\n", rxs, txs);
+    }
+    if (hist_n > 0) {
+        fprintf(f, "\nHistory (oldest -> newest):\n");
+        fprintf(f, "idx  cpu%%   mem%%   disk%%     rx_Bps     tx_Bps\n");
+        for (size_t i = 0; i < hist_n; ++i) {
+            fprintf(f, "%3zu %6.1f %6.1f %7.1f %10.0f %10.0f\n", i, cpu_h[i],
+                    mem_h[i], disk_h[i], rx_h[i], tx_h[i]);
+        }
+    }
+    fprintf(f, "\nPID      Process                   CPU%%     Memory      Disk\n");
     for (size_t i = 0; i < proc_count; ++i) {
         char name[64];
         WideCharToMultiByte(CP_UTF8, 0, procs[i].name, -1, name, sizeof(name),
@@ -748,10 +814,66 @@ static int wt_tui_export_snapshot(const WT_TuiState *st,
     }
     fclose(f);
 
+    /* CSV history */
+    if (_wfopen_s(&f, path_csv, L"wb") == 0 && f != NULL) {
+        fputs("index,cpu_percent,mem_percent,disk_percent,net_rx_bps,net_tx_bps\n",
+              f);
+        for (size_t i = 0; i < hist_n; ++i) {
+            fprintf(f, "%zu,%.3f,%.3f,%.3f,%.3f,%.3f\n", i, cpu_h[i], mem_h[i],
+                    disk_h[i], rx_h[i], tx_h[i]);
+        }
+        fclose(f);
+    }
+
+    /* JSON snapshot + history */
+    if (_wfopen_s(&f, path_json, L"wb") == 0 && f != NULL) {
+        fputs("{\n", f);
+        fputs("  \"command\": \"tui\",\n", f);
+        fprintf(f, "  \"sort\": \"%s\",\n", wt_tui_sort_name(st->sort));
+        fprintf(f, "  \"paused\": %s,\n", st->paused ? "true" : "false");
+        fputs("  \"current\": {\n", f);
+        if (cpu >= 0.0) {
+            fprintf(f, "    \"cpu_percent\": %.2f,\n", cpu);
+        } else {
+            fputs("    \"cpu_percent\": null,\n", f);
+        }
+        if (mem_ok) {
+            fprintf(f, "    \"mem_percent\": %.2f,\n", mem->used_percent);
+        } else {
+            fputs("    \"mem_percent\": null,\n", f);
+        }
+        if (disk >= 0.0) {
+            fprintf(f, "    \"disk_percent\": %.2f,\n", disk);
+        } else {
+            fputs("    \"disk_percent\": null,\n", f);
+        }
+        if (net_ok) {
+            fprintf(f, "    \"net_rx_bps\": %.2f,\n", rx);
+            fprintf(f, "    \"net_tx_bps\": %.2f\n", tx);
+        } else {
+            fputs("    \"net_rx_bps\": null,\n", f);
+            fputs("    \"net_tx_bps\": null\n", f);
+        }
+        fputs("  },\n", f);
+        fputs("  \"history\": [\n", f);
+        for (size_t i = 0; i < hist_n; ++i) {
+            fprintf(f,
+                    "    {\"index\":%zu,\"cpu_percent\":%.3f,"
+                    "\"mem_percent\":%.3f,\"disk_percent\":%.3f,"
+                    "\"net_rx_bps\":%.3f,\"net_tx_bps\":%.3f}%s\n",
+                    i, cpu_h[i], mem_h[i], disk_h[i], rx_h[i], tx_h[i],
+                    (i + 1 < hist_n) ? "," : "");
+        }
+        fputs("  ],\n", f);
+        fprintf(f, "  \"process_count\": %zu\n", proc_count);
+        fputs("}\n", f);
+        fclose(f);
+    }
+
     char path_utf8[MAX_PATH];
-    WideCharToMultiByte(CP_UTF8, 0, path, -1, path_utf8, sizeof(path_utf8),
+    WideCharToMultiByte(CP_UTF8, 0, stem, -1, path_utf8, sizeof(path_utf8),
                         NULL, NULL);
-    snprintf(msg, msg_cap, "exported: %s", path_utf8);
+    snprintf(msg, msg_cap, "exported: %s.{txt,json,csv}", path_utf8);
     return 1;
 }
 
@@ -897,7 +1019,7 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
             t_prev = t_now;
 
             wt_tui_hist_push(&state.hist, cpu, mem_ok ? mem.used_percent : 0.0,
-                             disk);
+                             disk, rx, tx);
 
             if (state.view == WT_VIEW_OVERVIEW || state.view == WT_VIEW_MEMORY) {
                 /* Short sample keeps TUI responsive (was blocking a full interval). */
@@ -933,7 +1055,7 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
         int header_lines = 2;
         int gauge_lines = 4;
         if (state.hist.count > 1 && theme.preset != WT_TUI_THEME_COMPACT) {
-            gauge_lines += 3;
+            gauge_lines += 5; /* cpu~/ram~/dsk~ + dn~/up~ */
         }
         int title_footer = 4;
         int max_rows = rows - header_lines - gauge_lines - title_footer;
@@ -1176,8 +1298,8 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
             case WT_TUI_KEY_EXPORT: {
                 char msg[160];
                 if (wt_tui_export_snapshot(&state, cpu, disk, &mem, mem_ok,
-                                           procs, proc_count, msg,
-                                           sizeof(msg))) {
+                                           rx, tx, net_ok, procs, proc_count,
+                                           msg, sizeof(msg))) {
                     wt_tui_set_status(&state, msg, 4000);
                 } else {
                     wt_tui_set_status(&state, msg, 3000);

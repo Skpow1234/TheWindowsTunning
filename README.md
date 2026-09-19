@@ -422,7 +422,8 @@ end-user release polish).
 | 37 | Service restart rollback metadata | Done |
 | 38 | Guided doctor plan | Done |
 | 39 | Uninstall advisor (read-only) | Done |
-| 40–53 | v3 depth (TUI sparklines, fleet, signing, …) | Planned |
+| 40 | TUI historical sparklines | Done |
+| 41–53 | v3 depth (before/after compare, tray mini-doctor, fleet, …) | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.
