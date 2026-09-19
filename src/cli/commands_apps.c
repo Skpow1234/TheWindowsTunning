@@ -27,8 +27,8 @@ static void wt_apps_print_text(const WT_UninstallAdvice *advice)
            advice->scanned_keys, advice->count, advice->candidate_count);
 
     if (advice->candidate_count == 0) {
-        printf("No high-impact leftover candidates flagged from ARP + startup "
-               "correlation.\n");
+        printf("No high-impact leftover candidates (startup correlation).\n");
+        printf("Tip: wintune apps --large also lists large third-party installs.\n");
         printf("Use Settings / winget if you still want to remove unused apps.\n");
         wt_apps_print_guidance(stdout);
         return;
@@ -170,7 +170,8 @@ int wt_cmd_apps(const WT_CliOptions *opts)
         fprintf(stderr, "wintune: out of memory\n");
         return 1;
     }
-    WT_Result r = wt_collect_uninstall_advice(advice, 1);
+    WT_Result r = wt_collect_uninstall_advice(
+        advice, 1, (opts != NULL && opts->include_large) ? 1 : 0);
     if (r != WT_OK) {
         fprintf(stderr, "wintune: apps scan failed (%s)\n",
                 wt_result_to_string(r));

@@ -15,10 +15,10 @@ wintune apps --json
 1. Reads Add/Remove Programs (ARP) uninstall registry keys (HKLM / HKCU,
    including WOW6432Node).
 2. Skips Windows system components and update/hotfix style entries.
-3. Flags **candidates** when:
-   - The app correlates with a **high-impact startup** entry, or
-   - It is a large third-party install (EstimatedSize ≥ ~750 MB).
-4. Prints official removal guidance only.
+3. Flags **candidates** when the app correlates with a **high-impact startup**
+   entry (login impact leftovers).
+4. With `--large`, also flags large third-party installs (≥ ~2 GiB).
+5. Prints official removal guidance only.
 
 ## What it never does
 

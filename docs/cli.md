@@ -279,12 +279,12 @@ startup entries or are large third-party installs.
 
 ```bash
 wintune apps
+wintune apps --large
 wintune apps --json
 ```
 
-WinTune **never** uninstalls software and never runs `UninstallString`. Guidance
-points you to Settings, `winget list` / `winget uninstall`, or Programs and
-Features. Do not delete Program Files by hand.
+Default candidates are apps that match **high-impact startup** entries.
+`--large` also includes large third-party installs (≥ ~2 GiB EstimatedSize).
 
 ---
 

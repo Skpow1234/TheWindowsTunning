@@ -36,6 +36,7 @@ typedef struct WT_CliOptions {
     /* startup */
     int include_services;       /* --include-services */
     int include_tasks;          /* --include-tasks */
+    int include_large;          /* --large (apps: include large installs) */
     int include_network;        /* --include-network (per-process TCP rates) */
     int tasks_logon;            /* --logon (tasks list filter) */
     long delay_seconds;         /* --seconds N (tasks/startup delay) */

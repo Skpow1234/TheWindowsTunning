@@ -57,6 +57,7 @@ int wt_cli_parse_argv(int argc, wchar_t **argv, WT_CliOptions *opts,
         else if (wcscmp(t, L"--no-recommendations") == 0) opts->no_recommendations = 1;
         else if (wcscmp(t, L"--include-services") == 0) opts->include_services = 1;
         else if (wcscmp(t, L"--include-tasks") == 0) opts->include_tasks = 1;
+        else if (wcscmp(t, L"--large") == 0)        opts->include_large = 1;
         else if (wcscmp(t, L"--include-network") == 0) opts->include_network = 1;
         else if (wcscmp(t, L"--logon") == 0)        opts->tasks_logon = 1;
         else if (wcscmp(t, L"--seconds") == 0) {

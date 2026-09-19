@@ -980,7 +980,7 @@ static void wt_check_uninstall(const WT_ScanReport *report,
     if (advice == NULL) {
         return;
     }
-    if (wt_collect_uninstall_advice(advice, 1) != WT_OK) {
+    if (wt_collect_uninstall_advice(advice, 1, 0) != WT_OK) {
         free(advice);
         return;
     }
@@ -998,8 +998,7 @@ static void wt_check_uninstall(const WT_ScanReport *report,
     wt_str_set(r->title, sizeof(r->title),
                "Review installed apps that may be safe to remove");
     snprintf(r->reason, sizeof(r->reason),
-             "%zu installed-app candidate(s) look worth a calm uninstall review "
-             "(high-impact startup match and/or large third-party install). "
+             "%zu installed-app candidate(s) match high-impact startup entries. "
              "WinTune never uninstalls software.",
              advice->candidate_count);
     wt_str_set(r->action, sizeof(r->action),
