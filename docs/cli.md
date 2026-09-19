@@ -28,6 +28,7 @@ wintune blockers     # apps/files blocking restart or updates
 wintune storage      # storage reliability / failure-prediction (read-only)
 wintune reliability  # recent crashes / unexpected shutdowns (WER signals)
 wintune memory       # physical RAM, commit charge, hard-fault rate
+wintune maintenance  # Defender/WU/optimize overlap with high load
 wintune apps         # uninstall advisor (read-only; never uninstalls)
 wintune boot        # boot/login performance analysis (Phase 10)
 wintune service     # WinTune Windows Service install/manage (Phase 11)
@@ -333,6 +334,26 @@ See [`metrics.md`](metrics.md).
 
 ---
 
+## `wintune maintenance`
+
+Correlate high CPU/disk samples with known Microsoft maintenance workloads
+(Phase 51): Defender, Windows Update, and optimization/indexing tasks.
+
+```bash
+wintune maintenance
+wintune maintenance --json
+wintune maintenance --samples 5 --interval 1000
+```
+
+- Matches process names (e.g. `MsMpEng.exe`, `TiWorker.exe`, `SearchIndexer.exe`)
+  and probes known Task Scheduler paths for LastRun / Running state.
+- **Overlap** means a maintenance class was active while CPU or disk was hot
+  during the sample window.
+- Advisories: `WT-MAINT-001` … `004` (schedule off hours — never disable
+  Defender or Windows Update).
+
+---
+
 ## `wintune apps`
 
 Uninstall advisor (Phase 39). Read-only scan of Add/Remove Programs (Uninstall)
@@ -464,7 +485,8 @@ Safe actions:
 ## `wintune recommend`
 
 Generates recommendations without applying anything. Categories: performance,
-startup, memory, disk, power, services, updates, safety.
+startup, memory, disk, power, services, updates, reliability, maintenance,
+safety.
 
 ```bash
 wintune recommend

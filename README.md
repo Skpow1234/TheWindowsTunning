@@ -453,7 +453,8 @@ exit non-zero.
 - Per-process CPU and disk I/O rates are sampled during `scan` and `top`; very
   short-lived processes may be missed.
 - Recommendations cover power, memory, disk free space, disk activity
-  (system-wide and per-volume), and CPU.
+  (system-wide and per-volume), CPU, reliability, and maintenance-window
+  overlap (Defender/WU/optimize — never disable those).
 - Disk activity uses one PDH window per scan sample for PhysicalDisk(_Total)
   and LogicalDisk per fixed volume; multi-sample scans average those values.
 - `power --set` switches only to power schemes that already exist on the

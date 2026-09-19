@@ -68,7 +68,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 48 | Storage health (read-only) | Done |
 | 49 | Memory dump / WER signals | Done |
 | 50 | Pagefile & commit charge depth | Done |
-| 51 | Scheduled maintenance windows | Planned |
+| 51 | Scheduled maintenance windows | Done |
 | 52 | Authenticode CI + release signing | Planned |
 | 53 | Installer & channel maturity | Planned |
 
@@ -1204,10 +1204,18 @@ wintune fleet pack --input reports/ --output fleet-pack.zip
 
 **Goal:** Detect Defender/WU/optimization activity overlapping high samples.
 
+**Status:** Done
+
 **Deliver:**
 
-- Correlate high disk/CPU samples with known maintenance tasks.
-- Recommend scheduling outside work hours — not disabling security.
+- `wintune maintenance` / `--json`: multi-sample CPU/disk pressure + process
+  allowlist (MsMpEng, TiWorker, SearchIndexer, …) + Task Scheduler COM probes
+  for known Defender/WU/optimize task paths (LastRun / Running).
+- Overlap = maintenance class active **and** CPU/disk hot in the sample window.
+- Advisories: `WT-MAINT-001` (Defender overlap), `WT-MAINT-002` (WU overlap),
+  `WT-MAINT-003` (optimization overlap), `WT-MAINT-004` (multiple classes).
+- Guidance: schedule Active hours / scan windows off work hours — never disable
+  Defender or Windows Update.
 
 **Depends on:** Phases 12, 13, 15.
 
