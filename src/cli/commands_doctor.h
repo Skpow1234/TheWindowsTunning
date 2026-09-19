@@ -3,8 +3,9 @@
 
 #include "cli/cli.h"
 
-/* `wintune doctor` - friendly all-in-one: scan + recommendations + summary.
- * Read-only; never applies changes. */
+/* `wintune doctor` - friendly all-in-one: scan + recommendations + summary +
+ * guided plan. Read-only; never applies changes. Use --plan for plan-focused
+ * output (text or JSON). */
 int wt_cmd_doctor(const WT_CliOptions *opts);
 
 #endif /* WINTUNE_COMMANDS_DOCTOR_H */

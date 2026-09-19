@@ -1,6 +1,7 @@
 #include "cli/commands_doctor.h"
 #include "core/scan.h"
 #include "core/recommendations.h"
+#include "core/doctor_plan.h"
 #include "system/updates.h"
 #include "output/text.h"
 #include "output/json.h"
@@ -35,7 +36,7 @@ static void wt_print_doctor_summary(const WT_RecommendationList *recs)
 
 int wt_cmd_doctor(const WT_CliOptions *opts)
 {
-    if (opts != NULL && opts->via_service) {
+    if (opts != NULL && opts->via_service && !(opts->plan)) {
         if (!wt_service_client_is_available(2000)) {
             fprintf(stderr,
                     "wintune: WinTune service is not reachable.\n"
@@ -96,12 +97,24 @@ int wt_cmd_doctor(const WT_CliOptions *opts)
     WT_RecommendationList recs;
     wt_generate_recommendations(&report, &recs);
 
+    WT_DoctorPlan plan;
+    wt_doctor_plan_build(&recs, &plan);
+
+    int plan_only = (opts != NULL && opts->plan);
+
     if (opts != NULL && opts->json) {
-        wt_print_scan_report_json(&report, &recs, stdout);
+        if (plan_only) {
+            wt_doctor_plan_print_json(stdout, &plan);
+        } else {
+            wt_print_scan_report_json(&report, &recs, stdout);
+        }
         return 0;
     }
 
-    wt_print_scan_report_text(&report, &recs);
-    wt_print_doctor_summary(&recs);
+    if (!plan_only) {
+        wt_print_scan_report_text(&report, &recs);
+        wt_print_doctor_summary(&recs);
+    }
+    wt_doctor_plan_print_text(stdout, &plan);
     return 0;
 }
