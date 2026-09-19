@@ -70,7 +70,8 @@ static int wt_doctor_category_rank(const char *id)
         return 20;
     }
     if (strncmp(id, "WT-MEMORY-", 10) == 0 || strncmp(id, "WT-DISK-", 8) == 0 ||
-        strncmp(id, "WT-CPU-", 7) == 0 || strncmp(id, "WT-GPU-", 7) == 0) {
+        strncmp(id, "WT-CPU-", 7) == 0 || strncmp(id, "WT-GPU-", 7) == 0 ||
+        strncmp(id, "WT-RELIABILITY-", 15) == 0) {
         return 30;
     }
     if (strncmp(id, "WT-BOOT-", 8) == 0) {

@@ -566,6 +566,9 @@ static void wt_check_reliability(WT_RecommendationList *out)
     WT_Result r = wt_collect_reliability(&rel);
     unsigned unexpected;
     WT_Recommendation *rec;
+    int has_bugcheck = 0;
+    int has_kernel_dump = 0;
+    size_t i;
 
     if (r != WT_OK && !rel.events_ok && rel.dump_meta_count == 0) {
         return;
