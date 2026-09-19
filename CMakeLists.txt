@@ -302,6 +302,14 @@ wt_add_unit_test(test_confidence
     src/common/error.c
 )
 
+wt_add_unit_test(test_tui_compare
+    tests/test_tui_compare.c
+    src/tui/tui_compare.c
+    src/common/error.c
+    src/platform/paths.c
+)
+target_link_libraries(test_tui_compare PRIVATE shell32)
+
 wt_add_unit_test(test_doctor_plan
     tests/test_doctor_plan.c
     src/core/doctor_plan.c
@@ -397,6 +405,7 @@ add_custom_target(wintune_tests_all
         test_json
         test_recommendations
         test_confidence
+        test_tui_compare
         test_doctor_plan
         test_uninstall
         test_apply_preview

@@ -58,7 +58,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 38 | Guided doctor plan | Done |
 | 39 | Uninstall advisor (read-only) | Done |
 | 40 | TUI historical sparklines | Done |
-| 41 | TUI before/after compare | Planned |
+| 41 | TUI before/after compare | Done |
 | 42 | Tray mini-doctor | Planned |
 | 43 | Accessibility & SSH TUI | Planned |
 | 44 | Service policy profiles | Planned |
@@ -1014,9 +1014,14 @@ wintune power --set performance --dry-run
 
 **Goal:** Side-by-side snapshots after a confirmed apply.
 
+**Status:** Done
+
 **Deliver:**
 
-- Store/load two snapshots; show deltas in TUI or `report`.
+- Store/load two snapshots under `%LOCALAPPDATA%\WinTune\compare\{before|after}.json`.
+- TUI keys: `b` mark before, `a` mark after, `c` compare view.
+- Show measured deltas (percentage points / B/s) with calm “sample-window only” wording.
+- Text `report` includes the pair when snapshots exist on disk.
 
 **Depends on:** Phases 20, 8.
 

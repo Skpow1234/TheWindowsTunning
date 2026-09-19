@@ -92,6 +92,9 @@ w                  toggle per-process TCP net columns (extra overhead)
 j / k or arrows    scroll process or service list
 PgUp / PgDn        page scroll
 e                  export snapshot to Documents\WinTune\Reports\
+b                  mark before snapshot (for compare)
+a                  mark after snapshot
+c                  before/after compare view (measured deltas only)
 ? / h              help
 ```
 
@@ -100,6 +103,25 @@ Per-process net columns use TCP Extended Stats only (no payload capture; UDP
 not included) and stay off until `w` or `--include-network`.
 
 The TUI must **never** apply system changes without confirmation.
+
+---
+
+## Before / after compare
+
+Press `b` to capture a before snapshot of the current gauges, apply a change
+outside the TUI (or with `wintune apply`), then press `a` for after, then `c`
+to open the compare view.
+
+Snapshots persist under:
+
+```text
+%LOCALAPPDATA%\WinTune\compare\before.json
+%LOCALAPPDATA%\WinTune\compare\after.json
+```
+
+Deltas are **sample-window differences only** (percentage points for CPU/RAM/disk,
+B/s for net). They are not lasting gains. `wintune report` includes the pair when
+both or either snapshot exists on disk.
 
 ---
 
