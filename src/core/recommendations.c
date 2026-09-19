@@ -229,9 +229,87 @@ static const WT_DiskVolumeMetrics *wt_hottest_volume(const WT_ScanReport *rep)
     return hot;
 }
 
+/* Phase 30: fire on sustained pressure, not a single spike.
+ * Sustained = average >= threshold, or a strict majority of successful
+ * samples were hot. Single-sample / unset counters keep prior behavior. */
+static int wt_disk_sustained_hot(const WT_ScanReport *rep)
+{
+    unsigned int ok;
+    unsigned int hot;
+
+    if (!rep->disk_active_ok) {
+        return 0;
+    }
+
+    ok = rep->disk_active_ok_samples;
+    hot = rep->disk_active_hot_samples;
+    if (ok == 0u) {
+        return rep->disk_active_percent >= WT_DISK_ACTIVE_PCT;
+    }
+    if (rep->disk_active_percent >= WT_DISK_ACTIVE_PCT) {
+        return 1;
+    }
+    return (hot * 2u) > ok;
+}
+
+static int wt_disk_active_confidence(const WT_ScanReport *rep, int base_single,
+                                     int base_multi)
+{
+    unsigned int ok = rep->disk_active_ok_samples;
+    unsigned int hot = rep->disk_active_hot_samples;
+    int conf;
+
+    if (rep->scan_sample_count <= 1 || ok <= 1u) {
+        return base_single;
+    }
+
+    conf = base_multi;
+    if ((hot * 2u) > ok) {
+        conf += 5;
+    }
+    if (rep->disk_active_max_percent >= 0.0 &&
+        rep->disk_active_max_percent >= WT_DISK_ACTIVE_PCT &&
+        rep->disk_active_percent < WT_DISK_ACTIVE_PCT) {
+        /* Majority-hot but average cooled — slightly less confident. */
+        conf -= 5;
+    }
+    if (conf > 95) {
+        conf = 95;
+    }
+    if (conf < 50) {
+        conf = 50;
+    }
+    return conf;
+}
+
+static void wt_disk_sample_suffix(const WT_ScanReport *rep, char *buf,
+                                  size_t buf_sz)
+{
+    unsigned int ok = rep->disk_active_ok_samples;
+    unsigned int hot = rep->disk_active_hot_samples;
+
+    buf[0] = '\0';
+    if (ok == 0u) {
+        return;
+    }
+    if (rep->disk_active_max_percent >= 0.0 && ok > 1u) {
+        snprintf(buf, buf_sz,
+                 " Across %u samples: average %.0f%%, peak %.0f%%, %u of %u "
+                 "above %.0f%%.",
+                 ok, rep->disk_active_percent, rep->disk_active_max_percent,
+                 hot, ok, WT_DISK_ACTIVE_PCT);
+    } else if (ok > 1u) {
+        snprintf(buf, buf_sz,
+                 " Across %u samples: average %.0f%%, %u of %u above %.0f%%.",
+                 ok, rep->disk_active_percent, hot, ok, WT_DISK_ACTIVE_PCT);
+    }
+}
+
 static void wt_check_disk(const WT_ScanReport *rep, WT_RecommendationList *out)
 {
     double thru = 0.0;
+    char sample_note[192];
+
     if (rep->disk_throughput_ok) {
         if (rep->disk_read_bytes_per_sec > 0.0) {
             thru += rep->disk_read_bytes_per_sec;
@@ -242,11 +320,12 @@ static void wt_check_disk(const WT_ScanReport *rep, WT_RecommendationList *out)
     }
 
     const WT_DiskVolumeMetrics *hot = wt_hottest_volume(rep);
-    int total_hot = (rep->disk_active_ok &&
-                     rep->disk_active_percent >= WT_DISK_ACTIVE_PCT);
+    int total_hot = wt_disk_sustained_hot(rep);
     int volume_hot =
         (hot != NULL && hot->activity_ok &&
          hot->active_percent >= WT_DISK_ACTIVE_PCT);
+
+    wt_disk_sample_suffix(rep, sample_note, sizeof(sample_note));
 
     if (total_hot) {
         WT_Recommendation *r = wt_rec_add(out);
@@ -256,48 +335,50 @@ static void wt_check_disk(const WT_ScanReport *rep, WT_RecommendationList *out)
             if (hot != NULL && hot->activity_ok &&
                 rep->disk_throughput_ok && thru >= WT_DISK_THRU_MED_BPS) {
                 snprintf(r->reason, sizeof(r->reason),
-                         "Physical disk active time was %.0f%% (hottest volume "
-                         "%c: at %.0f%%) with about %.1f MB/s combined "
-                         "throughput (%.1f MB/s read, %.1f MB/s write). "
-                         "Sustained load often comes from antivirus scans, "
+                         "Physical disk active time averaged %.0f%% (hottest "
+                         "volume %c: at %.0f%%) with about %.1f MB/s combined "
+                         "throughput (%.1f MB/s read, %.1f MB/s write)."
+                         "%s Sustained load often comes from antivirus scans, "
                          "search indexing, or backups.",
                          rep->disk_active_percent, (char)hot->root_path[0],
                          hot->active_percent, thru / (1024.0 * 1024.0),
                          rep->disk_read_bytes_per_sec / (1024.0 * 1024.0),
-                         rep->disk_write_bytes_per_sec / (1024.0 * 1024.0));
+                         rep->disk_write_bytes_per_sec / (1024.0 * 1024.0),
+                         sample_note);
                 r->confidence_percent =
-                    (rep->scan_sample_count > 1) ? 85 : 75;
+                    wt_disk_active_confidence(rep, 75, 85);
             } else if (hot != NULL && hot->activity_ok) {
                 snprintf(r->reason, sizeof(r->reason),
-                         "Physical disk active time was %.0f%% during the "
-                         "sample; volume %c: was about %.0f%% active. "
-                         "Sustained high disk usage often comes from antivirus "
-                         "scans, search indexing, or backups.",
+                         "Physical disk active time averaged %.0f%%; volume "
+                         "%c: was about %.0f%% active."
+                         "%s Sustained high disk usage often comes from "
+                         "antivirus scans, search indexing, or backups.",
                          rep->disk_active_percent, (char)hot->root_path[0],
-                         hot->active_percent);
+                         hot->active_percent, sample_note);
                 r->confidence_percent =
-                    (rep->scan_sample_count > 1) ? 80 : 70;
+                    wt_disk_active_confidence(rep, 70, 80);
             } else if (rep->disk_throughput_ok && thru >= WT_DISK_THRU_MED_BPS) {
                 snprintf(r->reason, sizeof(r->reason),
-                         "Physical disk active time was %.0f%% with about "
+                         "Physical disk active time averaged %.0f%% with about "
                          "%.1f MB/s combined throughput (%.1f MB/s read, "
-                         "%.1f MB/s write) during the sample. Sustained load "
-                         "often comes from antivirus scans, search indexing, "
-                         "or backups.",
+                         "%.1f MB/s write)."
+                         "%s Sustained load often comes from antivirus scans, "
+                         "search indexing, or backups.",
                          rep->disk_active_percent,
                          thru / (1024.0 * 1024.0),
                          rep->disk_read_bytes_per_sec / (1024.0 * 1024.0),
-                         rep->disk_write_bytes_per_sec / (1024.0 * 1024.0));
+                         rep->disk_write_bytes_per_sec / (1024.0 * 1024.0),
+                         sample_note);
                 r->confidence_percent =
-                    (rep->scan_sample_count > 1) ? 85 : 75;
+                    wt_disk_active_confidence(rep, 75, 85);
             } else {
                 snprintf(r->reason, sizeof(r->reason),
-                         "Physical disk active time was %.0f%% during the sample. "
-                         "Sustained high disk usage often comes from antivirus "
-                         "scans, search indexing, or backups.",
-                         rep->disk_active_percent);
+                         "Physical disk active time averaged %.0f%%."
+                         "%s Sustained high disk usage often comes from "
+                         "antivirus scans, search indexing, or backups.",
+                         rep->disk_active_percent, sample_note);
                 r->confidence_percent =
-                    (rep->scan_sample_count > 1) ? 80 : 70;
+                    wt_disk_active_confidence(rep, 70, 80);
             }
             wt_str_set(r->action, sizeof(r->action),
                        "Review disk-heavy processes; let scans/indexing finish.");

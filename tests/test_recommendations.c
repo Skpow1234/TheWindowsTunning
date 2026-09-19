@@ -77,8 +77,35 @@ int main(void)
     wt_scan_report_init(&report);
     report.disk_active_ok = 1;
     report.disk_active_percent = 95.0;
+    report.disk_active_max_percent = 95.0;
+    report.disk_active_ok_samples = 1;
+    report.disk_active_hot_samples = 1;
     expect_true(wt_generate_recommendations(&report, &list) == WT_OK, "gen disk");
     expect_true(list_has_id(&list, "WT-DISK-001"), "disk active id");
+
+    /* One spike among many samples must not fire WT-DISK-001 (Phase 30). */
+    wt_scan_report_init(&report);
+    report.disk_active_ok = 1;
+    report.disk_active_percent = 35.0;
+    report.disk_active_max_percent = 95.0;
+    report.disk_active_ok_samples = 5;
+    report.disk_active_hot_samples = 1;
+    report.scan_sample_count = 5;
+    expect_true(wt_generate_recommendations(&report, &list) == WT_OK,
+                "gen disk spike");
+    expect_true(!list_has_id(&list, "WT-DISK-001"), "no disk one-spike alarm");
+
+    /* Majority-hot samples fire even if average cooled below 90%. */
+    wt_scan_report_init(&report);
+    report.disk_active_ok = 1;
+    report.disk_active_percent = 72.0;
+    report.disk_active_max_percent = 96.0;
+    report.disk_active_ok_samples = 3;
+    report.disk_active_hot_samples = 2;
+    report.scan_sample_count = 3;
+    expect_true(wt_generate_recommendations(&report, &list) == WT_OK,
+                "gen disk majority");
+    expect_true(list_has_id(&list, "WT-DISK-001"), "disk majority-hot id");
 
     /* AC + Balanced => WT-POWER-001 */
     wt_scan_report_init(&report);
