@@ -47,6 +47,17 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
         *acc = *sample;
         acc->scan_sample_count = scan_samples;
         acc->scan_sample_interval_ms = scan_interval;
+        /* Seed sustained-disk counters from the first sample (Phase 30). */
+        acc->disk_active_ok_samples = 0;
+        acc->disk_active_hot_samples = 0;
+        acc->disk_active_max_percent = -1.0;
+        if (sample->disk_active_ok) {
+            acc->disk_active_ok_samples = 1;
+            acc->disk_active_max_percent = sample->disk_active_percent;
+            if (sample->disk_active_percent >= 90.0) {
+                acc->disk_active_hot_samples = 1;
+            }
+        }
         return;
     }
 
@@ -57,11 +68,24 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
             (double)(sample_index + 1);
     }
 
-    if (sample->disk_active_ok && acc->disk_active_ok) {
-        acc->disk_active_percent =
-            ((acc->disk_active_percent * (double)sample_index) +
-             sample->disk_active_percent) /
-            (double)(sample_index + 1);
+    if (sample->disk_active_ok) {
+        if (acc->disk_active_ok) {
+            acc->disk_active_percent =
+                ((acc->disk_active_percent * (double)acc->disk_active_ok_samples) +
+                 sample->disk_active_percent) /
+                (double)(acc->disk_active_ok_samples + 1);
+        } else {
+            acc->disk_active_percent = sample->disk_active_percent;
+            acc->disk_active_ok = 1;
+        }
+        acc->disk_active_ok_samples++;
+        if (acc->disk_active_max_percent < 0.0 ||
+            sample->disk_active_percent > acc->disk_active_max_percent) {
+            acc->disk_active_max_percent = sample->disk_active_percent;
+        }
+        if (sample->disk_active_percent >= 90.0) {
+            acc->disk_active_hot_samples++;
+        }
     }
 
     if (sample->disk_throughput_ok && acc->disk_throughput_ok) {
@@ -144,6 +168,11 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
         WT_OK) {
         report->disk_active_ok = disk_io.active_ok;
         report->disk_active_percent = disk_io.active_percent;
+        report->disk_active_max_percent =
+            disk_io.active_ok ? disk_io.active_percent : -1.0;
+        report->disk_active_ok_samples = disk_io.active_ok ? 1u : 0u;
+        report->disk_active_hot_samples =
+            (disk_io.active_ok && disk_io.active_percent >= 90.0) ? 1u : 0u;
         report->disk_throughput_ok = disk_io.throughput_ok;
         report->disk_read_bytes_per_sec =
             disk_io.throughput_ok ? disk_io.read_bytes_per_sec : -1.0;
@@ -156,6 +185,13 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
         report->disk_active_ok =
             (wt_collect_disk_activity(sample_ms, &report->disk_active_percent) ==
              WT_OK);
+        report->disk_active_max_percent =
+            report->disk_active_ok ? report->disk_active_percent : -1.0;
+        report->disk_active_ok_samples = report->disk_active_ok ? 1u : 0u;
+        report->disk_active_hot_samples =
+            (report->disk_active_ok && report->disk_active_percent >= 90.0)
+                ? 1u
+                : 0u;
         report->disk_throughput_ok = 0;
         report->disk_queue_ok = 0;
         report->disk_read_bytes_per_sec = -1.0;

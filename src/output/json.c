@@ -575,6 +575,16 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     } else {
         wt_json_null(&w);
     }
+    wt_json_key(&w, "active_max_percent");
+    if (report->disk_active_ok && report->disk_active_max_percent >= 0.0) {
+        wt_json_double(&w, report->disk_active_max_percent);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "active_ok_samples");
+    wt_json_uint64(&w, (unsigned long long)report->disk_active_ok_samples);
+    wt_json_key(&w, "active_hot_samples");
+    wt_json_uint64(&w, (unsigned long long)report->disk_active_hot_samples);
     wt_json_key(&w, "throughput_available");
     wt_json_bool(&w, report->disk_throughput_ok);
     wt_json_key(&w, "read_bytes_per_sec");

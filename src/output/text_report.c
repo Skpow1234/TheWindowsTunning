@@ -192,8 +192,17 @@ void wt_print_performance_report_text(FILE *out,
         }
     }
     if (report->disk_active_ok) {
-        fprintf(out, "  Disk total active time: %.0f%%\n",
+        fprintf(out, "  Disk total active time: %.0f%%",
                 report->disk_active_percent);
+        if (report->disk_active_ok_samples > 1u) {
+            fprintf(out, " (avg of %u, peak %.0f%%, %u hot)",
+                    report->disk_active_ok_samples,
+                    report->disk_active_max_percent >= 0.0
+                        ? report->disk_active_max_percent
+                        : report->disk_active_percent,
+                    report->disk_active_hot_samples);
+        }
+        fprintf(out, "\n");
     }
     if (report->disk_throughput_ok) {
         wchar_t rd[32], wr[32];

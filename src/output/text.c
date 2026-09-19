@@ -181,7 +181,14 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
     }
     if (report->disk_active_ok) {
         fprintf(out, "  Total active time: %.0f%%", report->disk_active_percent);
-        if (report->scan_sample_count > 1) {
+        if (report->disk_active_ok_samples > 1u) {
+            fprintf(out, " (avg of %u samples", report->disk_active_ok_samples);
+            if (report->disk_active_max_percent >= 0.0) {
+                fprintf(out, ", peak %.0f%%", report->disk_active_max_percent);
+            }
+            fprintf(out, ", %u hot >= %.0f%%)",
+                    report->disk_active_hot_samples, 90.0);
+        } else if (report->scan_sample_count > 1) {
             fprintf(out, " (avg of %u samples)", report->scan_sample_count);
         }
         fprintf(out, "\n");
