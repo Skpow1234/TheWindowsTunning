@@ -10,6 +10,7 @@
 #include "system/file_identity.h"
 #include "system/uninstall.h"
 #include "system/storage_health.h"
+#include "system/reliability.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -556,6 +557,113 @@ static void wt_check_storage_health(WT_RecommendationList *out)
                    "IOCTL_STORAGE_PREDICT_FAILURE");
         /* One advisory is enough even if multiple disks fail. */
         break;
+    }
+}
+
+static void wt_check_reliability(WT_RecommendationList *out)
+{
+    WT_ReliabilityReport rel;
+    WT_Result r = wt_collect_reliability(&rel);
+    unsigned unexpected;
+    WT_Recommendation *rec;
+
+    if (r != WT_OK && !rel.events_ok && rel.dump_meta_count == 0) {
+        return;
+    }
+
+    unexpected = rel.kernel_power_count + rel.unexpected_shutdown_count;
+    if (unexpected >= 1u) {
+        rec = wt_rec_add(out);
+        if (rec != NULL) {
+            wt_str_set(rec->id, sizeof(rec->id), "WT-RELIABILITY-001");
+            wt_str_set(rec->title, sizeof(rec->title),
+                       "Recent unexpected shutdowns detected");
+            snprintf(rec->reason, sizeof(rec->reason),
+                     "Event Log shows %u unexpected power/shutdown signal(s) "
+                     "in the last %d days (Kernel-Power 41 / Event 6008). "
+                     "Systems often feel slow until a clean reboot after hard "
+                     "power loss.",
+                     unexpected, rel.lookback_days);
+            wt_str_set(rec->action, sizeof(rec->action),
+                       "Reboot cleanly when convenient. Check power/cables if "
+                       "this repeats. Run: wintune reliability");
+            rec->severity = (unexpected >= 2u) ? WT_SEVERITY_HIGH
+                                               : WT_SEVERITY_MEDIUM;
+            rec->risk = WT_RISK_NONE;
+            rec->confidence_percent = 85;
+            wt_str_set(rec->confidence_basis, sizeof(rec->confidence_basis),
+                       "System Event Log 41/6008");
+        }
+    }
+
+    if (rel.app_crash_count + rel.app_hang_count >= 3u) {
+        rec = wt_rec_add(out);
+        if (rec != NULL) {
+            char top[96];
+            top[0] = '\0';
+            if (rel.crash_app_count > 0) {
+                WideCharToMultiByte(CP_UTF8, 0, rel.crash_apps[0].name, -1, top,
+                                    (int)sizeof(top), NULL, NULL);
+            }
+            wt_str_set(rec->id, sizeof(rec->id), "WT-RELIABILITY-002");
+            wt_str_set(rec->title, sizeof(rec->title),
+                       "Repeated application crashes or hangs");
+            if (top[0] != '\0') {
+                snprintf(rec->reason, sizeof(rec->reason),
+                         "%u app crash/hang event(s) in the last %d days "
+                         "(top: %s x%u). Crash recovery can keep CPU and disk "
+                         "busy.",
+                         rel.app_crash_count + rel.app_hang_count,
+                         rel.lookback_days, top, rel.crash_apps[0].count);
+            } else {
+                snprintf(rec->reason, sizeof(rec->reason),
+                         "%u app crash/hang event(s) in the last %d days. "
+                         "Crash recovery can keep CPU and disk busy.",
+                         rel.app_crash_count + rel.app_hang_count,
+                         rel.lookback_days);
+            }
+            wt_str_set(rec->action, sizeof(rec->action),
+                       "Update or close noisy apps. Inspect with: "
+                       "wintune reliability. WinTune does not repair apps.");
+            rec->severity = WT_SEVERITY_MEDIUM;
+            rec->risk = WT_RISK_NONE;
+            rec->confidence_percent = 80;
+            wt_str_set(rec->confidence_basis, sizeof(rec->confidence_basis),
+                       "Application Event Log 1000/1002");
+        }
+    }
+
+    if (rel.bugcheck_count >= 1u) {
+        has_bugcheck = 1;
+    }
+    for (i = 0; i < rel.dump_meta_count; ++i) {
+        if (_wcsicmp(rel.dumps[i].location, L"minidump") == 0 ||
+            _wcsicmp(rel.dumps[i].location, L"memory.dmp") == 0) {
+            has_kernel_dump = 1;
+            break;
+        }
+    }
+    if (has_bugcheck || has_kernel_dump) {
+        rec = wt_rec_add(out);
+        if (rec != NULL) {
+            wt_str_set(rec->id, sizeof(rec->id), "WT-RELIABILITY-003");
+            wt_str_set(rec->title, sizeof(rec->title),
+                       "Kernel crash / dump metadata present");
+            snprintf(rec->reason, sizeof(rec->reason),
+                     "Found %u bugcheck report(s)%s in the lookback window. "
+                     "A recent bugcheck can explain lingering slowness.",
+                     rel.bugcheck_count,
+                     has_kernel_dump ? " and local kernel dump file(s)" : "");
+            wt_str_set(rec->action, sizeof(rec->action),
+                       "Review dumps with WinDbg or vendor tools if needed. "
+                       "WinTune never opens or uploads dump contents. "
+                       "Run: wintune reliability");
+            rec->severity = WT_SEVERITY_HIGH;
+            rec->risk = WT_RISK_NONE;
+            rec->confidence_percent = 88;
+            wt_str_set(rec->confidence_basis, sizeof(rec->confidence_basis),
+                       "System 1001 / local dump metadata");
+        }
     }
 }
 
@@ -1140,6 +1248,7 @@ WT_Result wt_generate_recommendations(const WT_ScanReport *report,
     wt_check_memory(report, out);
     wt_check_disk(report, out);
     wt_check_storage_health(out);
+    wt_check_reliability(out);
     wt_check_cpu(report, out);
     wt_check_gpu(report, out);
     wt_check_boot(report, out);
