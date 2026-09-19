@@ -4,6 +4,7 @@
 #include "output/text.h"
 #include "output/json.h"
 #include "platform/service_client.h"
+#include "platform/service_ipc.h"
 #include "cli/cli.h"
 #include "cli/cli_exit.h"
 #include "cli/exit_codes.h"
@@ -13,10 +14,14 @@
 int wt_cmd_scan(const WT_CliOptions *opts)
 {
     if (opts != NULL && opts->via_service) {
-        if (!wt_service_client_is_available(2000)) {
+        WT_Result pr = wt_service_client_ping(2000);
+        if (pr != WT_OK) {
+            if (pr == WT_ERR_ACCESS_DENIED) {
+                wt_service_ipc_print_access_denied(stderr);
+            }
             return wt_cli_exit_from_result(
-                opts, WT_ERR_NOT_FOUND, L"scan",
-                "WinTune service is not reachable.");
+                opts, pr, L"scan",
+                wt_service_client_ipc_error_message(pr));
         }
 
         FILE *out = stdout;
@@ -38,8 +43,11 @@ int wt_cmd_scan(const WT_CliOptions *opts)
             fclose(opened);
         }
         if (r != WT_OK) {
-            return wt_cli_exit_from_result(opts, r, L"scan",
-                                           "Service scan failed.");
+            if (r == WT_ERR_ACCESS_DENIED) {
+                wt_service_ipc_print_access_denied(stderr);
+            }
+            return wt_cli_exit_from_result(
+                opts, r, L"scan", wt_service_client_ipc_error_message(r));
         }
         return WT_EXIT_OK;
     }

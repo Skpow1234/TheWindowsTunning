@@ -96,6 +96,8 @@ static int wt_service_cmd_status(const WT_CliOptions *opts)
 
     WT_ServicePolicy policy;
     (void)wt_service_policy_load(&policy);
+    WT_IpcAclMode pipe_acl = WT_IPC_ACL_ADMIN;
+    (void)wt_service_ipc_acl_load(&pipe_acl);
 
     if (opts != NULL && opts->json) {
         printf("{\n");
@@ -110,6 +112,10 @@ static int wt_service_cmd_status(const WT_CliOptions *opts)
         printf("  \"pipe_reachable\": %s,\n",
                info.pipe_reachable ? "true" : "false");
         printf("  \"pipe\": \"%ls\",\n", WT_IPC_PIPE_NAME);
+        printf("  \"pipe_acl\": \"%s\",\n", wt_service_ipc_acl_name(pipe_acl));
+        printf("  \"pipe_acl_description\": \"%s\",\n",
+               wt_service_ipc_acl_describe(pipe_acl));
+        printf("  \"reject_remote_clients\": true,\n");
         wt_service_print_policy(&policy, 1);
         printf("  \"elevated_cli\": %s\n",
                wt_is_process_elevated() ? "true" : "false");
@@ -132,12 +138,16 @@ static int wt_service_cmd_status(const WT_CliOptions *opts)
     }
     printf("  Pipe:             %ls\n", WT_IPC_PIPE_NAME);
     printf("  Pipe reachable:   %s\n", info.pipe_reachable ? "yes" : "no");
+    printf("  Pipe ACL:         %s\n", wt_service_ipc_acl_name(pipe_acl));
+    printf("  Pipe ACL detail:  %s\n", wt_service_ipc_acl_describe(pipe_acl));
+    printf("  Remote clients:   rejected\n");
     wt_service_print_policy(&policy, 0);
     printf("  CLI elevated:     %s\n",
            wt_is_process_elevated() ? "yes" : "no");
     printf("\nInstall (admin):  wintune service install [options]\n");
     printf("  --auto-start              start with Windows\n");
     printf("  --profile balanced|performance|light|on-demand\n");
+    printf("  --pipe-acl admin|admin-only\n");
     printf("  --account system          Local System (default)\n");
     printf("  --account localservice    NT AUTHORITY\\LocalService\n");
     printf("  --account virtual         NT SERVICE\\WinTune (VSA)\n");
@@ -170,6 +180,15 @@ static int wt_service_cmd_install(const WT_CliOptions *opts)
         return 2;
     }
 
+    WT_IpcAclMode pipe_acl = WT_IPC_ACL_ADMIN;
+    r = wt_service_ipc_acl_from_name(
+        opts != NULL ? opts->service_pipe_acl : NULL, &pipe_acl);
+    if (r == WT_ERR_NOT_FOUND) {
+        fprintf(stderr,
+                "wintune: unknown --pipe-acl (use admin|admin-only)\n");
+        return 2;
+    }
+
     r = wt_service_install(&install_opts);
     if (r == WT_ERR_ACCESS_DENIED) {
         wt_print_admin_required_message(stderr);
@@ -195,6 +214,15 @@ static int wt_service_cmd_install(const WT_CliOptions *opts)
                 wt_result_to_string(r));
     }
 
+    r = wt_service_ipc_acl_save(pipe_acl);
+    if (r != WT_OK) {
+        fprintf(stderr,
+                "wintune: could not write pipe ACL file (%s). "
+                "Default admin ACL applies until: "
+                "wintune service set-pipe-acl <mode>\n",
+                wt_result_to_string(r));
+    }
+
     printf("WinTune service installed");
     if (install_opts.auto_start) {
         printf(" (automatic start)");
@@ -204,7 +232,11 @@ static int wt_service_cmd_install(const WT_CliOptions *opts)
     printf(" as %s.\n",
            wt_service_account_kind_name(install_opts.account_kind));
     printf("Policy: %s — %s\n", policy.name, wt_service_policy_describe(&policy));
+    printf("Pipe ACL: %s — %s\n", wt_service_ipc_acl_name(pipe_acl),
+           wt_service_ipc_acl_describe(pipe_acl));
     printf("Start it with: wintune service start\n");
+    printf("Note: restart the service after changing pipe ACL for new "
+           "instances to use it.\n");
     return 0;
 }
 
@@ -284,6 +316,47 @@ static int wt_service_cmd_show_profile(const WT_CliOptions *opts)
     return 0;
 }
 
+static int wt_service_cmd_set_pipe_acl(const WT_CliOptions *opts)
+{
+    const wchar_t *name = NULL;
+    if (opts != NULL) {
+        if (opts->arg2 != NULL && opts->arg2[0] != L'\0') {
+            name = opts->arg2;
+        } else {
+            name = opts->service_pipe_acl;
+        }
+    }
+    if (name == NULL || name[0] == L'\0') {
+        fprintf(stderr,
+                "Usage: wintune service set-pipe-acl <admin|admin-only>\n");
+        return 2;
+    }
+
+    WT_IpcAclMode mode = WT_IPC_ACL_ADMIN;
+    WT_Result r = wt_service_ipc_acl_from_name(name, &mode);
+    if (r != WT_OK) {
+        fprintf(stderr, "wintune: unknown pipe ACL (use admin|admin-only)\n");
+        return 2;
+    }
+
+    r = wt_service_ipc_acl_save(mode);
+    if (r != WT_OK) {
+        if (!wt_is_process_elevated()) {
+            wt_print_admin_required_message(stderr);
+            return 1;
+        }
+        fprintf(stderr, "wintune: could not write pipe ACL (%s)\n",
+                wt_result_to_string(r));
+        return 1;
+    }
+
+    printf("Pipe ACL set to %s — %s\n", wt_service_ipc_acl_name(mode),
+           wt_service_ipc_acl_describe(mode));
+    printf("Restart the service so new pipe instances use the ACL:\n"
+           "  wintune service stop && wintune service start\n");
+    return 0;
+}
+
 static int wt_service_cmd_uninstall(void)
 {
     WT_Result r = wt_service_uninstall();
@@ -301,7 +374,8 @@ static int wt_service_cmd_uninstall(void)
         return 1;
     }
     printf("WinTune service uninstalled.\n");
-    printf("Policy file under %%ProgramData%%\\WinTune removed when present.\n");
+    printf("Policy and pipe ACL files under %%ProgramData%%\\WinTune removed "
+           "when present.\n");
     return 0;
 }
 
@@ -350,10 +424,12 @@ int wt_cmd_service(const WT_CliOptions *opts)
                 "  wintune service install     (admin)\n"
                 "    [--auto-start]\n"
                 "    [--profile balanced|performance|light|on-demand]\n"
+                "    [--pipe-acl admin|admin-only]\n"
                 "    [--account system|localservice|virtual|DOMAIN\\User]\n"
                 "    [--account-password <secret>]  (required for custom)\n"
                 "  wintune service profile\n"
                 "  wintune service set-profile <name>  (admin to write)\n"
+                "  wintune service set-pipe-acl <admin|admin-only>\n"
                 "  wintune service uninstall   (admin)\n"
                 "  wintune service start\n"
                 "  wintune service stop\n");
@@ -371,6 +447,9 @@ int wt_cmd_service(const WT_CliOptions *opts)
     }
     if (wcscmp(opts->arg1, L"set-profile") == 0) {
         return wt_service_cmd_set_profile(opts);
+    }
+    if (wcscmp(opts->arg1, L"set-pipe-acl") == 0) {
+        return wt_service_cmd_set_pipe_acl(opts);
     }
     if (wcscmp(opts->arg1, L"uninstall") == 0) {
         return wt_service_cmd_uninstall();

@@ -6,6 +6,7 @@
 #include "output/text.h"
 #include "output/json.h"
 #include "platform/service_client.h"
+#include "platform/service_ipc.h"
 #include "cli/cli.h"
 
 #include <stdio.h>
@@ -37,11 +38,13 @@ static void wt_print_doctor_summary(const WT_RecommendationList *recs)
 int wt_cmd_doctor(const WT_CliOptions *opts)
 {
     if (opts != NULL && opts->via_service && !(opts->plan)) {
-        if (!wt_service_client_is_available(2000)) {
-            fprintf(stderr,
-                    "wintune: WinTune service is not reachable.\n"
-                    "Install/start it with: wintune service install && "
-                    "wintune service start\n");
+        WT_Result pr = wt_service_client_ping(2000);
+        if (pr != WT_OK) {
+            if (pr == WT_ERR_ACCESS_DENIED) {
+                wt_service_ipc_print_access_denied(stderr);
+            }
+            fprintf(stderr, "wintune: %s\n",
+                    wt_service_client_ipc_error_message(pr));
             return 1;
         }
 
@@ -64,8 +67,11 @@ int wt_cmd_doctor(const WT_CliOptions *opts)
             fclose(opened);
         }
         if (r != WT_OK) {
-            fprintf(stderr, "wintune: service doctor failed (%s)\n",
-                    wt_result_to_string(r));
+            if (r == WT_ERR_ACCESS_DENIED) {
+                wt_service_ipc_print_access_denied(stderr);
+            }
+            fprintf(stderr, "wintune: %s\n",
+                    wt_service_client_ipc_error_message(r));
             return 1;
         }
         return 0;

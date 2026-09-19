@@ -4,6 +4,7 @@
 #include "cli/cli.h"
 #include "cli/cli_exit.h"
 #include "platform/service_client.h"
+#include "platform/service_ipc.h"
 
 #include <stdio.h>
 
@@ -53,13 +54,19 @@ int wt_cmd_apply(const WT_CliOptions *opts)
     WT_Result r;
 
     if (wt_cli_should_route_via_service(opts)) {
-        if (!wt_service_client_is_available(2000)) {
+        WT_Result pr = wt_service_client_ping(2000);
+        if (pr != WT_OK) {
+            if (pr == WT_ERR_ACCESS_DENIED) {
+                wt_service_ipc_print_access_denied(stderr);
+            }
             return wt_cli_exit_from_result(
-                opts, WT_ERR_NOT_FOUND, L"apply",
-                "WinTune service is not reachable for apply.");
+                opts, pr, L"apply", wt_service_client_ipc_error_message(pr));
         }
         r = wt_service_client_apply(opts->arg1, opts->arg2, delay, opts->yes,
                                     msg, sizeof(msg));
+        if (r == WT_ERR_ACCESS_DENIED) {
+            wt_service_ipc_print_access_denied(stderr);
+        }
     } else {
         r = wt_apply_recommendation(opts->arg1, opts->arg2, delay, opts->yes,
                                     msg, sizeof(msg));
