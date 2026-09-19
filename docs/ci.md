@@ -144,10 +144,13 @@ Default CI remains unsigned. Release / dry-run packaging always runs
 `scripts/sign.ps1` verify (soft-pass when unsigned) and writes `SIGNING.txt`.
 Optional PFX signing via secrets is documented in [`signing.md`](signing.md).
 
-Not in default CI yet:
+Not in default PR CI yet:
 
 - Publishing the draft winget manifests under `packaging/winget/` to winget-pkgs
-- Inno Setup installer build (`scripts/installer/wintune.iss`)
+- Chocolatey package (placeholder under `packaging/chocolatey/`)
+
+Release workflow optionally builds Inno Setup.exe when `iscc` is available
+(see [`channels.md`](channels.md) and [`signing.md`](signing.md)).
 
 x64 and ARM64 CI run the full `scripts/smoke.ps1` suite (with `-SkipSlow`).
 Version resources and icon embedding are part of the normal CMake build

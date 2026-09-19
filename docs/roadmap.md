@@ -70,7 +70,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 50 | Pagefile & commit charge depth | Done |
 | 51 | Scheduled maintenance windows | Done |
 | 52 | Authenticode CI + release signing | Done |
-| 53 | Installer & channel maturity | Planned |
+| 53 | Installer & channel maturity | Done |
 
 ---
 
@@ -1249,11 +1249,14 @@ wintune fleet pack --input reports/ --output fleet-pack.zip
 
 **Goal:** First-class installer + channels beyond portable ZIP.
 
+**Status:** Done
+
 **Deliver:**
 
-- Wire Inno (or MSI) into release workflow when ready.
-- Stable/beta channel docs; optional Chocolatey later.
-- Keep portable ZIP as the primary artifact.
+- `scripts/installer.ps1` + Inno ISS updates (`MyAppVersionInfo` for betas).
+- Release workflow: optional Inno install → Setup.exe upload (soft-skip if missing).
+- [`channels.md`](channels.md): stable/beta matrix; portable ZIP remains primary.
+- `packaging/chocolatey/README.md` placeholder (no adware; future nuspec).
 
 **Depends on:** Phases 21, 52 (signing recommended before wide installer push).
 

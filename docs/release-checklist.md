@@ -26,9 +26,10 @@ Produces:
 Optional installer (requires [Inno Setup](https://jrsoftware.org/isinfo.php)):
 
 ```powershell
-.\scripts\package.ps1 -Config Release -Arch x64 -Version 0.2.0 -Configure -Build -Zip
-iscc /DMyAppVersion=0.2.0 /DMyAppArch=x64 scripts\installer\wintune.iss
+.\scripts\installer.ps1 -Version 0.2.0 -Arch x64 -PackageFirst -SkipIfMissingInno
 ```
+
+Channels and artifact matrix: [`channels.md`](channels.md).
 
 ## Tag + publish
 
