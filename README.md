@@ -431,7 +431,8 @@ end-user release polish).
 | 46 | Fleet report pack | Done |
 | 47 | JSON schema v2 + compatibility | Done |
 | 48 | Storage health (read-only) | Done |
-| 49–53 | WER signals, pagefile, signing, installer, … | Planned |
+| 49 | Memory dump / WER signals | Done |
+| 50–53 | Pagefile depth, maintenance windows, signing, installer | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.

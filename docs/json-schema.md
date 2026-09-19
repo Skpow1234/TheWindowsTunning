@@ -71,6 +71,7 @@ needs a true breaking rename. Prefer checking the **major** component
 | `updates` | `updates` |
 | `blockers` | `blockers` |
 | `storage` | `storage` |
+| `reliability` | `reliability` |
 | `error` | `--json-errors` failure document |
 | `fleet_pack_result` | `fleet pack --json` |
 

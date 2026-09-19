@@ -66,7 +66,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 46 | Fleet report pack | Done |
 | 47 | JSON schema v2 + compatibility | Done |
 | 48 | Storage health (read-only) | Done |
-| 49 | Memory dump / WER signals | Planned |
+| 49 | Memory dump / WER signals | Done |
 | 50 | Pagefile & commit charge depth | Planned |
 | 51 | Scheduled maintenance windows | Planned |
 | 52 | Authenticode CI + release signing | Planned |
@@ -1171,9 +1171,13 @@ wintune fleet pack --input reports/ --output fleet-pack.zip
 
 **Goal:** Explain slowness after crashes via recent WER / unexpected shutdowns.
 
+**Status:** Done
+
 **Deliver:**
 
-- Summarize recent reliability signals (not full dump upload).
+- `wintune reliability` / `--json`: System/Application Event Log summary (14-day
+  lookback) + local dump/WER **metadata only**.
+- Advisories: `WT-RELIABILITY-001` … `003`.
 
 **Never:** Exfiltrate dumps; claim to “fix” corruption automatically.
 

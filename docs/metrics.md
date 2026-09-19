@@ -195,6 +195,26 @@ Recommendation:
 - `WT-DISK-005` — failure prediction reported → back up + vendor diagnostics
   (advisory only).
 
+## Reliability / WER signals (Phase 49)
+
+Read-only Event Log + dump **metadata** (never dump contents):
+
+```text
+System:      EventID 41 (Kernel-Power), 6008 (unexpected shutdown), 1001 (bugcheck)
+Application: EventID 1000 (crash), 1001 (WER), 1002 (hang)
+Folders:     %SystemRoot%\Minidump, MEMORY.DMP, WER ReportArchive/Queue (names/sizes)
+```
+
+Command: `wintune reliability` / `--json`.
+
+Recommendations (advisory):
+
+- `WT-RELIABILITY-001` — unexpected shutdowns
+- `WT-RELIABILITY-002` — repeated app crashes/hangs
+- `WT-RELIABILITY-003` — bugcheck / kernel dump metadata
+
+**Never:** open/upload dumps; claim to repair corruption; clear event logs.
+
 ---
 
 ## Network
