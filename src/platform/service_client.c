@@ -66,16 +66,37 @@ static int wt_service_client_utf8_from_w(const wchar_t *w, char *out,
 
 int wt_service_client_is_available(unsigned timeout_ms)
 {
+    return wt_service_client_ping(timeout_ms) == WT_OK;
+}
+
+WT_Result wt_service_client_ping(unsigned timeout_ms)
+{
     char *resp = NULL;
     size_t len = 0;
     WT_Result r = wt_service_ipc_call("{\"cmd\":\"ping\"}", &resp, &len,
                                       timeout_ms);
     if (r != WT_OK) {
-        return 0;
+        return r;
     }
     int ok = (resp != NULL && strstr(resp, "\"ok\":true") != NULL);
     free(resp);
-    return ok;
+    return ok ? WT_OK : WT_ERR_UNKNOWN;
+}
+
+const char *wt_service_client_ipc_error_message(WT_Result r)
+{
+    if (r == WT_ERR_ACCESS_DENIED) {
+        return "Named-pipe ACL denied this process. "
+               "Run elevated, or adjust: wintune service set-pipe-acl admin";
+    }
+    if (r == WT_ERR_NOT_FOUND) {
+        return "WinTune service is not reachable. "
+               "Install/start: wintune service install && wintune service start";
+    }
+    if (r == WT_ERR_TIMEOUT) {
+        return "WinTune service pipe is busy or timed out.";
+    }
+    return "WinTune service IPC failed.";
 }
 
 WT_Result wt_service_client_scan(int doctor_mode, long interval_ms,
