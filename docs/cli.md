@@ -179,6 +179,8 @@ wintune tui --no-unicode
 wintune tui --safe-terminal
 wintune tui --theme compact
 wintune tui --theme mono
+wintune tui --theme high-contrast
+wintune tui --theme ssh
 wintune tui --sort cpu
 ```
 

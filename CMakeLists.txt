@@ -310,6 +310,11 @@ wt_add_unit_test(test_tui_compare
 )
 target_link_libraries(test_tui_compare PRIVATE shell32)
 
+wt_add_unit_test(test_tui_theme
+    tests/test_tui_theme.c
+    src/tui/tui_theme.c
+)
+
 wt_add_unit_test(test_doctor_plan
     tests/test_doctor_plan.c
     src/core/doctor_plan.c
@@ -406,6 +411,7 @@ add_custom_target(wintune_tests_all
         test_recommendations
         test_confidence
         test_tui_compare
+        test_tui_theme
         test_doctor_plan
         test_uninstall
         test_apply_preview

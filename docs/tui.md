@@ -18,6 +18,9 @@ wintune tui --no-unicode
 wintune tui --safe-terminal
 wintune tui --theme compact
 wintune tui --theme mono
+wintune tui --theme high-contrast
+wintune tui --theme ssh
+wintune tui --safe-terminal --theme high-contrast
 wintune tui --sort cpu
 wintune tui --include-network
 ```
@@ -25,20 +28,38 @@ wintune tui --include-network
 The TUI must work in Windows Terminal, PowerShell, CMD (with VT enabled), the
 VS Code terminal, and SSH sessions.
 
-**Minimum size:** 48 columns × 14 rows. Below that, WinTune shows a short
-“terminal too small” message instead of a cramped layout.
+**Minimum size:** 48 columns × 14 rows (36×12 in safe / SSH layout). Below that,
+WinTune shows a short “terminal too small” message instead of a cramped layout.
 
 ---
 
 ## Themes (`--theme`)
 
-| Theme     | Behavior                                      |
-| --------- | --------------------------------------------- |
-| `default` | Full gauges + CPU/RAM/disk/net sparklines     |
-| `compact` | Shorter gauges, fewer process rows, no sparks |
-| `mono`    | No ANSI colors (same as `--no-color` intent)  |
+| Theme            | Behavior                                                       |
+| ---------------- | -------------------------------------------------------------- |
+| `default`        | Full gauges + CPU/RAM/disk/net sparklines                      |
+| `compact`        | Shorter gauges, fewer process rows, no sparks                  |
+| `mono`           | No ANSI colors (same as `--no-color` intent)                   |
+| `high-contrast`  | Bright on-bar colors, ASCII chrome, longer a11y labels (`hc`)  |
+| `ssh` / `safe`   | ASCII, no color, compact chrome, a11y labels (SSH-friendly)    |
 
-`--safe-terminal` / remote sessions still force conservative ASCII + no-color.
+`--safe-terminal` / remote sessions force ASCII + compact chrome and clearer
+labels. Pair with `--theme high-contrast` to keep high-visibility colors over
+SSH (unless `--no-color`).
+
+---
+
+## Accessibility (Phase 43)
+
+When a11y labels are on (`high-contrast`, `ssh`, or `--safe-terminal`):
+
+- Header uses **Host name**, **Uptime**, **Power plan**
+- Gauges use **CPU usage**, **Memory**, **Disk act.**, **Network**
+- Section titles are longer (for screen readers / linear reading)
+- Dim text is avoided (bold used instead where color is available)
+- Footer shortens on narrow / safe layouts
+
+Keyboard-only; no mouse required.
 
 ---
 
@@ -49,7 +70,8 @@ VS Code terminal, and SSH sessions.
 | Unicode          | default                | Box-drawing glyphs, block bars, sparks    |
 | ASCII fallback   | `--no-unicode`         | `+`, `-`, `|`, `#` characters             |
 | No-color         | `--no-color` / `mono`  | No ANSI color sequences                   |
-| Safe terminal    | `--safe-terminal`      | Conservative output for SSH/unknown terms |
+| Safe terminal    | `--safe-terminal`      | ASCII + compact + a11y labels for SSH     |
+| High contrast    | `--theme high-contrast`| Bright utilization colors; no sparks      |
 | Non-interactive  | auto-detected          | Refuses TUI; suggests `scan`/`top`        |
 
 ---

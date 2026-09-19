@@ -60,7 +60,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 40 | TUI historical sparklines | Done |
 | 41 | TUI before/after compare | Done |
 | 42 | Tray mini-doctor | Done |
-| 43 | Accessibility & SSH TUI | Planned |
+| 43 | Accessibility & SSH TUI | Done |
 | 44 | Service policy profiles | Planned |
 | 45 | Named-pipe ACL hardening | Planned |
 | 46 | Fleet report pack | Planned |
@@ -1051,10 +1051,14 @@ wintune power --set performance --dry-run
 
 **Goal:** Better narrow-TTY, high-contrast, and clearer labels.
 
+**Status:** Done
+
 **Deliver:**
 
-- High-contrast theme; screen-reader-oriented labels where practical.
-- Stronger SSH/`--safe-terminal` layouts.
+- `--theme high-contrast` (`hc`): bright utilization colors, ASCII chrome, a11y labels.
+- `--theme ssh`: ASCII, no color, compact layout, clearer labels.
+- `--safe-terminal` / remote: ASCII + compact + a11y; optional HC colors over SSH.
+- Narrower minimum size (36×12) and shorter key footer in safe layouts.
 
 **Depends on:** Phases 9, 20.
 

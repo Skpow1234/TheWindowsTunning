@@ -63,7 +63,10 @@ This helps automation decide whether mutating commands can prompt or need
   stdout unless interactive.
 - **`--json`** — stdout is JSON only; incidental hints go to stderr and are
   suppressed in JSON mode where possible.
-- **`--safe-terminal`** — ASCII bars, no color; recommended for SSH TUI.
+- **`--safe-terminal`** — ASCII bars, compact chrome, clearer labels; recommended
+  for SSH TUI. Equivalent layout: `--theme ssh`.
+- **`--theme high-contrast`** — bright utilization colors; may be combined with
+  `--safe-terminal` for accessible SSH sessions.
 - **Remote PTY sessions** — when SSH is detected and the session is interactive,
   WinTune auto-enables conservative rendering (same as `--safe-terminal`).
 
