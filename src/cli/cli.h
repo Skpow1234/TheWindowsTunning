@@ -65,7 +65,7 @@ typedef struct WT_CliOptions {
     const wchar_t *format;      /* --format text|json  (NULL = default) */
 
     /* tui */
-    const wchar_t *theme;       /* --theme default|compact|mono */
+    const wchar_t *theme;       /* --theme default|compact|mono|high-contrast|ssh */
 
     /* Positional arguments following the command, e.g.
      *   wintune apply WT-POWER-001       -> arg1 = "WT-POWER-001"

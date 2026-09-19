@@ -84,7 +84,7 @@ static void wt_print_usage(void)
         "  --compact-json    Minified JSON (no pretty-printing)\n"
         "  --ndjson          One JSON document per line (e.g. top --watch --json)\n"
         "  --log-file <path> Append verbose/debug logs to a file (also stderr)\n"
-        "  --theme <name>    TUI theme: default | compact | mono\n"
+        "  --theme <name>    TUI theme: default|compact|mono|high-contrast|ssh\n"
         "  --include-network Opt-in per-process TCP rates (extra overhead; top/tui)\n",
         WT_VERSION_STRING);
 }

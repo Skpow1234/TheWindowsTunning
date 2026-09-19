@@ -143,7 +143,8 @@ int wt_cli_parse_argv(int argc, wchar_t **argv, WT_CliOptions *opts,
             if (i + 1 < argc) opts->theme = argv[++i];
             else {
                 fprintf(stderr,
-                        "wintune: --theme requires a name (default|compact|mono)\n");
+                        "wintune: --theme requires a name "
+                        "(default|compact|mono|high-contrast|ssh)\n");
                 return WT_EXIT_USAGE;
             }
         }

@@ -16,6 +16,10 @@ void wt_tui_gauge_line(WT_TuiScreen *s, const WT_TuiTheme *t,
 
     const char *color = wt_tui_color_for_pct(t, pct);
     const char *reset = wt_tui_reset(t);
+    int label_w = (t != NULL && t->label_width > 0) ? t->label_width : 5;
+    if (label_w > 16) {
+        label_w = 16;
+    }
 
     char bar[512];
     size_t pos = 0;
@@ -42,8 +46,10 @@ void wt_tui_gauge_line(WT_TuiScreen *s, const WT_TuiTheme *t,
     }
     bar[pos] = '\0';
 
-    wt_tui_screen_line(s, "%-5s [%s] %5.1f%%  %s",
-                       label, bar, pct, suffix ? suffix : "");
+    char fmt[64];
+    snprintf(fmt, sizeof(fmt), "%%-%ds [%%s] %%5.1f%%%%  %%s", label_w);
+    wt_tui_screen_line(s, fmt, label ? label : "", bar, pct,
+                       suffix ? suffix : "");
 }
 
 void wt_tui_sparkline_line(WT_TuiScreen *s, const WT_TuiTheme *t,
@@ -52,6 +58,9 @@ void wt_tui_sparkline_line(WT_TuiScreen *s, const WT_TuiTheme *t,
 {
     if (s == NULL || t == NULL || samples == NULL || count == 0 ||
         t->spark_levels == NULL || t->spark_level_count < 1) {
+        return;
+    }
+    if (t->skip_sparklines) {
         return;
     }
 
@@ -75,7 +84,13 @@ void wt_tui_sparkline_line(WT_TuiScreen *s, const WT_TuiTheme *t,
     }
     spark[pos] = '\0';
 
-    wt_tui_screen_line(s, "%-5s %s%s%s", label ? label : "",
+    int label_w = t->label_width > 0 ? t->label_width : 5;
+    if (label_w > 16) {
+        label_w = 16;
+    }
+    char fmt[48];
+    snprintf(fmt, sizeof(fmt), "%%-%ds %%s%%s%%s", label_w);
+    wt_tui_screen_line(s, fmt, label ? label : "",
                        wt_tui_cyan(t), spark, wt_tui_reset(t));
 }
 

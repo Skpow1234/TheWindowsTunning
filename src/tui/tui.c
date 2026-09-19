@@ -33,6 +33,8 @@
 #define WT_TUI_HIST_LEN 24
 #define WT_TUI_MIN_COLS 48
 #define WT_TUI_MIN_ROWS 14
+#define WT_TUI_SAFE_MIN_COLS 36
+#define WT_TUI_SAFE_MIN_ROWS 12
 #define WT_TUI_MAX_WIDTH 140
 
 typedef enum WT_TuiView {
@@ -272,9 +274,20 @@ static void wt_tui_render_header(WT_TuiScreen *s, const WT_TuiTheme *t, int widt
     }
 
     const char *pause = (st != NULL && st->paused) ? "  [PAUSED]" : "";
-    wt_tui_screen_line(s, "%s%sWinTune Live%s%s   Host: %s   Up: %s   Power: %s",
-                       wt_tui_bold(t), wt_tui_cyan(t), wt_tui_reset(t), pause,
-                       host, uptime, power_str);
+    const char *safe_tag = (t != NULL && t->safe_layout) ? "  [SAFE]" : "";
+    if (t != NULL && t->a11y_labels) {
+        wt_tui_screen_line(
+            s,
+            "%s%sWinTune Live dashboard%s%s%s   Host name: %s   Uptime: %s   "
+            "Power plan: %s",
+            wt_tui_bold(t), wt_tui_cyan(t), wt_tui_reset(t), pause, safe_tag,
+            host, uptime, power_str);
+    } else {
+        wt_tui_screen_line(
+            s, "%s%sWinTune Live%s%s%s   Host: %s   Up: %s   Power: %s",
+            wt_tui_bold(t), wt_tui_cyan(t), wt_tui_reset(t), pause, safe_tag,
+            host, uptime, power_str);
+    }
     wt_tui_rule_line(s, t, width);
 }
 
@@ -293,21 +306,27 @@ static void wt_tui_render_gauges(WT_TuiScreen *s, const WT_TuiTheme *t,
     }
 
     int bar_w = t->gauge_width;
-    wt_tui_gauge_line(s, t, "CPU", cpu < 0 ? 0.0 : cpu, bar_w,
+    const char *cpu_l = (t->a11y_labels) ? "CPU usage" : "CPU";
+    const char *ram_l = (t->a11y_labels) ? "Memory" : "RAM";
+    const char *dsk_l = (t->a11y_labels) ? "Disk act." : "DISK";
+    wt_tui_gauge_line(s, t, cpu_l, cpu < 0 ? 0.0 : cpu, bar_w,
                       cpu < 0 ? "(sampling)" : "");
-    wt_tui_gauge_line(s, t, "RAM", mem_ok ? mem_pct : 0.0, bar_w, mem_suffix);
-    wt_tui_gauge_line(s, t, "DISK", disk < 0 ? 0.0 : disk, bar_w,
+    wt_tui_gauge_line(s, t, ram_l, mem_ok ? mem_pct : 0.0, bar_w, mem_suffix);
+    wt_tui_gauge_line(s, t, dsk_l, disk < 0 ? 0.0 : disk, bar_w,
                       disk < 0 ? "(sampling)" : "active");
 
-    if (hist != NULL && hist->count > 1 && t->preset != WT_TUI_THEME_COMPACT) {
+    if (hist != NULL && hist->count > 1 && !t->skip_sparklines) {
         double cpu_s[WT_TUI_HIST_LEN], mem_s[WT_TUI_HIST_LEN], disk_s[WT_TUI_HIST_LEN];
         size_t n = 0;
         wt_tui_hist_copy(hist, hist->cpu, cpu_s, &n);
-        wt_tui_sparkline_line(s, t, "cpu~", cpu_s, n);
+        wt_tui_sparkline_line(s, t, t->a11y_labels ? "CPU trend" : "cpu~",
+                              cpu_s, n);
         wt_tui_hist_copy(hist, hist->mem, mem_s, &n);
-        wt_tui_sparkline_line(s, t, "ram~", mem_s, n);
+        wt_tui_sparkline_line(s, t, t->a11y_labels ? "Mem trend" : "ram~",
+                              mem_s, n);
         wt_tui_hist_copy(hist, hist->disk, disk_s, &n);
-        wt_tui_sparkline_line(s, t, "dsk~", disk_s, n);
+        wt_tui_sparkline_line(s, t, t->a11y_labels ? "Disk trend" : "dsk~",
+                              disk_s, n);
     }
 
     char rxs[24] = "n/a", txs[24] = "n/a";
@@ -315,18 +334,23 @@ static void wt_tui_render_gauges(WT_TuiScreen *s, const WT_TuiTheme *t,
         wt_tui_rate(rx, rxs, sizeof(rxs));
         wt_tui_rate(tx, txs, sizeof(txs));
     }
-    wt_tui_screen_line(s, "NET   down %-12s  up %-12s", rxs, txs);
+    if (t->a11y_labels) {
+        wt_tui_screen_line(s, "Network  down %-12s  up %-12s", rxs, txs);
+    } else {
+        wt_tui_screen_line(s, "NET   down %-12s  up %-12s", rxs, txs);
+    }
 
-    if (hist != NULL && hist->count > 1 && t->preset != WT_TUI_THEME_COMPACT) {
+    if (hist != NULL && hist->count > 1 && !t->skip_sparklines) {
         double rx_s[WT_TUI_HIST_LEN], tx_s[WT_TUI_HIST_LEN];
         double rx_n[WT_TUI_HIST_LEN], tx_n[WT_TUI_HIST_LEN];
         size_t n = 0;
         wt_tui_hist_copy(hist, hist->net_rx, rx_s, &n);
         wt_tui_hist_normalize(rx_s, n, rx_n);
-        wt_tui_sparkline_line(s, t, "dn~", rx_n, n);
+        wt_tui_sparkline_line(s, t, t->a11y_labels ? "Net down" : "dn~", rx_n,
+                              n);
         wt_tui_hist_copy(hist, hist->net_tx, tx_s, &n);
         wt_tui_hist_normalize(tx_s, n, tx_n);
-        wt_tui_sparkline_line(s, t, "up~", tx_n, n);
+        wt_tui_sparkline_line(s, t, t->a11y_labels ? "Net up" : "up~", tx_n, n);
     }
 }
 
@@ -359,17 +383,24 @@ static void wt_tui_render_processes(WT_TuiScreen *s, const WT_TuiTheme *t,
                        show_net ? "  net:on" : "");
 
     if (show_cpu && show_net) {
-        wt_tui_screen_line(s, "%s%-6s %-16s %6s %9s %8s %8s%s",
-                           wt_tui_dim(t), "PID", "Process", "CPU%", "Memory",
-                           "Disk", "Net", wt_tui_reset(t));
+        wt_tui_screen_line(
+            s, "%s%-6s %-16s %6s %9s %8s %8s%s", wt_tui_dim(t),
+            t->a11y_labels ? "PID" : "PID",
+            t->a11y_labels ? "Process name" : "Process",
+            t->a11y_labels ? "CPU%" : "CPU%",
+            t->a11y_labels ? "Memory" : "Memory",
+            t->a11y_labels ? "Disk/s" : "Disk",
+            t->a11y_labels ? "Net/s" : "Net", wt_tui_reset(t));
     } else if (show_cpu) {
-        wt_tui_screen_line(s, "%s%-6s %-20s %6s %10s %10s%s",
-                           wt_tui_dim(t), "PID", "Process", "CPU%", "Memory",
-                           "Disk", wt_tui_reset(t));
+        wt_tui_screen_line(
+            s, "%s%-6s %-20s %6s %10s %10s%s", wt_tui_dim(t), "PID",
+            t->a11y_labels ? "Process name" : "Process", "CPU%", "Memory",
+            t->a11y_labels ? "Disk I/O" : "Disk", wt_tui_reset(t));
     } else {
-        wt_tui_screen_line(s, "%s%-6s %-26s %12s %12s%s",
-                           wt_tui_dim(t), "PID", "Process", "Memory", "Private",
-                           wt_tui_reset(t));
+        wt_tui_screen_line(
+            s, "%s%-6s %-26s %12s %12s%s", wt_tui_dim(t), "PID",
+            t->a11y_labels ? "Process name" : "Process", "Memory",
+            t->a11y_labels ? "Private bytes" : "Private", wt_tui_reset(t));
     }
 
     if (scroll >= count) {
@@ -687,7 +718,11 @@ static void wt_tui_render_help(WT_TuiScreen *s, const WT_TuiTheme *t)
     wt_tui_screen_line(s, "  ?/h   Toggle this help");
     wt_tui_screen_line(s, "  q     Quit (Esc / Ctrl+C also quit)");
     wt_tui_screen_line(s, "");
-    wt_tui_empty_line(s, t, "Minimum size: 48x14. Themes: --theme default|compact|mono");
+    wt_tui_empty_line(s, t,
+                      "Minimum size: 48x14 (36x12 with --safe-terminal).");
+    wt_tui_empty_line(s, t,
+                      "Themes: --theme default|compact|mono|high-contrast|ssh");
+    wt_tui_empty_line(s, t, "SSH: wintune tui --safe-terminal  (or --theme ssh)");
     wt_tui_empty_line(s, t, "Net columns: TCP Extended Stats only; UDP not included.");
     wt_tui_empty_line(s, t, "Compare deltas are sample differences — not lasting gains.");
     wt_tui_empty_line(s, t, "WinTune never changes the system from the dashboard.");
@@ -789,7 +824,23 @@ static const char *wt_tui_view_title(WT_TuiView view)
     case WT_VIEW_SERVICES: return "Services";
     case WT_VIEW_COMPARE:  return "Before / After";
     case WT_VIEW_HELP:     return "Help";
-    default:               return "Top Processes";
+    default:
+        return "Top Processes";
+    }
+}
+
+static const char *wt_tui_view_title_a11y(WT_TuiView view)
+{
+    switch (view) {
+    case WT_VIEW_DISK:     return "Disk activity view";
+    case WT_VIEW_MEMORY:   return "Memory view";
+    case WT_VIEW_NETWORK:  return "Network view";
+    case WT_VIEW_GPU:      return "GPU view";
+    case WT_VIEW_POWER:    return "Power plan view";
+    case WT_VIEW_SERVICES: return "Services view";
+    case WT_VIEW_COMPARE:  return "Before and after compare";
+    case WT_VIEW_HELP:     return "Keyboard help";
+    default:               return "Top processes by resource use";
     }
 }
 
@@ -991,7 +1042,32 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
     wt_tui_theme_init(&theme, color, unicode);
     if (opts != NULL && opts->theme != NULL) {
         wt_tui_theme_apply_preset(&theme, opts->theme);
+        /* Explicit high-contrast may keep color even on SSH / safe-terminal. */
+        if (theme.preset == WT_TUI_THEME_HIGH_CONTRAST &&
+            (opts == NULL || !opts->no_color)) {
+            theme.color = 1;
+        }
+        if (theme.preset == WT_TUI_THEME_MONO ||
+            (opts != NULL && opts->no_color)) {
+            theme.color = 0;
+        }
     }
+    if (safe) {
+        wt_tui_theme_apply_safe_layout(&theme);
+        if (opts != NULL && opts->theme != NULL &&
+            (_wcsicmp(opts->theme, L"high-contrast") == 0 ||
+             _wcsicmp(opts->theme, L"highcontrast") == 0 ||
+             _wcsicmp(opts->theme, L"hc") == 0) &&
+            (opts == NULL || !opts->no_color)) {
+            theme.color = 1;
+            theme.preset = WT_TUI_THEME_HIGH_CONTRAST;
+            theme.bar_full = "=";
+            theme.bar_empty = " ";
+        }
+    }
+
+    const int min_cols = theme.safe_layout ? WT_TUI_SAFE_MIN_COLS : WT_TUI_MIN_COLS;
+    const int min_rows = theme.safe_layout ? WT_TUI_SAFE_MIN_ROWS : WT_TUI_MIN_ROWS;
 
     WT_TuiScreen screen;
     if (wt_tui_screen_init(&screen) != WT_OK) {
@@ -1073,10 +1149,10 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
         state.last_rows = rows;
         state.last_cols = cols;
 
-        int too_small = (cols < WT_TUI_MIN_COLS || rows < WT_TUI_MIN_ROWS);
+        int too_small = (cols < min_cols || rows < min_rows);
         int width = cols - 1;
-        if (width < WT_TUI_MIN_COLS) {
-            width = cols > 2 ? cols - 1 : WT_TUI_MIN_COLS;
+        if (width < min_cols) {
+            width = cols > 2 ? cols - 1 : min_cols;
         }
         if (width > WT_TUI_MAX_WIDTH) {
             width = WT_TUI_MAX_WIDTH;
@@ -1147,13 +1223,14 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
 
         int header_lines = 2;
         int gauge_lines = 4;
-        if (state.hist.count > 1 && theme.preset != WT_TUI_THEME_COMPACT) {
+        if (state.hist.count > 1 && !theme.skip_sparklines) {
             gauge_lines += 5; /* cpu~/ram~/dsk~ + dn~/up~ */
         }
         int title_footer = 4;
         int max_rows = rows - header_lines - gauge_lines - title_footer;
         if (max_rows < 2) max_rows = 2;
-        if (theme.preset == WT_TUI_THEME_COMPACT && max_rows > 8) {
+        if ((theme.preset == WT_TUI_THEME_COMPACT || theme.safe_layout) &&
+            max_rows > 8) {
             max_rows = 8;
         }
 
@@ -1162,9 +1239,18 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
         if (too_small) {
             wt_tui_screen_line(&screen, "%sWinTune TUI%s", wt_tui_bold(&theme),
                                wt_tui_reset(&theme));
-            wt_tui_empty_line(&screen, &theme,
-                              "Terminal too small — enlarge to at least 48x14.");
+            {
+                char msg[96];
+                snprintf(msg, sizeof(msg),
+                         "Terminal too small — enlarge to at least %dx%d.",
+                         min_cols, min_rows);
+                wt_tui_empty_line(&screen, &theme, msg);
+            }
             wt_tui_screen_line(&screen, "Current size: %dx%d", cols, rows);
+            if (theme.safe_layout) {
+                wt_tui_empty_line(&screen, &theme,
+                                  "SSH tip: use a larger pty or --theme ssh.");
+            }
             wt_tui_empty_line(&screen, &theme, "Press q to quit.");
             wt_tui_screen_flush(&screen, stdout);
         } else {
@@ -1173,8 +1259,12 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
                                  mem_ok ? mem.used_percent : 0.0, disk, &mem,
                                  mem_ok, rx, tx, net_ok, &state.hist);
             wt_tui_rule_line(&screen, &theme, width);
-            wt_tui_title_line(&screen, &theme, wt_tui_view_title(state.view),
-                              width);
+            {
+                const char *title = theme.a11y_labels
+                                        ? wt_tui_view_title_a11y(state.view)
+                                        : wt_tui_view_title(state.view);
+                wt_tui_title_line(&screen, &theme, title, width);
+            }
 
             switch (state.view) {
             case WT_VIEW_DISK:
@@ -1221,6 +1311,12 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
                 GetTickCount64() < state.status_until_ms) {
                 wt_tui_screen_line(&screen, "%s%s%s", wt_tui_cyan(&theme),
                                    state.status, wt_tui_reset(&theme));
+            } else if (theme.safe_layout || width < 72) {
+                wt_tui_screen_line(
+                    &screen,
+                    "%sKeys:%s q quit | Space pause | ? help | o/d/m/n/p/s views | "
+                    "j/k scroll | e export",
+                    wt_tui_dim(&theme), wt_tui_reset(&theme));
             } else {
                 wt_tui_screen_line(
                     &screen,
