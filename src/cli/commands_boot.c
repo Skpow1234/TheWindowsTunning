@@ -112,16 +112,40 @@ static void wt_print_boot_text(const WT_BootReport *boot)
     }
 
     if (boot->component_count > 0) {
-        printf("\nSlow startup components (%zu):\n\n", boot->component_count);
-        printf("%-12s %-8s %ls\n", "Kind", "Time", L"Name");
+        printf("\nDriver / service start waterfall (%zu, by impact)",
+               boot->component_count);
+        if (boot->waterfall_total_ms > 0) {
+            wchar_t tot[32];
+            wt_format_duration_ms(boot->waterfall_total_ms, tot, ARRAYSIZE(tot));
+            wprintf(L", total attributed %ls", tot);
+        }
+        printf(":\n\n");
+        printf("%-4s %-12s %-8s %-8s %ls\n", "#", "Kind", "Time", "Offset",
+               L"Name");
         for (size_t i = 0; i < boot->component_count; ++i) {
             const WT_BootComponent *c = &boot->components[i];
             wchar_t t[32];
+            wchar_t off[32];
             wt_format_duration_ms(c->duration_ms, t, ARRAYSIZE(t));
-            wprintf(L"%-12hs %-8ls %ls\n",
-                    wt_boot_component_kind_name(c->kind),
-                    t,
-                    c->name);
+            if (c->start_offset_ms > 0) {
+                wt_format_duration_ms(c->start_offset_ms, off, ARRAYSIZE(off));
+            } else {
+                StringCchCopyW(off, ARRAYSIZE(off), L"—");
+            }
+            wprintf(L"%-4zu %-12hs %-8ls %-8ls %ls", i + 1,
+                    wt_boot_component_kind_name(c->kind), t, off, c->name);
+            if (c->event_id > 0) {
+                printf("  [E%u]", c->event_id);
+            }
+            printf("\n");
+            if (c->service_matched) {
+                wprintf(L"             service %ls (%hs", c->service_name,
+                        c->service_state);
+                if (c->service_pid > 0) {
+                    printf(", pid %lu", c->service_pid);
+                }
+                printf(")\n");
+            }
             if (c->detail[0] != L'\0') {
                 wprintf(L"             %ls\n", c->detail);
             }

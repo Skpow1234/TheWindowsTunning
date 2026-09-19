@@ -435,11 +435,26 @@ static void wt_json_emit_boot_object(WT_JsonWriter *w, const WT_BootReport *boot
         wt_json_key(w, "name");         wt_json_wstring(w, c->name);
         wt_json_key(w, "detail");       wt_json_wstring(w, c->detail);
         wt_json_key(w, "kind");         wt_json_string(w, wt_boot_component_kind_name(c->kind));
+        wt_json_key(w, "event_id");     wt_json_uint64(w, c->event_id);
         wt_json_key(w, "duration_ms");  wt_json_uint64(w, c->duration_ms);
+        wt_json_key(w, "start_offset_ms");
+        c->start_offset_ms > 0 ? wt_json_uint64(w, c->start_offset_ms)
+                               : wt_json_null(w);
         wt_json_key(w, "disk_heavy");   wt_json_bool(w, c->is_disk_heavy);
+        wt_json_key(w, "service_matched"); wt_json_bool(w, c->service_matched);
+        if (c->service_matched) {
+            wt_json_key(w, "service_name"); wt_json_wstring(w, c->service_name);
+            wt_json_key(w, "service_state"); wt_json_string(w, c->service_state);
+            wt_json_key(w, "service_pid");
+            c->service_pid > 0 ? wt_json_uint64(w, c->service_pid)
+                               : wt_json_null(w);
+        }
         wt_json_end_object(w);
     }
     wt_json_end_array(w);
+
+    wt_json_key(w, "waterfall_total_ms");
+    wt_json_uint64(w, boot->waterfall_total_ms);
 
     if (boot->trace_path[0] != L'\0') {
         wt_json_key(w, "trace_path"); wt_json_wstring(w, boot->trace_path);

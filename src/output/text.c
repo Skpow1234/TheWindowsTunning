@@ -254,7 +254,8 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
                     report->boot.history.warm_count);
         }
         if (report->boot.component_count > 0) {
-            fprintf(out, "  Slow components: %zu (see 'wintune boot analyze')\n",
+            fprintf(out,
+                    "  Slow components: %zu (waterfall; see 'wintune boot analyze')\n",
                     report->boot.component_count);
         }
         fprintf(out, "\n");

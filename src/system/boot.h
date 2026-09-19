@@ -25,8 +25,15 @@ typedef struct WT_BootComponent {
     wchar_t name[128];
     wchar_t detail[256];
     WT_BootComponentKind kind;
+    unsigned event_id;           /* Diagnostics-Performance 101–110 */
     unsigned long duration_ms;
+    unsigned long start_offset_ms; /* ms after BootStartTime; 0 if unknown */
     int is_disk_heavy;
+    /* Phase 33: matched Win32 service (best-effort). */
+    int service_matched;
+    wchar_t service_name[64];
+    unsigned long service_pid;
+    char service_state[24];
 } WT_BootComponent;
 
 #define WT_MAX_BOOT_COMPONENTS 64
@@ -70,9 +77,12 @@ typedef struct WT_BootReport {
 
     WT_BootKind last_boot_kind; /* Phase 32 */
     WT_BootHistory history;     /* recent Event 100 samples */
+    char boot_start_utc[40];    /* latest BootStartTime (for offsets) */
 
     WT_BootComponent components[WT_MAX_BOOT_COMPONENTS];
     size_t component_count;
+    unsigned long waterfall_total_ms; /* sum of component durations */
+    int waterfall_sorted;             /* 1 after impact sort */
 
     wchar_t source[32];       /* "event_log", "etl", or "event_log+etl" */
     wchar_t trace_path[MAX_PATH];
@@ -123,6 +133,9 @@ WT_Result wt_boot_arm_status(WT_BootArmStatus *out);
 WT_Result wt_boot_stop_armed_session(void);
 /* Fills out with reboot ETL path when READY/CAPTURING and file exists. */
 WT_Result wt_boot_resolve_reboot_etl(wchar_t *out, size_t count);
+
+/* Correlate waterfall service/driver names with the SCM Win32 service list. */
+void wt_boot_correlate_services(WT_BootReport *report);
 
 const char *wt_boot_component_kind_name(WT_BootComponentKind kind);
 const char *wt_boot_kind_name(WT_BootKind kind);

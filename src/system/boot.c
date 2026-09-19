@@ -2,9 +2,11 @@
 
 #include "common/log.h"
 #include "platform/paths.h"
+#include "system/services.h"
 
 #include <winevt.h>
 #include <strsafe.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -23,7 +25,7 @@ static const wchar_t *g_boot_query =
     L"  <Query Id='0'>"
     L"    <Select Path='Microsoft-Windows-Diagnostics-Performance/Operational'>"
     L"      *[System[Provider[@Name='Microsoft-Windows-Diagnostics-Performance'] "
-    L"        and (EventID=100 or EventID=101 or EventID=103)]]"
+    L"        and (EventID>=100 and EventID<=110)]]"
     L"    </Select>"
     L"  </Query>"
     L"</QueryList>";
@@ -123,26 +125,19 @@ static unsigned long wt_evt_xml_get_ulong(const wchar_t *xml, const wchar_t *fie
     return wcstoul(buf, NULL, 10);
 }
 
-static WT_BootComponentKind wt_boot_kind_from_text(const wchar_t *text,
-                                                   unsigned event_id)
+static WT_BootComponentKind wt_boot_kind_from_event(unsigned event_id)
 {
-    if (event_id == 103) {
+    switch (event_id) {
+    case 101:
         return WT_BOOT_COMP_APPLICATION;
-    }
-    if (text == NULL) {
+    case 102:
+    case 109:
+        return WT_BOOT_COMP_DRIVER;
+    case 103:
+        return WT_BOOT_COMP_SERVICE;
+    default:
         return WT_BOOT_COMP_DEGRADATION;
     }
-    if (wt_boot_wcs_contains_i(text, L"driver")) {
-        return WT_BOOT_COMP_DRIVER;
-    }
-    if (wt_boot_wcs_contains_i(text, L"service")) {
-        return WT_BOOT_COMP_SERVICE;
-    }
-    if (wt_boot_wcs_contains_i(text, L"application") ||
-        wt_boot_wcs_contains_i(text, L"startup")) {
-        return WT_BOOT_COMP_APPLICATION;
-    }
-    return WT_BOOT_COMP_DEGRADATION;
 }
 
 static int wt_boot_is_disk_heavy_text(const wchar_t *text)
@@ -153,6 +148,76 @@ static int wt_boot_is_disk_heavy_text(const wchar_t *text)
     return wt_boot_wcs_contains_i(text, L"disk") ||
            wt_boot_wcs_contains_i(text, L"storage") ||
            wt_boot_wcs_contains_i(text, L"io");
+}
+
+/* Parse Event XML TimeCreated SystemTime into 100ns since 1601 (UTC). */
+static int wt_boot_parse_system_time(const wchar_t *xml, unsigned long long *out)
+{
+    const wchar_t *p;
+    SYSTEMTIME st;
+    FILETIME ft;
+    ULARGE_INTEGER u;
+    int y, mo, d, h, mi, s;
+
+    if (xml == NULL || out == NULL) {
+        return 0;
+    }
+    p = wcsstr(xml, L"SystemTime='");
+    if (p != NULL) {
+        p += 12;
+    } else {
+        p = wcsstr(xml, L"SystemTime=\"");
+        if (p == NULL) {
+            return 0;
+        }
+        p += 12;
+    }
+    if (swscanf_s(p, L"%d-%d-%dT%d:%d:%d", &y, &mo, &d, &h, &mi, &s) != 6) {
+        return 0;
+    }
+    ZeroMemory(&st, sizeof(st));
+    st.wYear = (WORD)y;
+    st.wMonth = (WORD)mo;
+    st.wDay = (WORD)d;
+    st.wHour = (WORD)h;
+    st.wMinute = (WORD)mi;
+    st.wSecond = (WORD)s;
+    if (!SystemTimeToFileTime(&st, &ft)) {
+        return 0;
+    }
+    u.LowPart = ft.dwLowDateTime;
+    u.HighPart = ft.dwHighDateTime;
+    *out = u.QuadPart;
+    return 1;
+}
+
+static int wt_boot_parse_boot_start(const char *iso, unsigned long long *out)
+{
+    SYSTEMTIME st;
+    FILETIME ft;
+    ULARGE_INTEGER u;
+    int y, mo, d, h, mi, s;
+
+    if (iso == NULL || iso[0] == '\0' || out == NULL) {
+        return 0;
+    }
+    if (sscanf_s(iso, "%d-%d-%dT%d:%d:%d", &y, &mo, &d, &h, &mi, &s) != 6) {
+        return 0;
+    }
+    ZeroMemory(&st, sizeof(st));
+    st.wYear = (WORD)y;
+    st.wMonth = (WORD)mo;
+    st.wDay = (WORD)d;
+    st.wHour = (WORD)h;
+    st.wMinute = (WORD)mi;
+    st.wSecond = (WORD)s;
+    if (!SystemTimeToFileTime(&st, &ft)) {
+        return 0;
+    }
+    u.LowPart = ft.dwLowDateTime;
+    u.HighPart = ft.dwHighDateTime;
+    *out = u.QuadPart;
+    return 1;
 }
 
 static WT_BootComponent *wt_boot_add_component(WT_BootReport *report)
@@ -329,38 +394,55 @@ static void wt_boot_finalize_history(WT_BootReport *report)
 
     if (h->count > 0) {
         report->last_boot_kind = h->entries[0].kind;
+        if (h->entries[0].boot_start_utc[0] != '\0') {
+            StringCchCopyA(report->boot_start_utc, sizeof(report->boot_start_utc),
+                           h->entries[0].boot_start_utc);
+        }
     }
 }
 
 static void wt_boot_apply_degradation_event(unsigned event_id, const wchar_t *xml,
-                                            WT_BootReport *report)
+                                            WT_BootReport *report,
+                                            unsigned long long boot_start_100ns)
 {
     wchar_t name[128] = {0};
     wchar_t detail[256] = {0};
     unsigned long duration = 0;
+    unsigned long long event_time = 0;
 
-    if (event_id == 103) {
-        (void)wt_evt_xml_get_wstring(xml, L"FriendlyName", name, ARRAYSIZE(name));
-        duration = wt_evt_xml_get_ulong(xml, L"DegradationDuration");
-        if (duration == 0) {
-            duration = wt_evt_xml_get_ulong(xml, L"DegradationTime");
-        }
-        (void)wt_evt_xml_get_wstring(xml, L"DegradationReason", detail,
-                                     ARRAYSIZE(detail));
-    } else {
-        (void)wt_evt_xml_get_wstring(xml, L"PathRoot", name, ARRAYSIZE(name));
-        if (name[0] == L'\0') {
-            (void)wt_evt_xml_get_wstring(xml, L"FriendlyName", name, ARRAYSIZE(name));
-        }
-        duration = wt_evt_xml_get_ulong(xml, L"DegradationDeltaMs");
-        if (duration == 0) {
-            duration = wt_evt_xml_get_ulong(xml, L"DegradationTime");
-        }
-        (void)wt_evt_xml_get_wstring(xml, L"DegradationReason", detail,
-                                     ARRAYSIZE(detail));
+    if (event_id < 101 || event_id > 110) {
+        return;
     }
 
-    if (name[0] == L'\0' && detail[0] == L'\0') {
+    (void)wt_evt_xml_get_wstring(xml, L"FriendlyName", name, ARRAYSIZE(name));
+    if (name[0] == L'\0') {
+        (void)wt_evt_xml_get_wstring(xml, L"Name", name, ARRAYSIZE(name));
+    }
+    if (name[0] == L'\0') {
+        (void)wt_evt_xml_get_wstring(xml, L"PathRoot", name, ARRAYSIZE(name));
+    }
+    if (name[0] == L'\0') {
+        (void)wt_evt_xml_get_wstring(xml, L"FileName", name, ARRAYSIZE(name));
+    }
+    if (name[0] == L'\0') {
+        (void)wt_evt_xml_get_wstring(xml, L"DeviceName", name, ARRAYSIZE(name));
+    }
+
+    duration = wt_evt_xml_get_ulong(xml, L"DegradationDuration");
+    if (duration == 0) {
+        duration = wt_evt_xml_get_ulong(xml, L"DegradationDeltaMs");
+    }
+    if (duration == 0) {
+        duration = wt_evt_xml_get_ulong(xml, L"DegradationTime");
+    }
+    if (duration == 0) {
+        duration = wt_evt_xml_get_ulong(xml, L"TotalTime");
+    }
+
+    (void)wt_evt_xml_get_wstring(xml, L"DegradationReason", detail,
+                                 ARRAYSIZE(detail));
+
+    if (name[0] == L'\0' && detail[0] == L'\0' && duration == 0) {
         return;
     }
 
@@ -376,13 +458,115 @@ static void wt_boot_apply_degradation_event(unsigned event_id, const wchar_t *xm
     }
     StringCchCopyW(c->detail, ARRAYSIZE(c->detail), detail);
     c->duration_ms = duration;
-    c->kind = wt_boot_kind_from_text(detail[0] != L'\0' ? detail : name, event_id);
+    c->event_id = event_id;
+    c->kind = wt_boot_kind_from_event(event_id);
     c->is_disk_heavy = wt_boot_is_disk_heavy_text(detail);
 
-    if (report->degradation_summary[0] == L'\0' && detail[0] != L'\0') {
-        StringCchCopyW(report->degradation_summary, ARRAYSIZE(report->degradation_summary),
-                       detail);
+    if (boot_start_100ns != 0 &&
+        wt_boot_parse_system_time(xml, &event_time) &&
+        event_time >= boot_start_100ns) {
+        c->start_offset_ms =
+            (unsigned long)((event_time - boot_start_100ns) / 10000ULL);
     }
+
+    if (report->degradation_summary[0] == L'\0' && detail[0] != L'\0') {
+        StringCchCopyW(report->degradation_summary,
+                       ARRAYSIZE(report->degradation_summary), detail);
+    }
+}
+
+static int wt_boot_comp_impact_cmp(const void *a, const void *b)
+{
+    const WT_BootComponent *ca = (const WT_BootComponent *)a;
+    const WT_BootComponent *cb = (const WT_BootComponent *)b;
+    if (ca->duration_ms > cb->duration_ms) {
+        return -1;
+    }
+    if (ca->duration_ms < cb->duration_ms) {
+        return 1;
+    }
+    /* Tie-break: earlier in boot first. */
+    if (ca->start_offset_ms != 0 && cb->start_offset_ms != 0) {
+        if (ca->start_offset_ms < cb->start_offset_ms) {
+            return -1;
+        }
+        if (ca->start_offset_ms > cb->start_offset_ms) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void wt_boot_sort_waterfall(WT_BootReport *report)
+{
+    unsigned long long total = 0;
+    if (report == NULL || report->component_count == 0) {
+        return;
+    }
+    qsort(report->components, report->component_count, sizeof(WT_BootComponent),
+          wt_boot_comp_impact_cmp);
+    for (size_t i = 0; i < report->component_count; ++i) {
+        total += report->components[i].duration_ms;
+    }
+    report->waterfall_total_ms = (unsigned long)total;
+    report->waterfall_sorted = 1;
+}
+
+void wt_boot_correlate_services(WT_BootReport *report)
+{
+    WT_ServiceInfo *svcs = NULL;
+    size_t svc_count = 0;
+
+    if (report == NULL || report->component_count == 0) {
+        return;
+    }
+
+    svcs = (WT_ServiceInfo *)calloc(WT_MAX_SERVICES, sizeof(WT_ServiceInfo));
+    if (svcs == NULL) {
+        return;
+    }
+    if (wt_collect_services(svcs, WT_MAX_SERVICES, &svc_count) != WT_OK ||
+        svc_count == 0) {
+        free(svcs);
+        return;
+    }
+
+    for (size_t i = 0; i < report->component_count; ++i) {
+        WT_BootComponent *c = &report->components[i];
+        if (c->kind != WT_BOOT_COMP_SERVICE &&
+            c->kind != WT_BOOT_COMP_APPLICATION &&
+            c->kind != WT_BOOT_COMP_DRIVER) {
+            continue;
+        }
+        for (size_t s = 0; s < svc_count; ++s) {
+            const WT_ServiceInfo *svc = &svcs[s];
+            int match = 0;
+            if (svc->display_name[0] != L'\0' &&
+                _wcsicmp(c->name, svc->display_name) == 0) {
+                match = 1;
+            } else if (svc->name[0] != L'\0' &&
+                       _wcsicmp(c->name, svc->name) == 0) {
+                match = 1;
+            } else if (wcslen(c->name) >= 5 &&
+                       ((svc->display_name[0] != L'\0' &&
+                         wt_boot_wcs_contains_i(svc->display_name, c->name)) ||
+                        (svc->name[0] != L'\0' &&
+                         wt_boot_wcs_contains_i(c->name, svc->name)))) {
+                match = 1;
+            }
+            if (!match) {
+                continue;
+            }
+            c->service_matched = 1;
+            StringCchCopyW(c->service_name, ARRAYSIZE(c->service_name),
+                           svc->name);
+            c->service_pid = svc->pid;
+            StringCchCopyA(c->service_state, sizeof(c->service_state),
+                           wt_service_state_name(svc->state));
+            break;
+        }
+    }
+    free(svcs);
 }
 
 static WT_Result wt_boot_render_event_xml(EVT_HANDLE event, wchar_t **out_xml)
@@ -478,6 +662,7 @@ WT_Result wt_collect_boot_from_event_log(WT_BootReport *report)
     EVT_HANDLE events[32];
     DWORD returned = 0;
     int saw_event100 = 0;
+    unsigned long long boot_start_100ns = 0;
 
     while (EvtNext(query, ARRAYSIZE(events), events, INFINITE, 0, &returned)) {
         for (DWORD i = 0; i < returned; ++i) {
@@ -497,11 +682,36 @@ WT_Result wt_collect_boot_from_event_log(WT_BootReport *report)
                 if (!saw_event100) {
                     wt_boot_apply_event100(xml, report);
                     saw_event100 = 1;
+                    /* Prefer full BootStartTime from XML for offset math. */
+                    {
+                        wchar_t start[64];
+                        if (wt_evt_xml_get_wstring(xml, L"BootStartTime", start,
+                                                   ARRAYSIZE(start))) {
+                            char narrow[64];
+                            size_t n = wcslen(start);
+                            if (n >= sizeof(narrow)) {
+                                n = sizeof(narrow) - 1;
+                            }
+                            for (size_t k = 0; k < n; ++k) {
+                                narrow[k] = (char)start[k];
+                            }
+                            narrow[n] = '\0';
+                            for (char *p = narrow; *p; ++p) {
+                                if (*p == '.') {
+                                    *p = '\0';
+                                    break;
+                                }
+                            }
+                            (void)wt_boot_parse_boot_start(narrow,
+                                                           &boot_start_100ns);
+                        }
+                    }
                 }
-            } else if ((event_id == 101 || event_id == 103) &&
+            } else if (event_id >= 101 && event_id <= 110 &&
                        report->history.count <= 1) {
-                /* Degradation events that follow the latest Event 100 only. */
-                wt_boot_apply_degradation_event(event_id, xml, report);
+                /* Degradation / waterfall events for the latest boot only. */
+                wt_boot_apply_degradation_event(event_id, xml, report,
+                                                boot_start_100ns);
             }
 
             free(xml);
@@ -524,6 +734,11 @@ WT_Result wt_collect_boot_from_event_log(WT_BootReport *report)
     }
 
     wt_boot_finalize_history(report);
+    if (boot_start_100ns == 0 && report->boot_start_utc[0] != '\0') {
+        (void)wt_boot_parse_boot_start(report->boot_start_utc, &boot_start_100ns);
+    }
+    wt_boot_sort_waterfall(report);
+    wt_boot_correlate_services(report);
 
     if (report->is_degraded && report->degradation_summary[0] == L'\0') {
         StringCchCopyW(report->degradation_summary,
