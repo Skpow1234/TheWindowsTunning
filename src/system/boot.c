@@ -434,19 +434,32 @@ void wt_boot_apply_measured_startup(const WT_BootReport *boot,
 WT_Result wt_collect_boot_report(WT_BootReport *report,
                                  const wchar_t *etl_path_opt)
 {
+    wchar_t auto_etl[MAX_PATH];
+    const wchar_t *etl = etl_path_opt;
+
     WT_Result r = wt_collect_boot_from_event_log(report);
     if (r != WT_OK && r != WT_ERR_NOT_FOUND) {
         return r;
     }
 
-    if (etl_path_opt != NULL && etl_path_opt[0] != L'\0') {
+    if (etl == NULL || etl[0] == L'\0') {
+        if (wt_boot_resolve_reboot_etl(auto_etl, ARRAYSIZE(auto_etl)) == WT_OK) {
+            etl = auto_etl;
+            /* Stop Autologger capture so analyze does not leave it running. */
+            (void)wt_boot_stop_armed_session();
+        } else {
+            etl = NULL;
+        }
+    }
+
+    if (etl != NULL && etl[0] != L'\0') {
         WT_BootReport etl_part;
         wt_boot_report_init(&etl_part);
-        WT_Result er = wt_boot_analyze_etl(etl_path_opt, &etl_part);
+        WT_Result er = wt_boot_analyze_etl(etl, &etl_part);
         if (er == WT_OK) {
             report->etl_event_count = etl_part.etl_event_count;
             StringCchCopyW(report->trace_path, ARRAYSIZE(report->trace_path),
-                           etl_path_opt);
+                           etl);
             if (report->source[0] != L'\0') {
                 StringCchCopyW(report->source, ARRAYSIZE(report->source),
                                L"event_log+etl");
@@ -456,7 +469,8 @@ WT_Result wt_collect_boot_report(WT_BootReport *report,
         }
     }
 
-    if (report->boot_duration_ms == 0 && report->component_count == 0) {
+    if (report->boot_duration_ms == 0 && report->component_count == 0 &&
+        report->etl_event_count == 0) {
         return WT_ERR_NOT_FOUND;
     }
 

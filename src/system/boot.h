@@ -43,6 +43,24 @@ typedef struct WT_BootReport {
     unsigned long etl_event_count;
 } WT_BootReport;
 
+/* Phase 31: Autologger armed for the next reboot. */
+typedef enum WT_BootArmState {
+    WT_BOOT_ARM_IDLE = 0,
+    WT_BOOT_ARM_PENDING_REBOOT, /* Autologger configured; reboot not yet done */
+    WT_BOOT_ARM_CAPTURING,      /* Reboot done; session still writing */
+    WT_BOOT_ARM_READY           /* Reboot ETL present; safe to analyze */
+} WT_BootArmState;
+
+typedef struct WT_BootArmStatus {
+    WT_BootArmState state;
+    wchar_t session_name[64];
+    wchar_t etl_path[MAX_PATH];
+    char armed_utc[40];
+    int reboot_occurred;
+    int etl_exists;
+    unsigned long long etl_bytes;
+} WT_BootArmStatus;
+
 void wt_boot_report_init(WT_BootReport *report);
 
 /* Reads the latest boot summary and degradation events from
@@ -57,11 +75,21 @@ WT_Result wt_boot_trace_login(unsigned duration_ms, wchar_t *etl_path,
 /* Counts events in an .etl file (optional supplement to event-log analysis). */
 WT_Result wt_boot_analyze_etl(const wchar_t *etl_path, WT_BootReport *report);
 
-/* Primary analyze entry: event log plus optional .etl supplement. */
+/* Primary analyze entry: event log plus optional .etl supplement.
+ * When etl_path_opt is NULL, auto-picks a Phase 31 reboot ETL if ready. */
 WT_Result wt_collect_boot_report(WT_BootReport *report,
                                  const wchar_t *etl_path_opt);
 
+/* Phase 31 — reboot-spanning Autologger (requires admin). */
+WT_Result wt_boot_arm_next(void);
+WT_Result wt_boot_disarm(int keep_etl);
+WT_Result wt_boot_arm_status(WT_BootArmStatus *out);
+WT_Result wt_boot_stop_armed_session(void);
+/* Fills out with reboot ETL path when READY/CAPTURING and file exists. */
+WT_Result wt_boot_resolve_reboot_etl(wchar_t *out, size_t count);
+
 const char *wt_boot_component_kind_name(WT_BootComponentKind kind);
+const char *wt_boot_arm_state_name(WT_BootArmState state);
 
 /* Match startup entry names/commands against measured boot components. */
 void wt_boot_apply_measured_startup(const WT_BootReport *boot,

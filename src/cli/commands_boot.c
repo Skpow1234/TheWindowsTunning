@@ -118,6 +118,7 @@ static int wt_boot_cmd_trace(const WT_CliOptions *opts)
     if (!opts->json) {
         printf("Starting login ETW trace for %u ms ...\n", duration);
         printf("(This traces the current session, not the next reboot.)\n");
+        printf("For next-boot capture: wintune boot arm\n");
     }
 
     wchar_t etl_path[MAX_PATH];
@@ -173,7 +174,8 @@ static int wt_boot_cmd_analyze(const WT_CliOptions *opts)
         fprintf(stderr,
                 "wintune: no boot performance data found.\n"
                 "Ensure the Diagnostic-Performance event log is enabled.\n"
-                "You may need to reboot once so Windows records boot metrics.\n");
+                "You may need to reboot once so Windows records boot metrics,\n"
+                "or arm a next-boot trace with: wintune boot arm\n");
         return wt_cli_exit_from_result(
             opts, r, L"boot",
             "Diagnostic-Performance channel or boot events not found");
@@ -201,13 +203,186 @@ static int wt_boot_cmd_analyze(const WT_CliOptions *opts)
     return 0;
 }
 
+static int wt_boot_cmd_arm(const WT_CliOptions *opts)
+{
+    WT_Result r = wt_boot_arm_next();
+    if (r == WT_ERR_ACCESS_DENIED) {
+        wt_print_admin_required_message(stderr);
+        return wt_cli_exit_from_result(opts, r, L"boot",
+                                       "boot arm requires administrator privileges");
+    }
+    if (r != WT_OK) {
+        fprintf(stderr, "wintune: boot arm failed (%s)\n",
+                wt_result_to_string(r));
+        return wt_cli_exit_from_result(opts, r, L"boot", NULL);
+    }
+
+    WT_BootArmStatus st;
+    (void)wt_boot_arm_status(&st);
+
+    if (opts != NULL && opts->json) {
+        FILE *opened = NULL;
+        FILE *out = wt_open_output(opts, &opened);
+        if (out == NULL) {
+            return 1;
+        }
+        fprintf(out,
+                "{\"command\":\"boot arm\",\"state\":\"%s\",\"session\":\"",
+                wt_boot_arm_state_name(st.state));
+        /* Minimal JSON; path as escaped-ish wide via UTF-8 approx. */
+        {
+            char session_u8[128];
+            WideCharToMultiByte(CP_UTF8, 0, st.session_name, -1, session_u8,
+                                (int)sizeof(session_u8), NULL, NULL);
+            fprintf(out, "%s\",\"etl_path\":\"", session_u8);
+        }
+        {
+            char path_u8[MAX_PATH * 3];
+            WideCharToMultiByte(CP_UTF8, 0, st.etl_path, -1, path_u8,
+                                (int)sizeof(path_u8), NULL, NULL);
+            for (const char *p = path_u8; *p; ++p) {
+                if (*p == '\\' || *p == '"') {
+                    fputc('\\', out);
+                }
+                fputc(*p, out);
+            }
+        }
+        fprintf(out, "\",\"armed_utc\":\"%s\"}\n",
+                st.armed_utc[0] != '\0' ? st.armed_utc : "");
+        if (opened != NULL) {
+            fclose(opened);
+        }
+        return 0;
+    }
+
+    printf("WinTune Boot Arm\n\n");
+    wprintf(L"Autologger session '%ls' configured for the next reboot.\n",
+            st.session_name);
+    wprintf(L"Trace file (after reboot): %ls\n", st.etl_path);
+    printf("\nNext steps:\n");
+    printf("  1. Reboot this machine.\n");
+    printf("  2. After login: wintune boot analyze\n");
+    printf("  3. Optional: wintune boot disarm  (stops Autologger)\n");
+    printf("\nRequires administrator privileges; does not change power or "
+           "security settings.\n");
+    return 0;
+}
+
+static int wt_boot_cmd_disarm(const WT_CliOptions *opts)
+{
+    int keep_etl = 1;
+    WT_Result r = wt_boot_disarm(keep_etl);
+    if (r == WT_ERR_ACCESS_DENIED) {
+        wt_print_admin_required_message(stderr);
+        return wt_cli_exit_from_result(opts, r, L"boot",
+                                       "boot disarm requires administrator privileges");
+    }
+    if (r != WT_OK) {
+        fprintf(stderr, "wintune: boot disarm failed (%s)\n",
+                wt_result_to_string(r));
+        return wt_cli_exit_from_result(opts, r, L"boot", NULL);
+    }
+
+    if (opts != NULL && opts->json) {
+        FILE *opened = NULL;
+        FILE *out = wt_open_output(opts, &opened);
+        if (out == NULL) {
+            return 1;
+        }
+        fprintf(out, "{\"command\":\"boot disarm\",\"state\":\"idle\","
+                     "\"etl_kept\":true}\n");
+        if (opened != NULL) {
+            fclose(opened);
+        }
+        return 0;
+    }
+
+    printf("WinTune Boot Disarm\n\n");
+    printf("Autologger session removed. Existing reboot ETL (if any) was kept "
+           "under %%ProgramData%%\\WinTune\\traces\\.\n");
+    return 0;
+}
+
+static int wt_boot_cmd_status(const WT_CliOptions *opts)
+{
+    WT_BootArmStatus st;
+    WT_Result r = wt_boot_arm_status(&st);
+    if (r != WT_OK) {
+        fprintf(stderr, "wintune: boot status failed (%s)\n",
+                wt_result_to_string(r));
+        return wt_cli_exit_from_result(opts, r, L"boot", NULL);
+    }
+
+    if (opts != NULL && opts->json) {
+        FILE *opened = NULL;
+        FILE *out = wt_open_output(opts, &opened);
+        char path_u8[MAX_PATH * 3];
+        char session_u8[128];
+        if (out == NULL) {
+            return 1;
+        }
+        WideCharToMultiByte(CP_UTF8, 0, st.session_name, -1, session_u8,
+                            (int)sizeof(session_u8), NULL, NULL);
+        WideCharToMultiByte(CP_UTF8, 0, st.etl_path, -1, path_u8,
+                            (int)sizeof(path_u8), NULL, NULL);
+        fprintf(out,
+                "{\"command\":\"boot status\",\"state\":\"%s\",\"session\":\"%s\","
+                "\"reboot_occurred\":%s,\"etl_exists\":%s,\"etl_bytes\":%llu,"
+                "\"armed_utc\":\"%s\",\"etl_path\":\"",
+                wt_boot_arm_state_name(st.state), session_u8,
+                st.reboot_occurred ? "true" : "false",
+                st.etl_exists ? "true" : "false",
+                (unsigned long long)st.etl_bytes,
+                st.armed_utc[0] != '\0' ? st.armed_utc : "");
+        for (const char *p = path_u8; *p; ++p) {
+            if (*p == '\\' || *p == '"') {
+                fputc('\\', out);
+            }
+            fputc(*p, out);
+        }
+        fprintf(out, "\"}\n");
+        if (opened != NULL) {
+            fclose(opened);
+        }
+        return 0;
+    }
+
+    printf("WinTune Boot Arm Status\n\n");
+    printf("State:   %s\n", wt_boot_arm_state_name(st.state));
+    wprintf(L"Session: %ls\n", st.session_name);
+    if (st.armed_utc[0] != '\0') {
+        printf("Armed:   %s\n", st.armed_utc);
+    }
+    printf("Reboot since arm: %s\n", st.reboot_occurred ? "yes" : "no");
+    if (st.etl_path[0] != L'\0') {
+        wprintf(L"ETL:     %ls\n", st.etl_path);
+        if (st.etl_exists) {
+            printf("         (%llu bytes)\n",
+                   (unsigned long long)st.etl_bytes);
+        } else {
+            printf("         (not present yet)\n");
+        }
+    }
+    if (st.state == WT_BOOT_ARM_PENDING_REBOOT) {
+        printf("\nReboot to capture the next boot, then run: wintune boot analyze\n");
+    } else if (st.state == WT_BOOT_ARM_READY ||
+               st.state == WT_BOOT_ARM_CAPTURING) {
+        printf("\nRun: wintune boot analyze\n");
+        printf("Then: wintune boot disarm\n");
+    }
+    return 0;
+}
+
 int wt_cmd_boot(const WT_CliOptions *opts)
 {
     if (opts == NULL || opts->arg1 == NULL) {
         fprintf(stderr,
                 "Usage:\n"
                 "  wintune boot analyze [trace.etl]\n"
-                "  wintune boot trace [--duration MS]\n");
+                "  wintune boot trace [--duration MS]\n"
+                "  wintune boot arm\n"
+                "  wintune boot disarm\n"
+                "  wintune boot status\n");
         return 2;
     }
 
@@ -217,10 +392,19 @@ int wt_cmd_boot(const WT_CliOptions *opts)
     if (wcscmp(opts->arg1, L"analyze") == 0) {
         return wt_boot_cmd_analyze(opts);
     }
+    if (wcscmp(opts->arg1, L"arm") == 0) {
+        return wt_boot_cmd_arm(opts);
+    }
+    if (wcscmp(opts->arg1, L"disarm") == 0) {
+        return wt_boot_cmd_disarm(opts);
+    }
+    if (wcscmp(opts->arg1, L"status") == 0) {
+        return wt_boot_cmd_status(opts);
+    }
 
     fwprintf(stderr,
              L"wintune: unknown boot subcommand '%ls'. "
-             L"Use 'analyze' or 'trace'.\n",
+             L"Use 'analyze', 'trace', 'arm', 'disarm', or 'status'.\n",
              opts->arg1);
     return 2;
 }
