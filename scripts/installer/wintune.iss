@@ -1,9 +1,9 @@
-; WinTune optional Inno Setup installer (Phase 21).
-; Build portable ZIP first, then:
-;   iscc scripts\installer\wintune.iss
+; WinTune optional Inno Setup installer (Phases 21 / 53).
+; Prefer: .\scripts\installer.ps1 -Version 0.2.0 -Arch x64
+; Or:     iscc /DMyAppVersion=0.2.0 /DMyAppArch=x64 scripts\installer\wintune.iss
 ;
-; Requires Inno Setup 6+. Not run by CI by default — portable ZIP is the
-; primary distribution artifact.
+; Requires Inno Setup 6+. Portable ZIP remains the primary artifact.
+; PATH and desktop icon tasks are opt-in (unchecked). No adware / silent autostart.
 
 #define MyAppName "WinTune"
 #ifndef MyAppVersion
@@ -11,6 +11,9 @@
 #endif
 #ifndef MyAppArch
   #define MyAppArch "x64"
+#endif
+#ifndef MyAppVersionInfo
+  #define MyAppVersionInfo MyAppVersion + ".0"
 #endif
 #define MyAppPublisher "WinTune"
 #define MyAppURL "https://github.com/Skpow1234/TheWindowsTunning"
@@ -51,7 +54,7 @@ PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesAllowed={#MyArchitecturesAllowed}
 ArchitecturesInstallIn64BitMode={#MyArchitecturesInstallIn64BitMode}
 UninstallDisplayIcon={app}\{#MyAppExeName}
-VersionInfoVersion={#MyAppVersion}.0
+VersionInfoVersion={#MyAppVersionInfo}
 VersionInfoCompany=WinTune
 VersionInfoDescription=WinTune installer
 VersionInfoProductName=WinTune

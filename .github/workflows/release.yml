@@ -74,6 +74,26 @@ jobs:
         env:
           WINTUNE_SIGN_ENABLED: ${{ vars.WINTUNE_SIGN_ENABLED }}
 
+      - name: Install Inno Setup (optional installer)
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning "choco install innosetup failed — installer step will soft-skip"
+          }
+
+      - name: Build x64 Setup.exe (optional)
+        shell: pwsh
+        env:
+          WINTUNE_SIGN_ENABLED: ${{ vars.WINTUNE_SIGN_ENABLED }}
+          WINTUNE_SIGN_PFX_BASE64: ${{ secrets.WINTUNE_SIGN_PFX_BASE64 }}
+          WINTUNE_SIGN_PASSWORD: ${{ secrets.WINTUNE_SIGN_PASSWORD }}
+          WINTUNE_SIGN_TIMESTAMP: ${{ vars.WINTUNE_SIGN_TIMESTAMP }}
+        run: |
+          .\scripts\installer.ps1 -Version ${{ needs.resolve-version.outputs.value }} `
+            -Arch x64 -Channel ${{ needs.resolve-version.outputs.channel }} `
+            -SignIfConfigured -SkipIfMissingInno
+
       - name: Upload x64 artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -81,6 +101,9 @@ jobs:
           path: |
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64.zip
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64.zip.sha256
+            dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64-setup.exe
+            dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64-setup.exe.sha256
+          if-no-files-found: error
 
   package-arm64:
     name: Package (ARM64)
