@@ -668,6 +668,36 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
         wt_json_key(&w, "available_bytes"); wt_json_uint64(&w, report->memory.available_physical_bytes);
         wt_json_key(&w, "used_bytes");      wt_json_uint64(&w, report->memory.used_physical_bytes);
         wt_json_key(&w, "used_percent");    wt_json_double(&w, report->memory.used_percent);
+        wt_json_key(&w, "commit_ok");
+        wt_json_bool(&w, report->memory.commit_ok);
+        if (report->memory.commit_ok) {
+            wt_json_key(&w, "commit_total_bytes");
+            wt_json_uint64(&w, report->memory.commit_total_bytes);
+            wt_json_key(&w, "commit_limit_bytes");
+            wt_json_uint64(&w, report->memory.commit_limit_bytes);
+            wt_json_key(&w, "commit_peak_bytes");
+            wt_json_uint64(&w, report->memory.commit_peak_bytes);
+            wt_json_key(&w, "commit_percent");
+            wt_json_double(&w, report->memory.commit_percent);
+        }
+        if (report->memory.pagefile_ok) {
+            wt_json_key(&w, "commit_available_bytes");
+            wt_json_uint64(&w, report->memory.commit_available_bytes);
+        }
+        wt_json_key(&w, "hard_faults_per_sec");
+        if (report->memory.hard_faults_ok &&
+            report->memory.hard_faults_per_sec >= 0.0) {
+            wt_json_double(&w, report->memory.hard_faults_per_sec);
+        } else {
+            wt_json_null(&w);
+        }
+        wt_json_key(&w, "page_faults_per_sec");
+        if (report->memory.page_faults_ok &&
+            report->memory.page_faults_per_sec >= 0.0) {
+            wt_json_double(&w, report->memory.page_faults_per_sec);
+        } else {
+            wt_json_null(&w);
+        }
     }
     wt_json_end_object(&w);
 
@@ -1323,6 +1353,65 @@ void wt_print_reliability_json(const WT_ReliabilityReport *report, FILE *out)
     wt_json_key(&w, "never_upload_dumps");
     wt_json_bool(&w, 1);
     wt_json_key(&w, "never_claim_repair");
+    wt_json_bool(&w, 1);
+    wt_json_end_object(&w);
+    wt_json_end_object(&w);
+    wt_json_finish(&w);
+}
+
+void wt_print_memory_json(const WT_MemoryMetrics *m, FILE *out)
+{
+    WT_JsonWriter w;
+
+    wt_json_init(&w, out);
+    wt_json_begin_object(&w);
+    wt_json_emit_envelope_head(&w, "memory");
+    wt_json_key(&w, "memory");
+    wt_json_begin_object(&w);
+    if (m != NULL) {
+        wt_json_key(&w, "total_bytes");
+        wt_json_uint64(&w, m->total_physical_bytes);
+        wt_json_key(&w, "available_bytes");
+        wt_json_uint64(&w, m->available_physical_bytes);
+        wt_json_key(&w, "used_bytes");
+        wt_json_uint64(&w, m->used_physical_bytes);
+        wt_json_key(&w, "used_percent");
+        wt_json_double(&w, m->used_percent);
+        wt_json_key(&w, "commit_ok");
+        wt_json_bool(&w, m->commit_ok);
+        if (m->commit_ok) {
+            wt_json_key(&w, "commit_total_bytes");
+            wt_json_uint64(&w, m->commit_total_bytes);
+            wt_json_key(&w, "commit_limit_bytes");
+            wt_json_uint64(&w, m->commit_limit_bytes);
+            wt_json_key(&w, "commit_peak_bytes");
+            wt_json_uint64(&w, m->commit_peak_bytes);
+            wt_json_key(&w, "commit_percent");
+            wt_json_double(&w, m->commit_percent);
+        }
+        if (m->pagefile_ok) {
+            wt_json_key(&w, "commit_available_bytes");
+            wt_json_uint64(&w, m->commit_available_bytes);
+        }
+        wt_json_key(&w, "hard_faults_per_sec");
+        if (m->hard_faults_ok && m->hard_faults_per_sec >= 0.0) {
+            wt_json_double(&w, m->hard_faults_per_sec);
+        } else {
+            wt_json_null(&w);
+        }
+        wt_json_key(&w, "page_faults_per_sec");
+        if (m->page_faults_ok && m->page_faults_per_sec >= 0.0) {
+            wt_json_double(&w, m->page_faults_per_sec);
+        } else {
+            wt_json_null(&w);
+        }
+    }
+    wt_json_end_object(&w);
+    wt_json_key(&w, "safety");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "read_only");
+    wt_json_bool(&w, 1);
+    wt_json_key(&w, "never_empty_working_sets");
     wt_json_bool(&w, 1);
     wt_json_end_object(&w);
     wt_json_end_object(&w);

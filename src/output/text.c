@@ -148,6 +148,16 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
         wt_format_bytes(report->memory.total_physical_bytes, total, 32);
         fwprintf(out, L"  Used: %ls / %ls (%.1f%%)\n", used, total,
                  report->memory.used_percent);
+        if (report->memory.commit_ok) {
+            wchar_t ctot[32];
+            wchar_t clim[32];
+            wchar_t cpeak[32];
+            wt_format_bytes(report->memory.commit_total_bytes, ctot, 32);
+            wt_format_bytes(report->memory.commit_limit_bytes, clim, 32);
+            wt_format_bytes(report->memory.commit_peak_bytes, cpeak, 32);
+            fwprintf(out, L"  Commit: %ls / %ls (%.1f%%)  peak %ls\n",
+                     ctot, clim, report->memory.commit_percent, cpeak);
+        }
     } else {
         fprintf(out, "  (unavailable)\n");
     }

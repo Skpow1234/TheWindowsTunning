@@ -119,6 +119,19 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
                 sample->memory.available_physical_bytes;
             acc->memory.used_physical_bytes = sample->memory.used_physical_bytes;
             acc->memory.total_physical_bytes = sample->memory.total_physical_bytes;
+            /* Latest commit / fault snapshot (do not average cumulative faults). */
+            acc->memory.commit_ok = sample->memory.commit_ok;
+            acc->memory.commit_total_bytes = sample->memory.commit_total_bytes;
+            acc->memory.commit_limit_bytes = sample->memory.commit_limit_bytes;
+            acc->memory.commit_peak_bytes = sample->memory.commit_peak_bytes;
+            acc->memory.commit_percent = sample->memory.commit_percent;
+            acc->memory.pagefile_ok = sample->memory.pagefile_ok;
+            acc->memory.commit_available_bytes =
+                sample->memory.commit_available_bytes;
+            acc->memory.hard_faults_ok = sample->memory.hard_faults_ok;
+            acc->memory.hard_faults_per_sec = sample->memory.hard_faults_per_sec;
+            acc->memory.page_faults_ok = sample->memory.page_faults_ok;
+            acc->memory.page_faults_per_sec = sample->memory.page_faults_per_sec;
         } else {
             acc->memory = sample->memory;
             acc->memory_ok = 1;
