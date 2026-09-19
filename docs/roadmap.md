@@ -63,7 +63,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 43 | Accessibility & SSH TUI | Done |
 | 44 | Service policy profiles | Done |
 | 45 | Named-pipe ACL hardening | Done |
-| 46 | Fleet report pack | Planned |
+| 46 | Fleet report pack | Done |
 | 47 | JSON schema v2 + compatibility | Planned |
 | 48 | Storage health (read-only) | Planned |
 | 49 | Memory dump / WER signals | Planned |
@@ -1113,13 +1113,17 @@ wintune service profile
 
 **Goal:** Bundle multi-host JSON scans locally for review.
 
+**Status:** Done
+
 **Deliver:**
 
 ```bash
 wintune fleet pack --input reports/ --output fleet-pack.zip
 ```
 
-- Checksums; no upload.
+- Local ZIP (`manifest.json`, `CHECKSUMS.sha256`, `reports/*`); SHA-256 per file and of the ZIP.
+- CLI: `--input`, `--output` (default `fleet-pack.zip`); `--json` result document.
+- Unit tests: CRC-32, SHA-256, ZIP STORE signature.
 
 **Depends on:** Phase 17.
 

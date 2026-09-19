@@ -428,7 +428,8 @@ end-user release polish).
 | 43 | Accessibility & SSH TUI | Done |
 | 44 | Service policy profiles | Done |
 | 45 | Named-pipe ACL hardening | Done |
-| 41–53 | v3 depth (before/after compare, tray mini-doctor, fleet, …) | Planned |
+| 46 | Fleet report pack | Done |
+| 47–53 | JSON schema v2, storage health, signing, installer, … | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.
@@ -436,7 +437,8 @@ exit non-zero.
 ### Current limitations
 
 - `--json` and `--output` work for `scan`, `top`, `recommend`, `doctor`, `power`,
-  `rollback list`, and `report`.
+  `rollback list`, `report`, and `fleet pack`.
+- `wintune fleet pack --input <dir>` bundles multi-host JSON reports locally (no upload).
 - `top --watch` is live when stdin and stdout are both interactive; it falls
   back to a single snapshot over piped/one-shot SSH (silent fallback with
   `--json`).

@@ -140,3 +140,30 @@ See [`service.md`](service.md).
 
 Collect reports locally; aggregate with your own tools (`jq`, PowerShell,
 Elastic, etc.).
+
+---
+
+## Fleet report pack (Phase 46)
+
+After collecting per-host JSON scans into a directory, bundle them locally:
+
+```bash
+wintune fleet pack --input reports/ --output fleet-pack.zip
+```
+
+The ZIP is STORE-only (uncompressed) and contains:
+
+| Entry | Purpose |
+|-------|---------|
+| `manifest.json` | Pack metadata, file list, per-file SHA-256 |
+| `CHECKSUMS.sha256` | `sha256sum`-style lines for each report |
+| `reports/<name>.json` | Original scan JSON files |
+
+WinTune prints the ZIP SHA-256 when done. Nothing is uploaded.
+
+```bash
+# Automation-friendly result
+wintune fleet pack --input reports/ --output fleet-pack.zip --json
+```
+
+**Never:** cloud sync, telemetry upload, or mandatory phone-home.

@@ -94,6 +94,11 @@ add_executable(wintune
     src/core/impact_score.c
     src/core/doctor_plan.c
 
+    # fleet (Phase 46)
+    src/fleet/fleet_pack.c
+    src/common/sha256.c
+    src/common/zip_store.c
+
     # output
     src/output/table.c
     src/output/text.c
@@ -136,6 +141,7 @@ add_executable(wintune
     src/tray/tray.c
     src/tray/tray_status.c
     src/cli/commands_tray.c
+    src/cli/commands_fleet.c
 
     # Phase 21 resources (icon, VERSIONINFO, manifest)
     ${CMAKE_BINARY_DIR}/wintune.rc
@@ -206,6 +212,7 @@ target_link_libraries(wintune PRIVATE
     wintrust
     version
     crypt32
+    bcrypt
     rpcrt4
 )
 
@@ -420,6 +427,14 @@ wt_add_unit_test(test_impact_score
 )
 target_link_libraries(test_impact_score PRIVATE wintrust version crypt32)
 
+wt_add_unit_test(test_fleet_pack
+    tests/test_fleet_pack.c
+    src/common/sha256.c
+    src/common/zip_store.c
+    src/common/error.c
+)
+target_link_libraries(test_fleet_pack PRIVATE bcrypt)
+
 add_custom_target(wintune_tests_all
     DEPENDS
         wintune_unit_tests
@@ -438,4 +453,5 @@ add_custom_target(wintune_tests_all
         test_delay_plan
         test_file_identity
         test_impact_score
+        test_fleet_pack
 )

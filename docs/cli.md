@@ -36,6 +36,7 @@ wintune report      # write a local performance report
 wintune doctor      # scan + recommend + summary (best for normal users)
 wintune tray        # system tray icon (native Win32, read-only by default)
 wintune rollback    # list / apply rollback records
+wintune fleet       # pack multi-host JSON reports into a local ZIP
 wintune version     # version info
 wintune help        # usage
 ```
@@ -57,6 +58,7 @@ wintune help        # usage
 --no-unicode       # ASCII fallback rendering
 --safe-terminal    # conservative rendering for SSH/unknown terminals
 --output <path>    # write output to a file
+--input <path>     # input directory (fleet pack)
 --yes              # confirm mutating actions (dangerous actions still blocked)
 --dry-run          # preview apply/startup/power changes without mutating (--preview alias)
 --plan             # doctor: sequenced guided plan (optional focus mode)
@@ -459,6 +461,29 @@ wintune rollback apply <id> --yes
 
 JSON list entries include `action_id`, `previous_value`, and `new_value`.
 See [`docs/apply.md`](apply.md) for record locations and supported types.
+
+---
+
+## `wintune fleet`
+
+Bundles multi-host JSON scan reports into a **local** ZIP for offline review.
+Never uploads.
+
+```bash
+wintune fleet pack --input reports/ --output fleet-pack.zip
+wintune fleet pack --input reports/ --output fleet-pack.zip --json
+```
+
+- Collects top-level `*.json` files from `--input` (skips `manifest.json`).
+- ZIP contains `manifest.json`, `CHECKSUMS.sha256`, and `reports/<file>.json`.
+- Prints the ZIP SHA-256 after packing (also in `--json` as `zip_sha256`).
+- Default `--output` is `fleet-pack.zip` when omitted.
+
+See [`fleet.md`](fleet.md).
+
+---
+
+## `wintune report`
 
 Writes a local performance report (system summary, performance summary, top
 bottlenecks, startup impact, power plan status, service observations,
