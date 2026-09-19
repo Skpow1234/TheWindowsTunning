@@ -5,6 +5,7 @@
 
 #include <windows.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static void wt_apps_print_guidance(FILE *out)
@@ -163,18 +164,25 @@ static void wt_apps_print_json(const WT_UninstallAdvice *advice)
 
 int wt_cmd_apps(const WT_CliOptions *opts)
 {
-    WT_UninstallAdvice advice;
-    WT_Result r = wt_collect_uninstall_advice(&advice, 1);
+    WT_UninstallAdvice *advice =
+        (WT_UninstallAdvice *)malloc(sizeof(WT_UninstallAdvice));
+    if (advice == NULL) {
+        fprintf(stderr, "wintune: out of memory\n");
+        return 1;
+    }
+    WT_Result r = wt_collect_uninstall_advice(advice, 1);
     if (r != WT_OK) {
         fprintf(stderr, "wintune: apps scan failed (%s)\n",
                 wt_result_to_string(r));
+        free(advice);
         return 1;
     }
 
     if (opts != NULL && wt_cli_is_json_mode(opts)) {
-        wt_apps_print_json(&advice);
+        wt_apps_print_json(advice);
     } else {
-        wt_apps_print_text(&advice);
+        wt_apps_print_text(advice);
     }
+    free(advice);
     return 0;
 }
