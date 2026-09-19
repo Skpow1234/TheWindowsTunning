@@ -72,7 +72,8 @@ Keyboard-only; no mouse required.
 | No-color         | `--no-color` / `mono`  | No ANSI color sequences                   |
 | Safe terminal    | `--safe-terminal`      | ASCII + compact + a11y labels for SSH     |
 | High contrast    | `--theme high-contrast`| Bright utilization colors; no sparks      |
-| Non-interactive  | auto-detected          | Refuses TUI; suggests `scan`/`top`        |
+| Frames smoke     | `--frames N`           | Render N frames then quit (CI / smoke)    |
+| Non-interactive  | auto-detected          | Refuses TUI unless `--frames` is set      |
 
 ---
 

@@ -32,6 +32,7 @@ typedef struct WT_CliOptions {
     long interval_ms;           /* --interval N      (-1 = default) */
     long duration_ms;           /* --duration N      (-1 = default) */
     long samples;               /* --samples N       (-1 = default) */
+    long frames;                /* --frames N        TUI smoke: render N then quit */
     const wchar_t *sort;        /* --sort <key>      (NULL = default) */
 
     /* startup */

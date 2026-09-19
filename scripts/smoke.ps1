@@ -428,6 +428,24 @@ Test-JsonOk "updates --json" @("updates", "--json") -MustContain @("updates") -A
 Test-ExpectOk "blockers" @("blockers")
 Test-JsonOk "blockers --json" @("blockers", "--json") -MustContain @("blockers")
 
+Test-ExpectOk "storage" @("storage")
+Test-JsonOk "storage --json" @("storage", "--json") -MustContain @("storage")
+
+Test-ExpectOk "reliability" @("reliability") -AllowAccessDenied
+Test-JsonOk "reliability --json" @("reliability", "--json") -MustContain @("reliability") `
+    -AllowAccessDenied
+
+Test-ExpectOk "memory" @("memory") -StdoutRegex @("Memory|Commit|RAM|Physical")
+Test-JsonOk "memory --json" @("memory", "--json") -MustContain @("memory")
+
+Test-ExpectOk "maintenance" @("maintenance", "--samples", "1", "--interval", "200") `
+    -TimeoutSec $scanTimeout -StdoutContains @("Maintenance", "Defender")
+Test-JsonOk "maintenance --json" @("maintenance", "--json", "--samples", "1", "--interval", "200") `
+    -MustContain @("maintenance", "never_disable_defender") -TimeoutSec $scanTimeout
+
+Test-ExpectOk "apps" @("apps")
+Test-JsonOk "apps --json" @("apps", "--json") -MustContain @("apps")
+
 Test-ExpectOk "boot analyze" @("boot", "analyze") -AllowAccessDenied
 Test-JsonOk "boot analyze --json" @("boot", "analyze", "--json") -MustContain @("boot") -AllowAccessDenied
 
@@ -436,6 +454,18 @@ Test-JsonOk "service status --json" @("service", "status", "--json") -MustContai
 
 Test-ExpectOk "rollback list" @("rollback", "list")
 Test-JsonOk "rollback list --json" @("rollback", "list", "--json")
+
+# Fleet pack (local-only ZIP of JSON reports)
+$fleetIn = Join-Path $OutDir "fleet-in"
+$fleetOut = Join-Path $OutDir "fleet-pack.zip"
+New-Item -ItemType Directory -Path $fleetIn -Force | Out-Null
+Set-Content -LiteralPath (Join-Path $fleetIn "host-a.json") -Value '{"schema_version":"2.0.0","document":"scan"}' -Encoding utf8
+Test-ExpectOk "fleet pack" @("fleet", "pack", "--input", $fleetIn, "--output", $fleetOut)
+if ((Test-Path -LiteralPath $fleetOut) -and ((Get-Item $fleetOut).Length -gt 0)) {
+    Write-CaseResult "fleet pack artifact" "PASS"
+} else {
+    Write-CaseResult "fleet pack artifact" "FAIL" "missing or empty $fleetOut"
+}
 
 # --- Mutating: must NOT apply without confirmation ---
 Test-ExpectExit "apply without id" @("apply") -ExitCodes @(2) -StdoutOrErrRegex "requires a recommendation id"
@@ -448,9 +478,16 @@ Test-ExpectExit "rollback apply missing" @("rollback", "apply", "no-such-id") `
     -ExitCodes @(12, 10, 20)
 
 # --- Interactive / session-sensitive ---
-# Non-interactive smoke runner: tui should refuse cleanly.
+# Non-interactive without --frames: tui should refuse cleanly.
 Test-ExpectExit "tui non-interactive" @("tui") -ExitCodes @(13, 20) `
-    -StdoutOrErrRegex "interactive|not supported|terminal"
+    -StdoutOrErrRegex "interactive|not supported|terminal|frames"
+# Automated TUI smoke: render a couple frames then quit (works without a TTY).
+Test-ExpectOk "tui --frames 2" @("tui", "--frames", "2", "--interval", "150", `
+    "--no-color", "--no-unicode", "--safe-terminal") `
+    -StdoutContains @("WinTune") -TimeoutSec 60
+Test-ExpectOk "tui --frames 1 --theme compact" @("tui", "--frames", "1", "--interval", "100", `
+    "--theme", "compact", "--no-color") `
+    -StdoutContains @("WinTune") -TimeoutSec 45
 # tray starts a message loop — skip auto-run (would hang). Document as manual.
 Write-CaseResult "tray (manual)" "SKIP" "interactive tray; run: wintune tray"
 

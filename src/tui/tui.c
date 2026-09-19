@@ -1022,20 +1022,27 @@ static int wt_tui_export_snapshot(const WT_TuiState *st,
 
 WT_Result wt_tui_run(const WT_CliOptions *opts)
 {
-    if (!wt_session_is_interactive()) {
+    const long frame_limit = (opts != NULL && opts->frames > 0) ? opts->frames : 0;
+    long frames_drawn = 0;
+
+    if (frame_limit <= 0 && !wt_session_is_interactive()) {
         fprintf(stderr,
                 "wintune: 'tui' needs an interactive terminal (stdin and stdout).\n"
                 "For remote one-shot use: wintune scan --json\n"
-                "For a live view over SSH: ssh -t user@host \"wintune tui --safe-terminal\"\n");
+                "For a live view over SSH: ssh -t user@host \"wintune tui --safe-terminal\"\n"
+                "For automated smoke: wintune tui --frames 2 --interval 200\n");
         return WT_ERR_NOT_SUPPORTED;
     }
 
-    const int safe = (opts != NULL && opts->safe_terminal) || wt_session_is_remote();
+    const int safe = (opts != NULL && opts->safe_terminal) || wt_session_is_remote() ||
+                     (frame_limit > 0);
     int color = (opts == NULL || !opts->no_color) && !safe;
     const int unicode = (opts == NULL || !opts->no_unicode) && !safe;
     unsigned int interval = WT_TUI_DEFAULT_INTERVAL_MS;
     if (opts != NULL && opts->interval_ms > 0) {
         interval = (unsigned int)opts->interval_ms;
+    } else if (frame_limit > 0) {
+        interval = 200u; /* fast default for --frames smoke */
     }
 
     WT_TuiTheme theme;
@@ -1325,6 +1332,14 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
                     wt_tui_dim(&theme), wt_tui_reset(&theme));
             }
             wt_tui_screen_flush(&screen, stdout);
+        }
+
+        if (frame_limit > 0) {
+            frames_drawn++;
+            if (frames_drawn >= frame_limit) {
+                g_tui_stop = 1;
+                break;
+            }
         }
 
         unsigned int waited = 0;

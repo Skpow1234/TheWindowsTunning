@@ -96,6 +96,7 @@ static void wt_print_usage(void)
         "  --ndjson          One JSON document per line (e.g. top --watch --json)\n"
         "  --log-file <path> Append verbose/debug logs to a file (also stderr)\n"
         "  --theme <name>    TUI theme: default|compact|mono|high-contrast|ssh\n"
+        "  --frames <n>      TUI smoke: render n frames then quit (CI-friendly)\n"
         "  --schema-version  JSON schema major: 1 (legacy pin) or 2 (default)\n"
         "  --include-network Opt-in per-process TCP rates (extra overhead; top/tui)\n",
         WT_VERSION_STRING);
@@ -324,7 +325,13 @@ int wt_cli_run(int argc, wchar_t **argv)
     } else if (wcscmp(command, L"fleet") == 0) {
         rc = wt_cmd_fleet(&opts);
     } else if (wcscmp(command, L"tui") == 0) {
-        rc = (wt_tui_run(&opts) == WT_OK) ? WT_EXIT_OK : WT_EXIT_ERROR;
+        WT_Result tr = wt_tui_run(&opts);
+        if (tr == WT_OK) {
+            rc = WT_EXIT_OK;
+        } else {
+            rc = wt_cli_exit_from_result(&opts, tr, L"tui",
+                                         "TUI could not start.");
+        }
     } else if (wt_command_is_known(command)) {
         fwprintf(stderr,
                  L"wintune: '%ls' is recognized but not implemented yet "

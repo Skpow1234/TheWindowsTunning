@@ -31,6 +31,7 @@ int wt_cli_parse_argv(int argc, wchar_t **argv, WT_CliOptions *opts,
     opts->interval_ms = -1;
     opts->duration_ms = -1;
     opts->samples = -1;
+    opts->frames = -1;
     opts->delay_seconds = -1;
     if (out_command != NULL) {
         *out_command = NULL;
@@ -152,6 +153,10 @@ int wt_cli_parse_argv(int argc, wchar_t **argv, WT_CliOptions *opts,
         else if (wcscmp(t, L"--samples") == 0) {
             if (i + 1 < argc) opts->samples = wcstol(argv[++i], NULL, 10);
             else { fprintf(stderr, "wintune: --samples requires a number\n"); return WT_EXIT_USAGE; }
+        }
+        else if (wcscmp(t, L"--frames") == 0) {
+            if (i + 1 < argc) opts->frames = wcstol(argv[++i], NULL, 10);
+            else { fprintf(stderr, "wintune: --frames requires a number\n"); return WT_EXIT_USAGE; }
         }
         else if (wcscmp(t, L"--sort") == 0) {
             if (i + 1 < argc) opts->sort = argv[++i];

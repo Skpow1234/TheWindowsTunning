@@ -189,6 +189,7 @@ wintune tui --theme mono
 wintune tui --theme high-contrast
 wintune tui --theme ssh
 wintune tui --sort cpu
+wintune tui --frames 2 --interval 200   # automated smoke (quit after N frames)
 ```
 
 Keys (Phase 20): Space pause, `t`/`1`/`2`/`3` sort, `j`/`k` scroll, `e` export

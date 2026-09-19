@@ -71,10 +71,13 @@ Against a packaged binary:
 | Meta | `help`, `version`, `--help`, `--version` | exit 0, known banners |
 | Core scan | `scan`, `doctor`, `recommend`, `report`, `top` (+ `--json` / `--sort`) | exit 0; JSON looks like JSON |
 | Inventory | `startup`, `tasks`, `services`, `power`, `blockers`, `rollback list` | exit 0 |
-| Privileged / env-sensitive | `updates`, `boot analyze` | exit 0 **or** soft-pass on access denied / missing Diagnostic-Performance channel (common on CI VMs) |
+| Privileged / env-sensitive | `updates`, `boot analyze`, `reliability` | exit 0 **or** soft-pass on access denied |
+| Inventory (extended) | `storage`, `memory`, `maintenance`, `apps` | exit 0; JSON shape checks |
+| Fleet | `fleet pack` with temp JSON dir | exit 0; ZIP produced |
 | Service agent | `service status` | exit 0 (installed or not) |
 | Mutating (safe) | `apply` without id / without `--yes`; bogus `power --set`; bad rollback id | non-zero or cancel; **no silent change** |
-| Interactive | `tui` without a console | exit “not supported” |
+| Interactive | `tui` without TTY | exit “not supported” |
+| TUI smoke | `tui --frames 2` | exit 0; output contains `WinTune` (no hang) |
 | Manual | `tray` | skipped (would hang the runner) |
 
 Soft failures (`SOFT`) mean “behaved acceptably for a non-admin / restricted
@@ -102,7 +105,8 @@ to set the required status check.
 
 - Does not install/uninstall the WinTune Windows Service.
 - Does not run `power --set` / `apply --yes` (those change the machine).
-- Does not keep `tui` / `tray` open (interactive).
+- Does not keep `tui` / `tray` open interactively (`tui --frames N` covers
+  automated render+quit; full key navigation still needs a real terminal).
 - Does not prove pixel-perfect TUI layout (use a real terminal for that).
 
 ### Manual checks (after smoke)
@@ -112,6 +116,12 @@ to set the required status check.
 .\build\Release\wintune.exe tray
 # In tray: Show status, Run doctor, Exit
 .\build\Release\wintune.exe power --set balanced   # only if you intend to change it
+```
+
+TUI automated smoke (also run by `smoke.ps1`):
+
+```powershell
+.\build\Release\wintune.exe tui --frames 2 --interval 200 --safe-terminal
 ```
 
 ---
