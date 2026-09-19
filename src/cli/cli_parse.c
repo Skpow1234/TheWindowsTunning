@@ -91,6 +91,15 @@ int wt_cli_parse_argv(int argc, wchar_t **argv, WT_CliOptions *opts,
                 return WT_EXIT_USAGE;
             }
         }
+        else if (wcscmp(t, L"--pipe-acl") == 0) {
+            if (i + 1 < argc) opts->service_pipe_acl = argv[++i];
+            else {
+                fprintf(stderr,
+                        "wintune: --pipe-acl requires a mode "
+                        "(admin|admin-only)\n");
+                return WT_EXIT_USAGE;
+            }
+        }
         else if (wcscmp(t, L"--account") == 0) {
             if (i + 1 < argc) {
                 opts->service_account = argv[++i];

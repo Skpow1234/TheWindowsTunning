@@ -52,6 +52,7 @@ typedef struct WT_CliOptions {
     const wchar_t *service_account; /* --account system|localservice|virtual|DOMAIN\User */
     const wchar_t *service_account_password; /* --account-password (custom only) */
     const wchar_t *service_profile; /* --profile balanced|performance|light|on-demand */
+    const wchar_t *service_pipe_acl; /* --pipe-acl admin|admin-only */
 
     /* services filters (OR-combined; none == show all) */
     int svc_auto;               /* --auto */

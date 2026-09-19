@@ -300,6 +300,7 @@ WT_Result wt_service_uninstall(void)
     CloseServiceHandle(svc);
     CloseServiceHandle(scm);
     (void)wt_service_policy_remove();
+    (void)wt_service_ipc_acl_remove();
     return WT_OK;
 }
 

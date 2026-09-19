@@ -12,6 +12,7 @@
 #include "system/tasks.h"
 #include "platform/paths.h"
 #include "platform/time.h"
+#include "platform/service_ipc.h"
 #include "system/privilege.h"
 
 #include <stdio.h>
@@ -306,17 +307,21 @@ WT_Result wt_service_handle_request(const char *request_json,
         }
         WT_ServicePolicy policy;
         (void)wt_service_policy_load(&policy);
-        char buf[640];
+        WT_IpcAclMode pipe_acl = WT_IPC_ACL_ADMIN;
+        (void)wt_service_ipc_acl_load(&pipe_acl);
+        char buf[768];
         snprintf(buf, sizeof(buf),
                  "{\"ok\":true,\"cmd\":\"status\",\"running\":true,"
                  "\"elevated\":%s,\"last_scan_cached\":%s,"
                  "\"policy\":\"%s\",\"scan_interval_ms\":%u,"
                  "\"sample_count\":%u,\"history_keep\":%u,"
+                 "\"pipe_acl\":\"%s\",\"reject_remote\":true,"
                  "\"timestamp_utc\":\"%s\"}",
                  wt_is_process_elevated() ? "true" : "false",
                  has_scan ? "true" : "false", policy.name,
                  policy.scan_interval_ms, policy.sample_count,
-                 policy.history_keep, ts[0] != '\0' ? ts : "");
+                 policy.history_keep, wt_service_ipc_acl_name(pipe_acl),
+                 ts[0] != '\0' ? ts : "");
         size_t n = strlen(buf);
         char *copy = (char *)malloc(n + 1u);
         if (copy == NULL) {
