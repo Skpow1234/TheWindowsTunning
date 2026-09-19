@@ -53,6 +53,27 @@ int main(void)
     }
 
     {
+        wchar_t *argv[] = {
+            L"wintune", L"apply", L"WT-POWER-001", L"--dry-run", L"--json"
+        };
+        expect_int(wt_cli_parse_argv(5, argv, &opts, &cmd), WT_EXIT_OK,
+                   "dry-run");
+        expect_int(opts.dry_run, 1, "dry_run");
+        expect_int(opts.json, 1, "dry_run json");
+    }
+
+    {
+        wchar_t *argv[] = {
+            L"wintune", L"startup", L"disable", L"HKCU\\Run:App", L"--preview"
+        };
+        expect_int(wt_cli_parse_argv(5, argv, &opts, &cmd), WT_EXIT_OK,
+                   "preview alias");
+        expect_int(opts.dry_run, 1, "preview sets dry_run");
+        expect_wstr(opts.arg1, L"disable", "startup sub");
+        expect_wstr(opts.arg2, L"HKCU\\Run:App", "startup id");
+    }
+
+    {
         wchar_t *argv[] = { L"wintune", L"scan", L"--limit" };
         expect_int(wt_cli_parse_argv(3, argv, &opts, &cmd), WT_EXIT_USAGE,
                    "limit missing");

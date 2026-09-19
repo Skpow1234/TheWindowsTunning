@@ -73,15 +73,28 @@ int main(void)
     expect_true(wt_generate_recommendations(&report, &list) == WT_OK, "gen mem");
     expect_true(list_has_id(&list, "WT-MEMORY-001"), "memory pressure id");
 
-    /* High disk active => WT-DISK-001 */
+    /* High disk active => WT-DISK-001 (extreme single sample still allowed). */
     wt_scan_report_init(&report);
     report.disk_active_ok = 1;
     report.disk_active_percent = 95.0;
     report.disk_active_max_percent = 95.0;
     report.disk_active_ok_samples = 1;
     report.disk_active_hot_samples = 1;
+    report.scan_sample_count = 1;
     expect_true(wt_generate_recommendations(&report, &list) == WT_OK, "gen disk");
     expect_true(list_has_id(&list, "WT-DISK-001"), "disk active id");
+
+    /* Mild single-sample disk must not fire (Phase 35). */
+    wt_scan_report_init(&report);
+    report.disk_active_ok = 1;
+    report.disk_active_percent = 91.0;
+    report.disk_active_max_percent = 91.0;
+    report.disk_active_ok_samples = 1;
+    report.disk_active_hot_samples = 1;
+    report.scan_sample_count = 1;
+    expect_true(wt_generate_recommendations(&report, &list) == WT_OK,
+                "gen disk mild single");
+    expect_true(!list_has_id(&list, "WT-DISK-001"), "no mild single-sample disk");
 
     /* One spike among many samples must not fire WT-DISK-001 (Phase 30). */
     wt_scan_report_init(&report);
