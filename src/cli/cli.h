@@ -23,6 +23,7 @@ typedef struct WT_CliOptions {
     int dry_run;                /* --dry-run / --preview (Phase 36) */
     int plan;                   /* --plan (Phase 38 doctor guided plan) */
     const wchar_t *output_path; /* NULL unless --output <path> was given */
+    const wchar_t *input_path;  /* NULL unless --input <path> was given */
 
     /* Command-specific options. */
     int watch;                  /* --watch */

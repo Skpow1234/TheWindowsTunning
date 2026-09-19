@@ -9,7 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 #include <bcrypt.h>
 #include <strsafe.h>
@@ -451,7 +453,8 @@ static char *wt_fleet_build_manifest(const WT_FleetFile *files, size_t count,
 }
 
 WT_Result wt_fleet_pack(const wchar_t *input_dir, const wchar_t *output_zip,
-                        FILE *status_out)
+                        FILE *status_out, size_t *out_report_count,
+                        char out_zip_sha256_hex[65])
 {
     WT_FleetFile *files = NULL;
     size_t count = 0;
@@ -468,6 +471,13 @@ WT_Result wt_fleet_pack(const wchar_t *input_dir, const wchar_t *output_zip,
     DWORD attrs;
 
     memset(&zip, 0, sizeof(zip));
+    zip_hex[0] = '\0';
+    if (out_report_count != NULL) {
+        *out_report_count = 0;
+    }
+    if (out_zip_sha256_hex != NULL) {
+        out_zip_sha256_hex[0] = '\0';
+    }
 
     if (input_dir == NULL || input_dir[0] == L'\0' || output_zip == NULL ||
         output_zip[0] == L'\0') {
@@ -564,6 +574,13 @@ WT_Result wt_fleet_pack(const wchar_t *input_dir, const wchar_t *output_zip,
         }
         fprintf(status_out,
                 "  Contents: manifest.json, CHECKSUMS.sha256, reports/*\n");
+    }
+
+    if (out_report_count != NULL) {
+        *out_report_count = count;
+    }
+    if (out_zip_sha256_hex != NULL && zip_hex[0] != '\0') {
+        memcpy(out_zip_sha256_hex, zip_hex, 65);
     }
 
     free(files);

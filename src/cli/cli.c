@@ -20,6 +20,7 @@
 #include "cli/commands_service.h"
 #include "cli/commands_tray.h"
 #include "cli/commands_apps.h"
+#include "cli/commands_fleet.h"
 #include "tui/tui.h"
 #include "common/error.h"
 #include "common/log.h"
@@ -63,6 +64,7 @@ static void wt_print_usage(void)
         "  doctor      scan + recommend + summary (best for normal users)\n"
         "  tray        System tray icon (native Win32, read-only by default)\n"
         "  rollback    List or apply rollback records\n"
+        "  fleet       Pack multi-host JSON reports into a local ZIP\n"
         "  version     Show version information\n"
         "  help        Show this help\n"
         "\n"
@@ -76,6 +78,7 @@ static void wt_print_usage(void)
         "  --no-unicode      ASCII fallback rendering\n"
         "  --safe-terminal   Conservative rendering for SSH/unknown terminals\n"
         "  --output <path>   Write output to a file\n"
+        "  --input <path>    Input directory (fleet pack)\n"
         "  --yes             Confirm mutating actions (dangerous actions stay blocked)\n"
         "  --dry-run         Preview apply/startup changes without mutating\n"
         "  --plan            Doctor: print sequenced guided plan (optional focus)\n"
@@ -296,6 +299,8 @@ int wt_cli_run(int argc, wchar_t **argv)
         rc = wt_cmd_service(&opts);
     } else if (wcscmp(command, L"tray") == 0) {
         rc = wt_cmd_tray(&opts);
+    } else if (wcscmp(command, L"fleet") == 0) {
+        rc = wt_cmd_fleet(&opts);
     } else if (wcscmp(command, L"tui") == 0) {
         rc = (wt_tui_run(&opts) == WT_OK) ? WT_EXIT_OK : WT_EXIT_ERROR;
     } else if (wt_command_is_known(command)) {

@@ -129,6 +129,14 @@ int wt_cli_parse_argv(int argc, wchar_t **argv, WT_CliOptions *opts,
                 return WT_EXIT_USAGE;
             }
         }
+        else if (wcscmp(t, L"--input") == 0) {
+            if (i + 1 < argc) {
+                opts->input_path = argv[++i];
+            } else {
+                fprintf(stderr, "wintune: --input requires a path argument\n");
+                return WT_EXIT_USAGE;
+            }
+        }
         else if (wcscmp(t, L"--limit") == 0) {
             if (i + 1 < argc) opts->limit = wcstol(argv[++i], NULL, 10);
             else { fprintf(stderr, "wintune: --limit requires a number\n"); return WT_EXIT_USAGE; }

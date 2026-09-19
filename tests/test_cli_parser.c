@@ -90,6 +90,19 @@ int main(void)
         expect_int(wt_cli_is_json_mode(&opts), 1, "report format json mode");
     }
 
+    {
+        wchar_t *argv[] = {
+            L"wintune", L"fleet", L"pack", L"--input", L"reports",
+            L"--output", L"fleet-pack.zip"
+        };
+        expect_int(wt_cli_parse_argv(7, argv, &opts, &cmd), WT_EXIT_OK,
+                   "fleet pack");
+        expect_wstr(cmd, L"fleet", "cmd fleet");
+        expect_wstr(opts.arg1, L"pack", "fleet arg1 pack");
+        expect_wstr(opts.input_path, L"reports", "input");
+        expect_wstr(opts.output_path, L"fleet-pack.zip", "output");
+    }
+
     expect_int(wt_power_scheme_from_token(L"performance"), WT_POWER_HIGH_PERF,
                "power token performance");
     expect_int(wt_power_scheme_from_token(L"balanced"), WT_POWER_BALANCED,
