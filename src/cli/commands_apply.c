@@ -1,5 +1,6 @@
 #include "cli/commands_apply.h"
 #include "actions/apply.h"
+#include "actions/apply_preview.h"
 #include "cli/cli.h"
 #include "cli/cli_exit.h"
 #include "platform/service_client.h"
@@ -11,8 +12,9 @@ int wt_cmd_apply(const WT_CliOptions *opts)
     if (opts == NULL || opts->arg1 == NULL) {
         fprintf(stderr,
                 "wintune: apply requires a recommendation id\n"
-                "Usage: wintune apply <id> [target-id] [--seconds N]\n"
+                "Usage: wintune apply <id> [target-id] [--seconds N] [--dry-run]\n"
                 "  wintune apply WT-POWER-001\n"
+                "  wintune apply WT-POWER-001 --dry-run\n"
                 "  wintune apply WT-STARTUP-DISABLE \"HKCU\\\\Run:App\"\n"
                 "  wintune apply WT-STARTUP-DELAY \"HKCU\\\\Run:App\" --seconds 30\n"
                 "See current ids with 'wintune recommend'.\n");
@@ -20,12 +22,35 @@ int wt_cmd_apply(const WT_CliOptions *opts)
                                  "apply requires a recommendation id");
     }
 
-    char msg[512] = {0};
-    WT_Result r;
     unsigned long delay = 0;
     if (opts->delay_seconds > 0) {
         delay = (unsigned long)opts->delay_seconds;
     }
+
+    if (opts->dry_run) {
+        WT_ApplyRequest req = {
+            .rec_id = opts->arg1,
+            .target_id = opts->arg2,
+            .delay_seconds = delay,
+            .assume_yes = 0,
+            .msg = NULL,
+            .msg_cap = 0,
+        };
+        WT_ApplyPreview preview;
+        WT_Result r = wt_apply_preview_from_request(&req, &preview);
+        if (wt_cli_is_json_mode(opts)) {
+            wt_apply_preview_print_json(stdout, &preview);
+        } else {
+            wt_apply_preview_print_text(stdout, &preview);
+        }
+        return wt_cli_exit_from_result(opts, r, L"apply",
+                                       preview.summary[0] != '\0'
+                                           ? preview.summary
+                                           : NULL);
+    }
+
+    char msg[512] = {0};
+    WT_Result r;
 
     if (wt_cli_should_route_via_service(opts)) {
         if (!wt_service_client_is_available(2000)) {
