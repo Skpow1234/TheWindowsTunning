@@ -1,4 +1,4 @@
-# WinTune system tray (Phase 19)
+# WinTune system tray (Phases 19 + 42)
 
 WinTune includes an optional **native Win32 system tray** for users who prefer
 a GUI shortcut without Electron, WebView, or a browser dashboard.
@@ -31,6 +31,7 @@ in the background.
 | Action | Behavior |
 |--------|----------|
 | **Show status** | Read-only summary window (double-click the tray icon for the same) |
+| **Quick scan…** | Short in-process scan into the status window (Phase 42 mini-doctor) |
 | **Run doctor…** | Opens a console and runs `wintune doctor` |
 | **Run report…** | Runs `wintune report`, saves under Documents, opens the file |
 | **Open last report** | Opens the newest report in Documents, or the service cache JSON |
@@ -42,7 +43,8 @@ in the background.
 | **Exit** | Removes the tray icon and stops the process |
 
 Hover tip shows a short live summary (`CPU` / `RAM` / power plan) and refreshes
-about every 30 seconds.
+about every 30 seconds. After a Quick scan with findings, the tip also shows a
+recommendation count.
 
 ## Status window
 
@@ -53,11 +55,35 @@ The status window shows:
 - Power plan and AC/battery when available
 - Host and OS identity
 - Cached scan path when `%ProgramData%\WinTune\last_scan.json` exists
+- **Mini-doctor** results after Quick scan (recommendations + CLI apply hint)
 
-**Refresh** re-samples live metrics and re-reads the cache. It does not mutate the system.
+Buttons:
+
+| Button | Behavior |
+|--------|----------|
+| **Quick scan** | 2 short local samples (~1–2 s); recommendations only; never applies |
+| **Refresh** | Re-samples live metrics and re-reads the cache (keeps last Quick scan) |
+| **Close** | Closes the status window |
 
 If the service is not installed, status shows “CLI-only mode” and doctor/report
 still work by spawning the CLI directly.
+
+## Quick scan (Phase 42)
+
+Quick scan is the tray mini-doctor:
+
+1. Runs `wt_run_scan` in-process (2 samples, short intervals).
+2. Builds recommendations with the same engine as `wintune doctor`.
+3. Shows top findings and, when applicable, a CLI hint such as
+   `wintune apply WT-POWER-001`.
+
+It does **not**:
+
+- Call `apply`, change power plans, restart services, or touch startup entries
+- Bypass confirmation or elevation
+- Run silently in the background without the user choosing Quick scan
+
+For a full console doctor, use **Run doctor…** instead.
 
 ## Start with Windows
 
@@ -80,14 +106,14 @@ When the Phase 11 service is installed and running:
   the service on periodic scans).
 
 The tray does **not** require the service. All menu actions fall back to spawning
-`wintune.exe` next to the running binary.
+`wintune.exe` next to the running binary (except Quick scan, which is in-process).
 
 ## Architecture
 
 ```text
 wintune tray
   ├── Win32 message loop + Shell_NotifyIconW
-  ├── tray_status.c   read-only status window
+  ├── tray_status.c   read-only status + Quick scan (scan + recommend)
   └── spawns wintune.exe for doctor / report / tui / CLI launcher
 ```
 

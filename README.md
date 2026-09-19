@@ -424,6 +424,7 @@ end-user release polish).
 | 39 | Uninstall advisor (read-only) | Done |
 | 40 | TUI historical sparklines | Done |
 | 41 | TUI before/after compare | Done |
+| 42 | Tray mini-doctor | Done |
 | 41–53 | v3 depth (before/after compare, tray mini-doctor, fleet, …) | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and

@@ -14,6 +14,7 @@
 #define WT_TRAY_CALLBACK_MSG (WM_USER + 1)
 
 #define IDM_TRAY_STATUS      1001
+#define IDM_TRAY_QUICK_SCAN  1011
 #define IDM_TRAY_DOCTOR      1002
 #define IDM_TRAY_REPORT      1003
 #define IDM_TRAY_OPEN_LAST   1004
@@ -230,6 +231,7 @@ static void wt_tray_show_about(void)
         L"WinTune\n"
         L"Native Windows performance diagnostics.\n\n"
         L"The tray app is read-only by default.\n"
+        L"Quick scan measures locally and never applies changes.\n"
         L"System changes always require confirmation in the CLI.\n"
         L"\"Start with Windows\" is optional and uses your user Run key only.\n\n"
         L"No Electron. No WebView.",
@@ -332,6 +334,17 @@ static void wt_tray_show_status(void)
     g_tray.status_wnd = wt_tray_status_show(NULL);
 }
 
+static void wt_tray_run_quick_scan(void)
+{
+    if (g_tray.status_wnd == NULL || !IsWindow(g_tray.status_wnd)) {
+        g_tray.status_wnd = wt_tray_status_show(NULL);
+    }
+    if (g_tray.status_wnd != NULL) {
+        SetForegroundWindow(g_tray.status_wnd);
+        wt_tray_status_post_quick_scan(g_tray.status_wnd);
+    }
+}
+
 static void wt_tray_show_context_menu(HWND hwnd)
 {
     if (g_tray.menu != NULL) {
@@ -354,6 +367,9 @@ static void wt_tray_handle_menu(UINT id)
     switch (id) {
     case IDM_TRAY_STATUS:
         wt_tray_show_status();
+        break;
+    case IDM_TRAY_QUICK_SCAN:
+        wt_tray_run_quick_scan();
         break;
     case IDM_TRAY_DOCTOR:
         wt_tray_run_doctor();
@@ -446,6 +462,7 @@ static int wt_tray_add_icon(HWND hwnd)
     }
 
     AppendMenuW(g_tray.menu, MF_STRING, IDM_TRAY_STATUS, L"Show status");
+    AppendMenuW(g_tray.menu, MF_STRING, IDM_TRAY_QUICK_SCAN, L"Quick scan...");
     AppendMenuW(g_tray.menu, MF_SEPARATOR, 0, NULL);
     AppendMenuW(g_tray.menu, MF_STRING, IDM_TRAY_DOCTOR, L"Run doctor...");
     AppendMenuW(g_tray.menu, MF_STRING, IDM_TRAY_REPORT, L"Run report...");

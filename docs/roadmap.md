@@ -59,7 +59,7 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 39 | Uninstall advisor (read-only) | Done |
 | 40 | TUI historical sparklines | Done |
 | 41 | TUI before/after compare | Done |
-| 42 | Tray mini-doctor | Planned |
+| 42 | Tray mini-doctor | Done |
 | 43 | Accessibility & SSH TUI | Planned |
 | 44 | Service policy profiles | Planned |
 | 45 | Named-pipe ACL hardening | Planned |
@@ -1033,9 +1033,13 @@ wintune power --set performance --dry-run
 
 **Goal:** Tray runs a short local scan into the status window.
 
+**Status:** Done
+
 **Deliver:**
 
-- Optional “Quick scan” from tray; still read-only unless user opens CLI apply.
+- Optional **Quick scan** from tray menu and status window button.
+- In-process short scan (2 samples) + recommendations shown in the status window.
+- CLI apply hints only; never mutates from the tray.
 
 **Depends on:** Phase 19.
 
