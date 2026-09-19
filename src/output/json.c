@@ -1418,6 +1418,90 @@ void wt_print_memory_json(const WT_MemoryMetrics *m, FILE *out)
     wt_json_finish(&w);
 }
 
+void wt_print_maintenance_json(const WT_MaintenanceReport *report, FILE *out)
+{
+    WT_JsonWriter w;
+    size_t i;
+
+    wt_json_init(&w, out);
+    wt_json_begin_object(&w);
+    wt_json_emit_envelope_head(&w, "maintenance");
+    wt_json_key(&w, "maintenance");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "scan_ok");
+    wt_json_bool(&w, report != NULL && report->scan_ok);
+    wt_json_key(&w, "sample_count");
+    wt_json_uint64(&w, report != NULL ? report->sample_count : 0ull);
+    wt_json_key(&w, "cpu_percent");
+    wt_json_double(&w, report != NULL ? report->cpu_percent : 0.0);
+    wt_json_key(&w, "disk_active_percent");
+    wt_json_double(&w, report != NULL ? report->disk_active_percent : 0.0);
+    wt_json_key(&w, "cpu_hot");
+    wt_json_bool(&w, report != NULL && report->cpu_hot);
+    wt_json_key(&w, "disk_hot");
+    wt_json_bool(&w, report != NULL && report->disk_hot);
+    wt_json_key(&w, "defender_active");
+    wt_json_bool(&w, report != NULL && report->defender_active);
+    wt_json_key(&w, "update_active");
+    wt_json_bool(&w, report != NULL && report->update_active);
+    wt_json_key(&w, "optimize_active");
+    wt_json_bool(&w, report != NULL && report->optimize_active);
+    wt_json_key(&w, "overlap");
+    wt_json_bool(&w, report != NULL && report->overlap);
+    wt_json_key(&w, "hits");
+    wt_json_begin_array(&w);
+    if (report != NULL) {
+        for (i = 0; i < report->hit_count; ++i) {
+            const WT_MaintHit *h = &report->hits[i];
+            wt_json_begin_object(&w);
+            wt_json_key(&w, "kind");
+            wt_json_string(&w, wt_maint_kind_name(h->kind));
+            wt_json_key(&w, "source");
+            wt_json_wstring(&w, h->source);
+            wt_json_key(&w, "name");
+            wt_json_wstring(&w, h->name);
+            wt_json_key(&w, "cpu_percent");
+            if (h->cpu_percent >= 0.0) {
+                wt_json_double(&w, h->cpu_percent);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "disk_bytes_per_sec");
+            if (h->disk_bytes_per_sec >= 0.0) {
+                wt_json_double(&w, h->disk_bytes_per_sec);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "task_running");
+            wt_json_bool(&w, h->task_running);
+            wt_json_key(&w, "last_run_recent");
+            wt_json_bool(&w, h->last_run_recent);
+            if (h->last_run_utc[0] != '\0') {
+                wt_json_key(&w, "last_run_utc");
+                wt_json_string(&w, h->last_run_utc);
+            }
+            wt_json_end_object(&w);
+        }
+    }
+    wt_json_end_array(&w);
+    if (report != NULL && report->note[0] != L'\0') {
+        wt_json_key(&w, "note");
+        wt_json_wstring(&w, report->note);
+    }
+    wt_json_end_object(&w);
+    wt_json_key(&w, "safety");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "read_only");
+    wt_json_bool(&w, 1);
+    wt_json_key(&w, "never_disable_defender");
+    wt_json_bool(&w, 1);
+    wt_json_key(&w, "never_disable_windows_update");
+    wt_json_bool(&w, 1);
+    wt_json_end_object(&w);
+    wt_json_end_object(&w);
+    wt_json_finish(&w);
+}
+
 void wt_print_processes_json(const WT_ProcessInfo *items, size_t count, FILE *out)
 {
     WT_JsonWriter w;

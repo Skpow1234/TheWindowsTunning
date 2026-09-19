@@ -15,6 +15,7 @@
 #include "system/blockers.h"
 #include "system/storage_health.h"
 #include "system/reliability.h"
+#include "system/maintenance.h"
 
 /* Stable JSON schema version (independent of wintune tool version).
  * 2.0.0 documents accumulated additive fields (Phases 18–46) and adds
@@ -80,5 +81,6 @@ void wt_print_blockers_json(const WT_BlockerReport *report, FILE *out);
 void wt_print_storage_json(const WT_StorageHealthReport *report, FILE *out);
 void wt_print_reliability_json(const WT_ReliabilityReport *report, FILE *out);
 void wt_print_memory_json(const WT_MemoryMetrics *metrics, FILE *out);
+void wt_print_maintenance_json(const WT_MaintenanceReport *report, FILE *out);
 
 #endif /* WINTUNE_JSON_H */
