@@ -6,6 +6,9 @@
 #include "system/services.h"
 #include "system/updates.h"
 #include "system/file_identity.h"
+#include "system/storage_health.h"
+#include "system/reliability.h"
+#include "system/maintenance.h"
 
 #include <stddef.h>
 
@@ -89,5 +92,23 @@ const char *wt_publisher_origin_name(WT_PublisherOrigin origin)
 const char *wt_install_location_name(WT_InstallLocation location)
 {
     (void)location;
+    return "unknown";
+}
+
+const char *wt_storage_health_status_name(WT_StorageHealthStatus status)
+{
+    (void)status;
+    return "unknown";
+}
+
+const char *wt_reliability_kind_name(WT_ReliabilityKind kind)
+{
+    (void)kind;
+    return "unknown";
+}
+
+const char *wt_maint_kind_name(WT_MaintKind kind)
+{
+    (void)kind;
     return "unknown";
 }
