@@ -76,12 +76,7 @@ jobs:
 
       - name: Install Inno Setup (optional installer)
         shell: pwsh
-        run: |
-          winget install --id JRSoftware.InnoSetup -e --disable-interactivity `
-            --accept-source-agreements --accept-package-agreements
-          if ($LASTEXITCODE -ne 0) {
-            Write-Warning "winget install Inno Setup failed — installer step will soft-skip"
-          }
+        run: .\scripts\install-innosetup.ps1
 
       - name: Build x64 Setup.exe (optional)
         shell: pwsh
@@ -152,12 +147,7 @@ jobs:
 
       - name: Install Inno Setup (optional installer)
         shell: pwsh
-        run: |
-          winget install --id JRSoftware.InnoSetup -e --disable-interactivity `
-            --accept-source-agreements --accept-package-agreements
-          if ($LASTEXITCODE -ne 0) {
-            Write-Warning "winget install Inno Setup failed — installer step will soft-skip"
-          }
+        run: .\scripts\install-innosetup.ps1
 
       - name: Build ARM64 Setup.exe (optional)
         shell: pwsh
