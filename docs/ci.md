@@ -106,7 +106,9 @@ git push origin v0.1.0
 The release workflow:
 
 1. Builds **Release** x64 on `windows-latest` and **ARM64** on
-   `windows-11-vs2026-arm` (parallel package jobs).
+   `windows-11-vs2026-arm` (parallel package jobs). The GitHub Release is
+   published when the x64 package succeeds. ARM64 assets are attached only
+   when that job succeeds, so a missing ARM64 runner cannot 404 the x64 zip.
 2. Creates portable ZIPs:
    - `dist/WinTune-<version>-win-x64.zip`
    - `dist/WinTune-<version>-win-arm64.zip`

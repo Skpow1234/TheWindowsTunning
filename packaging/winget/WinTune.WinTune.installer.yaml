@@ -1,8 +1,10 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
 #
 # Draft installer manifest. Before submitting to winget-pkgs:
-# 1. Publish a GitHub Release with WinTune-<ver>-win-x64.zip (+ arm64).
-# 2. Replace REPLACE_WITH_SHA256_* using the .sha256 sidecars from the release.
+# 1. Publish a GitHub Release with WinTune-<ver>-win-x64.zip.
+#    Confirm the URL returns 200. Omit arm64 unless that zip was uploaded.
+# 2. Replace the InstallerSha256 values using the .sha256 sidecars from the release.
+#    The zip must contain a statically linked wintune.exe (no VCRUNTIME140.dll).
 # 3. Bump PackageVersion to match the tag (without leading "v").
 #
 PackageIdentifier: WinTune.WinTune

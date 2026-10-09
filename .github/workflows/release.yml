@@ -181,16 +181,25 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    needs: [resolve-version, package-x64, package-arm64]
+    # Do not wait on package-arm64. That job uses a private runner; if it
+    # never starts, the x64 zip is never uploaded and WinGet reports 404.
+    needs: [resolve-version, package-x64]
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifacts
+      - name: Download x64 artifacts
         uses: actions/download-artifact@v4
         with:
+          name: wintune-x64
           path: dist
-          merge-multiple: true
 
-      - name: Upload release assets
+      - name: Download x64 installer (optional)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: wintune-x64-setup
+          path: dist
+
+      - name: Upload x64 release assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', needs.resolve-version.outputs.value) || github.ref_name }}
@@ -202,6 +211,34 @@ jobs:
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64.zip.sha256
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64-setup.exe
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-x64-setup.exe.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-arm64:
+    name: Attach ARM64 release assets
+    needs: [resolve-version, package-arm64, release]
+    if: ${{ needs.package-arm64.result == 'success' && needs.release.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download ARM64 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: wintune-arm64
+          path: dist
+
+      - name: Download ARM64 installer (optional)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: wintune-arm64-setup
+          path: dist
+
+      - name: Upload ARM64 release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', needs.resolve-version.outputs.value) || github.ref_name }}
+          fail_on_unmatched_files: false
+          files: |
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-arm64.zip
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-arm64.zip.sha256
             dist/WinTune-${{ needs.resolve-version.outputs.value }}-win-arm64-setup.exe

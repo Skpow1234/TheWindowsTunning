@@ -167,6 +167,11 @@ target_compile_definitions(wintune PRIVATE
 )
 
 if(MSVC)
+    # Static CRT. /MD pulls in VCRUNTIME140.dll, and WinGet's clean validation
+    # image does not have the VC++ redistributable. The loader then exits
+    # STATUS_DLL_NOT_FOUND (-1073741515) before main runs.
+    set_property(TARGET wintune PROPERTY
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     target_compile_options(wintune PRIVATE /W4 /permissive-)
     # Prefer our embedded manifest over the default linker-generated one.
     target_link_options(wintune PRIVATE "/MANIFEST:NO")

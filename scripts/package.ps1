@@ -148,6 +148,9 @@ if (-not (Test-Path -LiteralPath $StagedExe)) {
     exit 1
 }
 
+& (Join-Path $PSScriptRoot "verify-portable-exe.ps1") -Path $StagedExe
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 $SignScript = Join-Path $PSScriptRoot "sign.ps1"
 if ($SignIfConfigured) {
     Write-Host "Authenticode (SignIfConfigured) ..."

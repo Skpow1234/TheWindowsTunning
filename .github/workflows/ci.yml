@@ -62,6 +62,10 @@ jobs:
         shell: pwsh
         run: cmake --build build --config Release
 
+      - name: Verify portable exe has no VC++ runtime import
+        shell: pwsh
+        run: .\scripts\verify-portable-exe.ps1 -Path build\Release\wintune.exe
+
       - name: Unit tests
         shell: pwsh
         run: .\scripts\test.ps1 -Config Release -BuildDir build
@@ -129,6 +133,13 @@ jobs:
       - name: Build Release
         shell: pwsh
         run: .\scripts\cmake-build.ps1 -BuildDir build-arm64 -Config Release -Target wintune
+
+      - name: Verify portable exe has no VC++ runtime import
+        shell: pwsh
+        run: |
+          $exe = ".\build-arm64\Release\wintune.exe"
+          if (-not (Test-Path $exe)) { $exe = ".\build-arm64\wintune.exe" }
+          .\scripts\verify-portable-exe.ps1 -Path $exe
 
       - name: Unit tests
         shell: pwsh
