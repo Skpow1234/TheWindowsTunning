@@ -1,13 +1,13 @@
 ; WinTune optional Inno Setup installer (Phases 21 / 53).
-; Prefer: .\scripts\installer.ps1 -Version 0.2.0 -Arch x64
-; Or:     iscc /DMyAppVersion=0.2.0 /DMyAppArch=x64 scripts\installer\wintune.iss
+; Prefer: .\scripts\installer.ps1 -Version 0.3.0 -Arch x64
+; Or:     iscc /DMyAppVersion=0.3.0 /DMyAppArch=x64 scripts\installer\wintune.iss
 ;
 ; Requires Inno Setup 6+. Portable ZIP remains the primary artifact.
 ; PATH and desktop icon tasks are opt-in (unchecked). No adware / silent autostart.
 
 #define MyAppName "WinTune"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.1.0"
+  #define MyAppVersion "0.3.0"
 #endif
 #ifndef MyAppArch
   #define MyAppArch "x64"

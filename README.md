@@ -6,8 +6,8 @@
 [![Language: C17](https://img.shields.io/badge/Language-C17-00599C?logo=c&logoColor=white)](#build)
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
-[![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-blue.svg)](docs/roadmap.md)
-[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9325%20Done%20%7C%20v3%20Planned-brightgreen.svg)](#project-status)
+[![Version: 0.3.0](https://img.shields.io/badge/Version-0.3.0-blue.svg)](docs/roadmap.md)
+[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9353%20Done-brightgreen.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -159,8 +159,8 @@ GitHub Actions runs on every push and pull request to `main`:
 **Releases:** push a semver tag to publish a portable ZIP to GitHub Releases:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 Local equivalents:
@@ -168,14 +168,14 @@ Local equivalents:
 ```powershell
 .\scripts\lint.ps1
 .\scripts\package.ps1 -Config Release -Arch x64 -Zip
-.\scripts\release.ps1 -Version 0.2.0
+.\scripts\release.ps1 -Version 0.3.0
 ```
 
 ```bash
 # Git Bash / WSL
 ./scripts/lint
 ./scripts/package -Config Release -Arch x64 -Zip
-./scripts/release -Version 0.2.0
+./scripts/release -Version 0.3.0
 ```
 
 Packaging details: [`docs/packaging.md`](docs/packaging.md).
@@ -327,7 +327,7 @@ The scan document has a stable shape:
 
 ```json
 {
-  "version": "0.1.0",
+  "version": "0.3.0",
   "timestamp_utc": "2026-06-11T08:00:13Z",
   "system":  { "available": true, "os": "Windows 11 Pro", "arch": "x64", "hostname": "...", "uptime_ms": 0 },
   "cpu":     { "available": true, "logical_processors": 32, "total_usage_percent": 14.1 },
@@ -378,8 +378,8 @@ Full details: [`docs/safety.md`](docs/safety.md).
 
 ## Project status
 
-WinTune **v0.2.0** ships(CLI/TUI, service, packaging, tray, and
-end-user release polish).
+WinTune **v0.3.0** ships the CLI, TUI, service, packaging, tray, and
+end-user release polish.
 
 | Phase | Scope | Status |
 | ----- | ----- | ------ |

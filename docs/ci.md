@@ -99,8 +99,8 @@ back to **Ninja** via `Launch-VsDevShell.ps1`.
 When you push a semver tag:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 The release workflow:
@@ -119,12 +119,12 @@ The release workflow:
 **Manual release (no tag yet):**
 
 1. Open **Actions → Release → Run workflow**.
-2. Enter a version such as `0.1.0`.
+2. Enter a version such as `0.3.0`.
 
 **Run locally:**
 
 ```powershell
-.\scripts\release.ps1 -Version 0.1.0
+.\scripts\release.ps1 -Version 0.3.0
 ```
 
 ## Version string
@@ -134,7 +134,7 @@ The version shown by `wintune version` and JSON output comes from CMake
 builds default to the `CMakeLists.txt` cache default unless overridden:
 
 ```powershell
-cmake -S . -B build -DWINTUNE_VERSION=0.2.0-dev
+cmake -S . -B build -DWINTUNE_VERSION=0.3.0-dev
 ```
 
 Keep `CMakeLists.txt` default, release tags, and `docs/roadmap.md` in sync when

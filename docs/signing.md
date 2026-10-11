@@ -13,13 +13,13 @@ Use [`scripts/sign.ps1`](../scripts/sign.ps1):
 
 ```powershell
 # Soft verify (unsigned OK — default OSS path)
-.\scripts\sign.ps1 -Path .\dist\WinTune-0.2.0-win-x64\wintune.exe -Verify -AllowUnsigned
+.\scripts\sign.ps1 -Path .\dist\WinTune-0.3.0-win-x64\wintune.exe -Verify -AllowUnsigned
 
 # Sign when a PFX is available
 .\scripts\sign.ps1 -Path .\dist\...\wintune.exe -Sign -PfxPath cert.pfx
 
 # Package with optional sign (credentials via env) then ZIP
-.\scripts\package.ps1 -Config Release -Arch x64 -Version 0.2.0 -Zip -SignIfConfigured
+.\scripts\package.ps1 -Config Release -Arch x64 -Version 0.3.0 -Zip -SignIfConfigured
 ```
 
 `package.ps1` always writes `SIGNING.txt` (`signed` or `unsigned`) into the stage
@@ -36,7 +36,7 @@ directory so operators can see what shipped.
 4. Verify:
 
 ```powershell
-signtool verify /pa .\dist\WinTune-0.2.0-win-x64\wintune.exe
+signtool verify /pa .\dist\WinTune-0.3.0-win-x64\wintune.exe
 # or
 .\scripts\sign.ps1 -Path .\dist\...\wintune.exe -Verify -RequireSigned
 ```

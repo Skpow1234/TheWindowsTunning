@@ -8,7 +8,7 @@ An optional Inno Setup installer may accompany releases when CI can build it.
 | Channel | How selected | `CHANNEL.txt` | Typical consumers |
 | ------- | ------------ | ------------- | ----------------- |
 | **stable** | Tag `vX.Y.Z` (no `-beta`) | `stable` | End users, winget later |
-| **beta** | Tag contains `-beta` (e.g. `v0.2.0-beta.1`) | `beta` | Testers, early adopters |
+| **beta** | Tag contains `-beta` (e.g. `v0.3.0-beta.1`) | `beta` | Testers, early adopters |
 
 `scripts/package.ps1 -Channel` and the Release workflow set `CHANNEL.txt` in the
 stage directory. The Release job auto-detects `beta` from the version string.
@@ -27,14 +27,14 @@ stage directory. The Release job auto-detects `beta` from the version string.
 
 ```powershell
 # Portable ZIP (stable)
-.\scripts\release.ps1 -Version 0.2.0 -Arch x64
+.\scripts\release.ps1 -Version 0.3.0 -Arch x64
 
 # Beta channel
-.\scripts\package.ps1 -Config Release -Arch x64 -Version 0.2.0-beta.1 `
+.\scripts\package.ps1 -Config Release -Arch x64 -Version 0.3.0-beta.1 `
   -Channel beta -Configure -Build -Zip
 
 # Optional installer (requires Inno Setup on PATH)
-.\scripts\installer.ps1 -Version 0.2.0 -Arch x64 -SkipIfMissingInno
+.\scripts\installer.ps1 -Version 0.3.0 -Arch x64 -SkipIfMissingInno
 ```
 
 ## GitHub Releases

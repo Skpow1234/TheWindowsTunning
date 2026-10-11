@@ -155,13 +155,13 @@ Every public function returns a structured `WT_Result` (see `common/error.h`).
 - One memory style per module, used consistently.
 - Every Windows handle is closed; every allocation is freed.
 - Fixed-size arrays are acceptable for v1 where limits are documented
-  (e.g. `top_processes[64]`, `volumes[32]`).
+  (e.g. `top_processes[32]`, `volumes[32]`).
 
 ---
 
-## What the Architecture Deliberately Excludes (v1)
+## What the Architecture Deliberately Excludes
 
 - No kernel drivers, no process injection, no API hooking.
-- No background service (designed for, but not built in v1).
-- No GUI, no web dashboard, no embedded browser runtime.
+- No web dashboard and no embedded browser runtime. The optional tray is a
+  native Win32 icon, and the Windows service is a local named-pipe agent.
 - No cloud, telemetry, or network calls.

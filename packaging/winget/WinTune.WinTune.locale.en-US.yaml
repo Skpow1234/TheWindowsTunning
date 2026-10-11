@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
 PackageIdentifier: WinTune.WinTune
-PackageVersion: 0.2.0
+PackageVersion: 0.3.0
 PackageLocale: en-US
 Publisher: WinTune
 PublisherUrl: https://github.com/Skpow1234/TheWindowsTunning
@@ -9,7 +9,7 @@ Author: WinTune contributors
 PackageName: WinTune
 PackageUrl: https://github.com/Skpow1234/TheWindowsTunning
 License: MIT
-LicenseUrl: https://github.com/Skpow1234/TheWindowsTunning/blob/main/LICENSE
+LicenseUrl: https://raw.githubusercontent.com/Skpow1234/TheWindowsTunning/main/LICENSE
 Copyright: Copyright (c) WinTune contributors
 ShortDescription: Native Windows performance diagnostics for the terminal
 Description: |-
@@ -25,6 +25,6 @@ Tags:
   - cli
   - terminal
   - sysadmin
-ReleaseNotesUrl: https://github.com/Skpow1234/TheWindowsTunning/releases
+ReleaseNotesUrl: https://github.com/Skpow1234/TheWindowsTunning/releases/tag/v0.3.0
 ManifestType: defaultLocale
 ManifestVersion: 1.6.0

@@ -7,7 +7,7 @@ metrics, update/reboot helpers, fleet automation, and optional local UI.
 **v3** (Phases 22–53) deepens attribution, metrics, boot analysis, apply UX,
 and distribution — without Electron, cloud telemetry, or “PC cleaner” behavior.
 
-Initial version: **0.1.0** (semantic versioning).
+Initial version: **0.1.0**. Current release: **0.3.0**.
 
 For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 

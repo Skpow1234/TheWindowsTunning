@@ -15,7 +15,7 @@ Use this before tagging a GitHub Release.
 ## Package
 
 ```powershell
-.\scripts\release.ps1 -Version 0.2.0
+.\scripts\release.ps1 -Version 0.3.0
 ```
 
 Produces:
@@ -26,7 +26,7 @@ Produces:
 Optional installer (requires [Inno Setup](https://jrsoftware.org/isinfo.php)):
 
 ```powershell
-.\scripts\installer.ps1 -Version 0.2.0 -Arch x64 -PackageFirst -SkipIfMissingInno
+.\scripts\installer.ps1 -Version 0.3.0 -Arch x64 -PackageFirst -SkipIfMissingInno
 ```
 
 Channels and artifact matrix: [`channels.md`](channels.md).
@@ -34,8 +34,8 @@ Channels and artifact matrix: [`channels.md`](channels.md).
 ## Tag + publish
 
 ```bash
-git tag -a v0.2.0 -m "WinTune 0.2.0"
-git push origin v0.2.0
+git tag -a v0.3.0 -m "WinTune 0.3.0"
+git push origin v0.3.0
 ```
 
 Confirm the Release workflow uploaded both ZIPs and checksums.

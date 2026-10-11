@@ -4,9 +4,9 @@
 # when Inno Setup (iscc) is available.
 #
 # Usage:
-#   .\scripts\package.ps1 -Config Release -Arch x64 -Version 0.2.0 -Zip
-#   .\scripts\installer.ps1 -Version 0.2.0 -Arch x64
-#   .\scripts\installer.ps1 -Version 0.2.0 -Arch x64 -PackageFirst -SignIfConfigured
+#   .\scripts\package.ps1 -Config Release -Arch x64 -Version 0.3.0 -Zip
+#   .\scripts\installer.ps1 -Version 0.3.0 -Arch x64
+#   .\scripts\installer.ps1 -Version 0.3.0 -Arch x64 -PackageFirst -SignIfConfigured
 
 param(
     [Parameter(Mandatory = $true)]

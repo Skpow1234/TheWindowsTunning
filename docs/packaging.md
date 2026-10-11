@@ -126,7 +126,7 @@ installer notes.
 | Channel | Tag example | `CHANNEL.txt` |
 |---------|-------------|---------------|
 | **stable** | `v0.1.2` | `stable` |
-| **beta** | `v0.2.0-beta.1` | `beta` (auto-detected from `-beta` in version) |
+| **beta** | `v0.3.0-beta.1` | `beta` (auto-detected from `-beta` in version) |
 
 Stable tags are the default for production. Beta tags are pre-releases for testers;
 same ZIP layout, different version string.
@@ -159,9 +159,9 @@ open-source artifact.
 Requires [Inno Setup](https://jrsoftware.org/isinfo.php) (`iscc` on PATH):
 
 ```powershell
-.\scripts\package.ps1 -Config Release -Arch x64 -Version 0.2.0 -Configure -Build -Zip
-.\scripts\installer.ps1 -Version 0.2.0 -Arch x64 -SkipIfMissingInno
-# or: iscc /DMyAppVersion=0.2.0 /DMyAppArch=x64 scripts\installer\wintune.iss
+.\scripts\package.ps1 -Config Release -Arch x64 -Version 0.3.0 -Configure -Build -Zip
+.\scripts\installer.ps1 -Version 0.3.0 -Arch x64 -SkipIfMissingInno
+# or: iscc /DMyAppVersion=0.3.0 /DMyAppArch=x64 scripts\installer\wintune.iss
 ```
 
 Release CI installs Inno Setup when possible and uploads `*-setup.exe`

@@ -16,7 +16,7 @@ Every versioned JSON document includes:
 | `schema_version` | `"2.0.0"` | Active schema contract (semver) |
 | `schema_compat_min` | `"1.0.0"` | Oldest major consumers can still treat as compatible (**v2+ only**) |
 | `document` | `"scan"` | Document discriminator (**v2+ only**) |
-| `version` | `"0.2.0"` | WinTune executable release |
+| `version` | `"0.3.0"` | WinTune executable release |
 | `timestamp_utc` | `"2026-09-19T12:00:00Z"` | Document generation time (UTC) |
 
 When `schema_version` changes, see [`json-changelog.md`](json-changelog.md).
@@ -47,7 +47,7 @@ needs a true breaking rename. Prefer checking the **major** component
   "schema_version": "2.0.0",
   "schema_compat_min": "1.0.0",
   "document": "scan",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "timestamp_utc": "2026-09-19T12:00:00Z",
   "session": {
     "interactive": false,
@@ -87,7 +87,7 @@ on sub-objects rather than invalid JSON.
   "schema_version": "2.0.0",
   "schema_compat_min": "1.0.0",
   "document": "error",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "timestamp_utc": "2026-09-19T12:00:00Z",
   "ok": false,
   "session": { "interactive": false, "remote": true },
