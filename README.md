@@ -181,6 +181,14 @@ Local equivalents:
 Packaging details: [`docs/packaging.md`](docs/packaging.md).
 Shell matrix: [`docs/shells.md`](docs/shells.md).
 
+### WinGet
+
+```powershell
+winget install --id WinTune.WinTune -e
+```
+
+That puts `wintune` on your PATH. Then open a new terminal and run `wintune doctor`.
+
 ### Portable ZIP (GitHub Releases)
 
 The release artifact `WinTune-x.y.z-win-x64.zip` is **not a GUI app**. Do not
@@ -503,7 +511,7 @@ exit non-zero.
 - [`docs/channels.md`](docs/channels.md) — stable/beta channels and release artifacts
 - [`docs/release-checklist.md`](docs/release-checklist.md) — pre-tag release checklist
 - [`docs/signing.md`](docs/signing.md) — optional Authenticode guidance
-- [`docs/winget.md`](docs/winget.md) — draft winget package (optional publish)
+- [`docs/winget.md`](docs/winget.md) — WinGet package (`WinTune.WinTune`)
 - [`docs/roadmap.md`](docs/roadmap.md) — phased delivery plan
 
 ---

@@ -1,7 +1,14 @@
-# Winget (optional)
+# Winget
 
-Draft manifests live in [`packaging/winget/`](../packaging/winget/). They are
-**not** published automatically. Submit them to
+**0.3.0** is in the Windows Package Manager community repository:
+
+```powershell
+winget install --id WinTune.WinTune -e
+```
+
+Source manifests for the next submission live in
+[`packaging/winget/`](../packaging/winget/). They are not published
+automatically. Submit them to
 [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) after a stable
 GitHub Release.
 
