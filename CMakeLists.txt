@@ -60,6 +60,7 @@ add_executable(wintune
     src/metrics/gpu.c
     src/system/audio.c
     src/system/search.c
+    src/system/defender.c
 
     # system
     src/system/os_info.c

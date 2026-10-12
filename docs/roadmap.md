@@ -12,7 +12,7 @@ storage temperature / NVMe health, the Windows 11 power mode, memory
 lists, per-process handle and GDI counts, and a named DPC or interrupt
 source when user processes are quiet, a per-monitor refresh and HDR
 inventory, an exclusive-mode audio latency hint, and the Search indexer
-backlog (phases 54–67, done). The rest is planned: deeper measurement, clearer explanations,
+backlog, and Defender real-time protection as a fact (phases 54–68, done). The rest is planned: deeper measurement, clearer explanations,
 a few more reversible apply paths, local history, release automation, and
 the doc follow-ups in phases 154–157.
 The full list is [`milestones.md`](milestones.md).
@@ -95,7 +95,8 @@ The feature catalog is this roadmap plus [`milestones.md`](milestones.md).
 | 65 | Monitor inventory, refresh rate, and HDR | Done |
 | 66 | Exclusive-mode audio endpoints as a latency hint | Done |
 | 67 | Search indexer backlog | Done |
-| 68–73 | Measurement depth | Planned |
+| 68 | Defender real-time status | Done |
+| 69–73 | Measurement depth | Planned |
 | 74–83 | Clearer explanations | Planned |
 | 84–97 | Safe apply completion | Planned |
 | 98–105, 114 | Local history and baselines | Planned |
@@ -1313,10 +1314,10 @@ advisory. Nothing in this range disables Defender, Windows Update, or the
 firewall, and nothing uploads a report. Phase 157 is the only opt-in network
 call, and it sends no machine data.
 
-The phase-by-phase list is [`milestones.md`](milestones.md). Phases 54–67
+The phase-by-phase list is [`milestones.md`](milestones.md). Phases 54–68
 are done; the rest of this range is still planned.
 
-Phases 54–67 are done (`wintune top --page`, process identity, read-only wait chain, per-process GPU time, UDP byte rates, disk latency percentiles, storage temperature and NVMe health, Windows 11 power mode, memory lists, handle and GDI counts, DPC or interrupt source, monitor refresh and HDR, exclusive-mode audio endpoints, Search indexer backlog). Suggested order inside v4: measurement (68–73), explanations (74–83), apply
+Phases 54–68 are done (`wintune top --page`, process identity, read-only wait chain, per-process GPU time, UDP byte rates, disk latency percentiles, storage temperature and NVMe health, Windows 11 power mode, memory lists, handle and GDI counts, DPC or interrupt source, monitor refresh and HDR, exclusive-mode audio endpoints, Search indexer backlog, Defender real-time status). Suggested order inside v4: measurement (69–73), explanations (74–83), apply
 (84–97), history (98–105), TUI (106–115), CLI (116–124), service (125–132),
 boot (133–140), fleet (141–148), release (149–157).
 

@@ -409,6 +409,25 @@ ISearchCatalogManager::NumberOfItemsToIndex
 Read-only. WinTune does not reset the catalog, start a reindex, or disable
 Windows Search.
 
+## Defender status (Phase 68)
+
+**APIs:**
+
+```c
+IWbemLocator::ConnectServer(L"root\\Microsoft\\Windows\\Defender")
+IWbemServices::ExecQuery  /* SELECT from MSFT_MpComputerStatus */
+```
+
+**Collect:**
+- `RealTimeProtectionEnabled` as `realtime_protection`.
+- `AntivirusEnabled` and `AMServiceEnabled` when those properties are present.
+- Signature age in days from `AntivirusSignatureLastUpdated`. A missing
+  property is JSON null.
+- No recommendation id. Nothing here is an apply action.
+
+Read-only. WinTune does not change Defender and does not disable real-time
+protection.
+
 ---
 
 ## Processes

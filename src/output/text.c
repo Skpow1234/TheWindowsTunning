@@ -405,6 +405,28 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
     }
     fprintf(out, "\n");
 
+    fprintf(out, "Defender:\n");
+    if (report->defender_ok && report->defender.realtime_ok) {
+        fprintf(out, "  Real-time protection: %s\n",
+                report->defender.realtime_protection ? "on" : "off");
+    } else {
+        fprintf(out, "  Real-time protection: (not reported)\n");
+    }
+    if (report->defender_ok && report->defender.antivirus_ok) {
+        fprintf(out, "  Antivirus: %s\n",
+                report->defender.antivirus_enabled ? "on" : "off");
+    }
+    if (report->defender_ok && report->defender.service_ok) {
+        fprintf(out, "  Antimalware service: %s\n",
+                report->defender.service_enabled ? "on" : "off");
+    }
+    if (report->defender_ok && report->defender.signature_age_ok) {
+        fprintf(out, "  Signature age: %d day(s)\n",
+                report->defender.signature_age_days);
+    }
+    fprintf(out, "  This is a status fact. WinTune does not change Defender.\n");
+    fprintf(out, "\n");
+
     if (report->boot_ok && report->boot.boot_duration_ms > 0) {
         wchar_t boot_dur[32];
         wt_format_duration_ms(report->boot.boot_duration_ms, boot_dur, 32);

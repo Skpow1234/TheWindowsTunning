@@ -102,7 +102,10 @@ answer. An exclusive endpoint is a latency hint (`WT-AUDIO-001`). WinTune
 does not change the device or its exclusive-mode setting. The Windows Search
 catalog reports `status`, `items_indexed`, and `backlog_items`. Those are
 null when the catalog could not be read. A large backlog or a full crawl
-is advisory `WT-SEARCH-001`. WinTune does not disable Search.
+is advisory `WT-SEARCH-001`. WinTune does not disable Search. Defender
+real-time protection is reported as `realtime_protection`. It is null when
+the Defender status class could not be read. WinTune does not change
+Defender and does not offer a disable action.
 
 ```bash
 wintune scan

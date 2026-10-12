@@ -372,6 +372,18 @@ void wt_print_performance_report_text(FILE *out,
         }
     }
 
+    if (report->defender_ok && report->defender.available) {
+        fprintf(out, "Defender:\n");
+        fprintf(out, "  Real-time protection: %s\n",
+                report->defender.realtime_protection ? "on" : "off");
+        if (report->defender.signature_age_ok) {
+            fprintf(out, "  Signature age: %d day(s)\n",
+                    report->defender.signature_age_days);
+        }
+        fprintf(out,
+                "  This is a status fact. WinTune does not change Defender.\n");
+    }
+
     if (report->boot_ok && report->boot.boot_duration_ms > 0) {
         wchar_t boot_dur[32];
         wt_format_duration_ms(report->boot.boot_duration_ms, boot_dur, 32);

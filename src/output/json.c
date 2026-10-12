@@ -1148,6 +1148,38 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     }
     wt_json_end_object(&w);
 
+    /* Defender real-time status (phase 68). A fact only; no disable action. */
+    wt_json_key(&w, "defender");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "available");
+    wt_json_bool(&w, report->defender_ok && report->defender.available);
+    wt_json_key(&w, "realtime_protection");
+    if (report->defender_ok && report->defender.realtime_ok) {
+        wt_json_bool(&w, report->defender.realtime_protection);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "antivirus_enabled");
+    if (report->defender_ok && report->defender.antivirus_ok) {
+        wt_json_bool(&w, report->defender.antivirus_enabled);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "service_enabled");
+    if (report->defender_ok && report->defender.service_ok) {
+        wt_json_bool(&w, report->defender.service_enabled);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "signature_age_days");
+    if (report->defender_ok && report->defender.signature_age_ok &&
+        report->defender.signature_age_days >= 0) {
+        wt_json_uint64(&w, (unsigned long long)report->defender.signature_age_days);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_end_object(&w);
+
     /* power */
     wt_json_key(&w, "power");
     wt_json_begin_object(&w);

@@ -1,6 +1,6 @@
 # WinTune milestones 54–157
 
-Phases 0–67 are done. See [`roadmap.md`](roadmap.md). Phases 68–157 are
+Phases 0–68 are done. See [`roadmap.md`](roadmap.md). Phases 69–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -185,9 +185,14 @@ WinTune does not reset the catalog, reindex, or disable the WSearch service.
 
 ### Phase 68 — Defender status
 
-**Status:** Planned
+**Status:** Done
 
-**Deliver:** Show Defender real-time status as a fact. Never add a disable action.
+**Deliver:** Show Defender real-time status as a fact. Never add a disable
+action. `MSFT_MpComputerStatus` is read through WMI. `realtime_protection`
+is the real-time protection flag. Antivirus, the antimalware service, and
+signature age are included when those properties are present. A missing
+value is JSON null. There is no recommendation id and no apply action.
+WinTune does not change Defender.
 
 ### Phase 69 — Per-adapter network
 
