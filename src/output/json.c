@@ -333,6 +333,18 @@ static void wt_json_emit_process(WT_JsonWriter *w, const WT_ProcessInfo *p)
     wt_json_key(w, "name");               wt_json_wstring(w, p->name);
     wt_json_key(w, "working_set_bytes");  wt_json_uint64(w, p->working_set_bytes);
     wt_json_key(w, "private_bytes");      wt_json_uint64(w, p->private_bytes);
+    wt_json_key(w, "handle_count");
+    if (p->handle_ok) {
+        wt_json_uint64(w, p->handle_count);
+    } else {
+        wt_json_null(w);
+    }
+    wt_json_key(w, "gdi_count");
+    if (p->gdi_ok) {
+        wt_json_uint64(w, p->gdi_count);
+    } else {
+        wt_json_null(w);
+    }
     wt_json_key(w, "read_bytes");         wt_json_uint64(w, p->read_bytes);
     wt_json_key(w, "write_bytes");        wt_json_uint64(w, p->write_bytes);
     wt_json_key(w, "cpu_percent");

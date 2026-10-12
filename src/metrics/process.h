@@ -48,6 +48,10 @@ typedef struct WT_ProcessInfo {
     double net_send_bytes_per_sec;       /* -1.0 when not measured (opt-in) */
     double udp_recv_bytes_per_sec;       /* -1.0 when UDP summary trace did not run */
     double udp_send_bytes_per_sec;
+    int handle_ok;                       /* 0 when the handle count was not read */
+    unsigned long handle_count;
+    int gdi_ok;                          /* 0 when the GDI count was not read */
+    unsigned long gdi_count;
     WT_FileIdentity identity;            /* publisher / Authenticode (top only) */
 } WT_ProcessInfo;
 

@@ -5,6 +5,15 @@
 #include <stdio.h>
 #include <strsafe.h>
 
+static void wt_format_count(int ok, unsigned long value, char *out, size_t cap)
+{
+    if (!ok) {
+        snprintf(out, cap, "-");
+        return;
+    }
+    snprintf(out, cap, "%lu", value);
+}
+
 static void wt_format_rate(double bytes_per_sec, wchar_t *out, size_t cap)
 {
     if (bytes_per_sec < 0.0) {
@@ -45,19 +54,19 @@ void wt_print_process_table(const WT_ProcessInfo *items, size_t count)
 
     if (show_cpu || show_disk || show_net) {
         if (show_net) {
-            printf("%-8s %-8s %-5s %-12s %-14s %-9s %-6s %6s %9s %9s %9s %9s %9s %9s %9s\n",
+            printf("%-8s %-8s %-5s %-12s %-14s %-9s %-6s %6s %9s %9s %9s %9s %9s %9s %9s %7s %5s\n",
                    "PID", "PPID", "Sess", "Integrity", "Process", "Origin", "Loc",
                    "CPU%", "Memory", "Disk R", "Disk W", "Net R", "Net W",
-                   "UDP R", "UDP W");
+                   "UDP R", "UDP W", "Handles", "GDI");
         } else {
-            printf("%-8s %-8s %-5s %-12s %-16s %-11s %-8s %7s %11s %11s %11s\n",
+            printf("%-8s %-8s %-5s %-12s %-16s %-11s %-8s %7s %11s %11s %11s %7s %5s\n",
                    "PID", "PPID", "Sess", "Integrity", "Process", "Origin", "Loc",
-                   "CPU%", "Memory", "Disk R", "Disk W");
+                   "CPU%", "Memory", "Disk R", "Disk W", "Handles", "GDI");
         }
     } else {
-        printf("%-8s %-8s %-5s %-12s %-16s %-11s %-8s %12s %12s\n",
+        printf("%-8s %-8s %-5s %-12s %-16s %-11s %-8s %12s %12s %7s %5s\n",
                "PID", "PPID", "Sess", "Integrity", "Process", "Origin", "Loc",
-               "Memory", "Private");
+               "Memory", "Private", "Handles", "GDI");
     }
 
     for (size_t i = 0; i < count; ++i) {
@@ -75,11 +84,16 @@ void wt_print_process_table(const WT_ProcessInfo *items, size_t count)
             snprintf(session, sizeof(session), "-");
         }
         char loc_mark[16];
+        char handles[16];
+        char gdi[16];
         if (items[i].identity.unusual_location) {
             snprintf(loc_mark, sizeof(loc_mark), "%s!", loc);
         } else {
             snprintf(loc_mark, sizeof(loc_mark), "%s", loc);
         }
+        wt_format_count(items[i].handle_ok, items[i].handle_count, handles,
+                        sizeof(handles));
+        wt_format_count(items[i].gdi_ok, items[i].gdi_count, gdi, sizeof(gdi));
 
         if (show_cpu || show_disk || show_net) {
             wchar_t disk_r[32];
@@ -98,35 +112,37 @@ void wt_print_process_table(const WT_ProcessInfo *items, size_t count)
                 wt_format_rate(items[i].udp_send_bytes_per_sec, udp_w, 32);
                 if (items[i].cpu_percent >= 0.0) {
                     printf("%-8lu %-8lu %-5s %-12s %-14.14ls %-9s %-6s %5.1f%% "
-                           "%9ls %9ls %9ls %9ls %9ls %9ls %9ls\n",
+                           "%9ls %9ls %9ls %9ls %9ls %9ls %9ls %7s %5s\n",
                            items[i].pid, items[i].parent_pid, session, integrity,
                            items[i].name, origin, loc_mark,
                            items[i].cpu_percent, memory, disk_r, disk_w, net_r,
-                           net_w, udp_r, udp_w);
+                           net_w, udp_r, udp_w, handles, gdi);
                 } else {
                     printf("%-8lu %-8lu %-5s %-12s %-14.14ls %-9s %-6s %6s %9ls "
-                           "%9ls %9ls %9ls %9ls %9ls %9ls\n",
+                           "%9ls %9ls %9ls %9ls %9ls %9ls %7s %5s\n",
                            items[i].pid, items[i].parent_pid, session, integrity,
                            items[i].name, origin, loc_mark, "-",
-                           memory, disk_r, disk_w, net_r, net_w, udp_r, udp_w);
+                           memory, disk_r, disk_w, net_r, net_w, udp_r, udp_w,
+                           handles, gdi);
                 }
             } else if (items[i].cpu_percent >= 0.0) {
                 printf("%-8lu %-8lu %-5s %-12s %-16.16ls %-11s %-8s %6.1f%% "
-                       "%11ls %11ls %11ls\n",
+                       "%11ls %11ls %11ls %7s %5s\n",
                        items[i].pid, items[i].parent_pid, session, integrity,
                        items[i].name, origin, loc_mark,
-                       items[i].cpu_percent, memory, disk_r, disk_w);
+                       items[i].cpu_percent, memory, disk_r, disk_w, handles, gdi);
             } else {
                 printf("%-8lu %-8lu %-5s %-12s %-16.16ls %-11s %-8s %7s %11ls "
-                       "%11ls %11ls\n",
+                       "%11ls %11ls %7s %5s\n",
                        items[i].pid, items[i].parent_pid, session, integrity,
                        items[i].name, origin, loc_mark, "-",
-                       memory, disk_r, disk_w);
+                       memory, disk_r, disk_w, handles, gdi);
             }
         } else {
-            printf("%-8lu %-8lu %-5s %-12s %-16.16ls %-11s %-8s %12ls %12ls\n",
+            printf("%-8lu %-8lu %-5s %-12s %-16.16ls %-11s %-8s %12ls %12ls %7s %5s\n",
                    items[i].pid, items[i].parent_pid, session, integrity,
-                   items[i].name, origin, loc_mark, memory, private_bytes);
+                   items[i].name, origin, loc_mark, memory, private_bytes,
+                   handles, gdi);
         }
     }
 

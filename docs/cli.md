@@ -164,6 +164,10 @@ is a successful empty table. Text output starts with a range header such as
 `Processes 33-64 of 180 (page 2 of 6)`. If the machine has more processes than
 the 8192 enumeration cap, that header says the list was truncated.
 
+Each row includes `handle_count` and `gdi_count`. Text shows `-` when that
+count could not be read. JSON uses null for the same case. A zero is a real
+count. WinTune does not close handles or GDI objects.
+
 JSON from `--page` adds `page`, `page_size`, `page_count`, `total`, and
 `truncated` next to the `processes` array. A plain `top --json` snapshot does
 not add those keys.

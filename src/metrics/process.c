@@ -215,6 +215,39 @@ static void wt_process_fill(WT_ProcessInfo *p, const PROCESSENTRY32W *entry)
         }
 
         wt_process_fill_integrity(p, proc);
+
+        {
+            DWORD handles = 0;
+            if (GetProcessHandleCount(proc, &handles)) {
+                p->handle_ok = 1;
+                p->handle_count = handles;
+            }
+        }
+        {
+            DWORD gdi = 0;
+            int gdi_read = 0;
+            SetLastError(0);
+            gdi = GetGuiResources(proc, GR_GDIOBJECTS);
+            if (gdi != 0 || GetLastError() == ERROR_SUCCESS) {
+                gdi_read = 1;
+            } else {
+                HANDLE query = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE,
+                                           entry->th32ProcessID);
+                if (query != NULL) {
+                    SetLastError(0);
+                    gdi = GetGuiResources(query, GR_GDIOBJECTS);
+                    if (gdi != 0 || GetLastError() == ERROR_SUCCESS) {
+                        gdi_read = 1;
+                    }
+                    CloseHandle(query);
+                }
+            }
+            if (gdi_read) {
+                p->gdi_ok = 1;
+                p->gdi_count = gdi;
+            }
+        }
+
         CloseHandle(proc);
     }
 }

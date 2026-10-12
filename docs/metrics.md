@@ -357,6 +357,8 @@ Process32FirstW / Process32NextW
 OpenProcess
 GetProcessMemoryInfo
 GetProcessIoCounters
+GetProcessHandleCount
+GetGuiResources(GR_GDIOBJECTS)
 GetProcessTimes
 CloseHandle
 ```
@@ -365,6 +367,9 @@ CloseHandle
 - PID, parent PID (ToolHelp; the parent PID can be reused), and executable name.
 - CPU estimate.
 - Memory working set; private bytes if possible.
+- Handle count and GDI object count (Phase 63). JSON `handle_count` and
+  `gdi_count` are null when that process could not be queried. Zero is a
+  measured count. WinTune does not close handles or GDI objects.
 - I/O counters.
 - Session ID, when `ProcessIdToSessionId` succeeds.
 - Integrity level from the process token (`unknown` when the token cannot be opened).

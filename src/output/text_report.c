@@ -359,12 +359,19 @@ void wt_print_performance_report_text(FILE *out,
             const WT_ProcessInfo *p = &report->top_processes[i];
             wchar_t mem[32];
             wt_format_bytes(p->working_set_bytes, mem, 32);
-            fprintf(out, "  %6lu  %-24.24ls  %-11s  %-8s%s  %ls\n",
+            fprintf(out, "  %6lu  %-24.24ls  %-11s  %-8s%s  %ls",
                     p->pid, p->name,
                     wt_publisher_origin_name(p->identity.origin),
                     wt_install_location_name(p->identity.location),
                     p->identity.unusual_location ? "!" : "",
                     mem);
+            if (p->handle_ok) {
+                fprintf(out, "  handles %lu", p->handle_count);
+            }
+            if (p->gdi_ok) {
+                fprintf(out, "  gdi %lu", p->gdi_count);
+            }
+            fputc('\n', out);
             if (p->identity.product_name[0] != L'\0') {
                 fprintf(out, "         Product: %.60ls\n",
                         p->identity.product_name);

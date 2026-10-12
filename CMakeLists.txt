@@ -200,6 +200,7 @@ install(FILES
 # Windows libraries linked as modules require them:
 #   pdh      -> PDH performance counters (cpu, disk activity)
 #   psapi    -> process memory/IO counters (process)
+#   user32   -> per-process GDI object count (top)
 #   advapi32 -> registry (os_info), services, ETW trace sessions
 #   wevtapi  -> boot performance event log (boot analyze)
 #   powrprof -> power scheme detection (power)
@@ -209,6 +210,7 @@ install(FILES
 target_link_libraries(wintune PRIVATE
     pdh
     psapi
+    user32
     advapi32
     wevtapi
     powrprof

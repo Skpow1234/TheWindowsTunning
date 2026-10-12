@@ -341,13 +341,13 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
             }
         }
         if (show_cpu) {
-            fprintf(out, "  %-6s  %-6s  %-5s  %-12s  %-16s  %-11s  %-8s  %8s  %s\n",
+            fprintf(out, "  %-6s  %-6s  %-5s  %-12s  %-16s  %-11s  %-8s  %8s  %-10s  %7s  %5s\n",
                     "PID", "PPID", "Sess", "Integrity", "Process", "Origin",
-                    "Loc", "CPU%", "Memory");
+                    "Loc", "CPU%", "Memory", "Handles", "GDI");
         } else {
-            fprintf(out, "  %-6s  %-6s  %-5s  %-12s  %-20s  %-11s  %-8s  %s\n",
+            fprintf(out, "  %-6s  %-6s  %-5s  %-12s  %-20s  %-11s  %-8s  %-10s  %7s  %5s\n",
                     "PID", "PPID", "Sess", "Integrity", "Process", "Origin",
-                    "Loc", "Memory");
+                    "Loc", "Memory", "Handles", "GDI");
         }
         for (size_t i = 0; i < report->top_process_count; ++i) {
             const WT_ProcessInfo *p = &report->top_processes[i];
@@ -368,17 +368,30 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
             } else {
                 snprintf(loc_mark, sizeof(loc_mark), "%s", loc);
             }
+            char handles[16];
+            char gdi[16];
+            if (p->handle_ok) {
+                snprintf(handles, sizeof(handles), "%lu", p->handle_count);
+            } else {
+                snprintf(handles, sizeof(handles), "-");
+            }
+            if (p->gdi_ok) {
+                snprintf(gdi, sizeof(gdi), "%lu", p->gdi_count);
+            } else {
+                snprintf(gdi, sizeof(gdi), "-");
+            }
             if (show_cpu && p->cpu_percent >= 0.0) {
                 fprintf(out,
                         "  %6lu  %6lu  %-5s  %-12s  %-16.16ls  %-11s  %-8s  "
-                        "%7.1f%%  %ls\n",
+                        "%7.1f%%  %-10ls  %7s  %5s\n",
                         p->pid, p->parent_pid, session, integrity, p->name,
-                        origin, loc_mark, p->cpu_percent, mem);
+                        origin, loc_mark, p->cpu_percent, mem, handles, gdi);
             } else {
                 fprintf(out,
-                        "  %6lu  %6lu  %-5s  %-12s  %-20.20ls  %-11s  %-8s  %ls\n",
+                        "  %6lu  %6lu  %-5s  %-12s  %-20.20ls  %-11s  %-8s  "
+                        "%-10ls  %7s  %5s\n",
                         p->pid, p->parent_pid, session, integrity, p->name,
-                        origin, loc_mark, mem);
+                        origin, loc_mark, mem, handles, gdi);
             }
             if (p->identity.product_name[0] != L'\0' ||
                 p->identity.unusual_location) {

@@ -1,6 +1,6 @@
 # WinTune milestones 54–157
 
-Phases 0–62 are done. See [`roadmap.md`](roadmap.md). Phases 63–157 are
+Phases 0–63 are done. See [`roadmap.md`](roadmap.md). Phases 64–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -124,9 +124,13 @@ Read-only. WinTune does not empty working sets.
 
 ### Phase 63 — Handle and GDI counts
 
-**Status:** Planned
+**Status:** Done
 
 **Deliver:** Add handle count and GDI count to the top-process table.
+`GetProcessHandleCount` and `GetGuiResources(GR_GDIOBJECTS)` run on the
+process handle already opened for memory counters. A failed read is `-` in
+text and JSON null. Zero is a real count. Read-only. WinTune does not close
+handles or GDI objects.
 
 ### Phase 64 — DPC and interrupts
 
