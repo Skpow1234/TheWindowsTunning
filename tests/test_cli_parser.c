@@ -78,6 +78,23 @@ int main(void)
     }
 
     {
+        wchar_t *argv[] = {
+            L"wintune", L"top", L"--page", L"2", L"--page-size", L"16"
+        };
+        expect_int(wt_cli_parse_argv(6, argv, &opts, &cmd), WT_EXIT_OK, "page");
+        expect_wstr(cmd, L"top", "cmd top page");
+        expect_int((int)opts.page, 2, "page number");
+        expect_int((int)opts.page_size, 16, "page size");
+        expect_int((int)opts.limit, -1, "page leaves limit unset");
+    }
+
+    {
+        wchar_t *argv[] = { L"wintune", L"top", L"--page" };
+        expect_int(wt_cli_parse_argv(3, argv, &opts, &cmd), WT_EXIT_USAGE,
+                   "page missing");
+    }
+
+    {
         wchar_t *argv[] = { L"wintune", L"scan", L"--not-a-real-flag" };
         expect_int(wt_cli_parse_argv(3, argv, &opts, &cmd), WT_EXIT_USAGE,
                    "unknown flag");

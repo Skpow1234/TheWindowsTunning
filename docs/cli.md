@@ -148,10 +148,25 @@ wintune top --sort disk
 wintune top --sort network
 wintune top --include-network
 wintune top --limit 20
+wintune top --page 2 --page-size 32
 wintune top --watch
 wintune top --interval 1000
 wintune top --json
 ```
+
+Without `--page`, `top` is a top-K snapshot. `--limit` defaults to 12 and is
+capped at 32. `scan` stores at most 32 processes the same way.
+
+`--page` (1-based) walks the full enumerated list, one page at a time.
+`--page-size` defaults to 32 and is capped at 32. In page mode `--limit` is
+ignored. A page past the end exits 12 (`not_found`). Page 1 of an empty list
+is a successful empty table. Text output starts with a range header such as
+`Processes 33-64 of 180 (page 2 of 6)`. If the machine has more processes than
+the 8192 enumeration cap, that header says the list was truncated.
+
+JSON from `--page` adds `page`, `page_size`, `page_count`, `total`, and
+`truncated` next to the `processes` array. A plain `top --json` snapshot does
+not add those keys.
 
 `--include-network` (also implied by `--sort network`) samples **TCP Extended
 Stats** via IP Helper during the process sample window. It is off by default

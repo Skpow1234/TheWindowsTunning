@@ -1502,19 +1502,47 @@ void wt_print_maintenance_json(const WT_MaintenanceReport *report, FILE *out)
     wt_json_finish(&w);
 }
 
+static void wt_json_emit_process_list(WT_JsonWriter *w,
+                                      const WT_ProcessInfo *items,
+                                      size_t count,
+                                      const WT_ProcessPageInfo *page)
+{
+    wt_json_begin_object(w);
+    wt_json_emit_envelope_head(w, "processes");
+    if (page != NULL) {
+        wt_json_key(w, "page");
+        wt_json_uint64(w, (unsigned long long)page->page);
+        wt_json_key(w, "page_size");
+        wt_json_uint64(w, (unsigned long long)page->page_size);
+        wt_json_key(w, "page_count");
+        wt_json_uint64(w, (unsigned long long)page->page_count);
+        wt_json_key(w, "total");
+        wt_json_uint64(w, (unsigned long long)page->total);
+        wt_json_key(w, "truncated");
+        wt_json_bool(w, page->truncated);
+    }
+    wt_json_key(w, "processes");
+    wt_json_begin_array(w);
+    for (size_t i = 0; i < count; ++i) {
+        wt_json_emit_process(w, &items[i]);
+    }
+    wt_json_end_array(w);
+    wt_json_end_object(w);
+}
+
 void wt_print_processes_json(const WT_ProcessInfo *items, size_t count, FILE *out)
 {
     WT_JsonWriter w;
     wt_json_init(&w, out);
+    wt_json_emit_process_list(&w, items, count, NULL);
+    wt_json_finish(&w);
+}
 
-    wt_json_begin_object(&w);
-    wt_json_emit_envelope_head(&w, "processes");
-    wt_json_key(&w, "processes");
-    wt_json_begin_array(&w);
-    for (size_t i = 0; i < count; ++i) {
-        wt_json_emit_process(&w, &items[i]);
-    }
-    wt_json_end_array(&w);
-    wt_json_end_object(&w);
+void wt_print_processes_page_json(const WT_ProcessInfo *items, size_t count,
+                                  const WT_ProcessPageInfo *page, FILE *out)
+{
+    WT_JsonWriter w;
+    wt_json_init(&w, out);
+    wt_json_emit_process_list(&w, items, count, page);
     wt_json_finish(&w);
 }

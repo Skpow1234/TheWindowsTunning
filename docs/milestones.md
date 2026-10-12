@@ -1,11 +1,11 @@
 # WinTune milestones 54–153
 
-Phases 0–53 are done. See [`roadmap.md`](roadmap.md). Every phase below is
+Phases 0–54 are done. See [`roadmap.md`](roadmap.md). Phases 55–153 are
 **Planned**.
 
-These continue from the current limits: `scan` and `top` keep a top-K process
-cap, six recommendation ids can be applied, and the rest are advisory. The
-Windows service stays local.
+`scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
+the full list. Six recommendation ids can be applied, and the rest are
+advisory. The Windows service stays local.
 
 **Never, for every phase in this file:**
 
@@ -21,9 +21,11 @@ Windows service stays local.
 
 ### Phase 54 — Full process list
 
-**Status:** Planned
+**Status:** Done
 
 **Deliver:** Page the full process list. `scan` and `top` keep a top-K cap of 32.
+`wintune top --page <n>` walks every enumerated process. `--page-size` defaults
+to 32 and cannot exceed 32. `scan` still stores at most 32 processes.
 
 ### Phase 55 — Process identity
 

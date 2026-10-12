@@ -31,6 +31,27 @@ typedef struct WT_ProcessInfo {
     WT_FileIdentity identity;            /* publisher / Authenticode (top only) */
 } WT_ProcessInfo;
 
+/* One page of a full process list. `page` is 1-based. */
+#define WT_PROCESS_PAGE_MAX 32
+#define WT_PROCESS_ENUM_MAX 8192
+
+typedef struct WT_ProcessPageInfo {
+    size_t page;
+    size_t page_size;
+    size_t page_count;
+    size_t total;
+    int truncated; /* 1 when more processes exist than WT_PROCESS_ENUM_MAX */
+} WT_ProcessPageInfo;
+
+/* Computes the slice for `page` (1-based). `page_size` is clamped to
+ * WT_PROCESS_PAGE_MAX. Returns WT_ERR_NOT_FOUND when `page` is past the end. */
+WT_Result wt_process_page_bounds(size_t total,
+                                 size_t page,
+                                 size_t page_size,
+                                 size_t *out_offset,
+                                 size_t *out_count,
+                                 size_t *out_page_count);
+
 /* Best-effort publisher/signature fill for an existing process list. */
 void wt_enrich_process_identity(WT_ProcessInfo *items, size_t count);
 
@@ -62,6 +83,19 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
 WT_Result wt_collect_top_processes_by_memory(WT_ProcessInfo *out,
                                              size_t limit,
                                              size_t *out_count);
+
+/* One page of every enumerated process, sorted like `top`. `page` is 1-based.
+ * `page_size` is clamped to WT_PROCESS_PAGE_MAX. Identity is filled only for
+ * the returned page. `out_count` is the number of rows copied into `out`. */
+WT_Result wt_collect_process_page(WT_ProcessInfo *out,
+                                  size_t out_cap,
+                                  size_t page,
+                                  size_t page_size,
+                                  WT_ProcessSort sort,
+                                  unsigned int sample_ms,
+                                  int include_network,
+                                  size_t *out_count,
+                                  WT_ProcessPageInfo *page_info);
 
 /* Applies PDH CPU and IO-counter deltas to an existing process list. */
 WT_Result wt_enrich_process_metrics(WT_ProcessInfo *items,

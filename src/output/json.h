@@ -70,6 +70,8 @@ void wt_json_finish(WT_JsonWriter *w); /* trailing newline */
 void wt_print_scan_report_json(const WT_ScanReport *report,
                                const WT_RecommendationList *recs, FILE *out);
 void wt_print_processes_json(const WT_ProcessInfo *items, size_t count, FILE *out);
+void wt_print_processes_page_json(const WT_ProcessInfo *items, size_t count,
+                                  const WT_ProcessPageInfo *page, FILE *out);
 void wt_print_recommendations_json(const WT_RecommendationList *recs, FILE *out);
 void wt_print_startup_json(const WT_StartupEntry *items, size_t count, FILE *out);
 void wt_print_tasks_json(const WT_ScheduledTask *items, size_t count, FILE *out);

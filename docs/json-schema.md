@@ -80,6 +80,9 @@ Scan/doctor documents add `system`, `metrics`/`cpu`/`memory`/`disk`/`gpu`,
 `processes`, `recommendations`, etc. Partial failures use `"available": false`
 on sub-objects rather than invalid JSON.
 
+`top --page` adds `page`, `page_size`, `page_count`, `total`, and `truncated`
+beside the `processes` array. A top-K `top --json` snapshot omits those keys.
+
 ## Error documents (`--json-errors`)
 
 ```json

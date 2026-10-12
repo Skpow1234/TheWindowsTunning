@@ -371,6 +371,12 @@ Test-ExpectOk "top --sort network" @("top", "--sort", "network", "--limit", "5")
 Test-JsonOk "top --json --include-network" @("top", "--json", "--include-network", "--limit", "5") `
     -MustContain @("processes", "net_recv_bytes_per_sec", "net_send_bytes_per_sec") -TimeoutSec 60
 Test-JsonOk "top --json" @("top", "--json", "--limit", "5") -MustContain @("processes")
+Test-ExpectOk "top --page 1" @("top", "--page", "1", "--page-size", "5") `
+    -StdoutRegex @("Processes .*page 1")
+Test-JsonOk "top --json --page 1" @("top", "--json", "--page", "1", "--page-size", "5") `
+    -MustContain @("processes", "page", "page_size", "total")
+Test-ExpectExit "top --page past end" @("top", "--page", "999999", "--page-size", "32") `
+    -ExitCodes @(12) -StdoutOrErrRegex "page"
 Test-JsonArrayItemFields "top --json provenance" @("top", "--json", "--limit", "5") `
     -ArrayKey "processes" `
     -ItemFields @("publisher", "product_name", "location", "unusual_location", "image_path", "origin", "signature")

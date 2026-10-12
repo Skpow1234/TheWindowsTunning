@@ -28,6 +28,8 @@ int wt_cli_parse_argv(int argc, wchar_t **argv, WT_CliOptions *opts,
     }
     memset(opts, 0, sizeof(*opts));
     opts->limit = -1;
+    opts->page = -1;
+    opts->page_size = -1;
     opts->interval_ms = -1;
     opts->duration_ms = -1;
     opts->samples = -1;
@@ -141,6 +143,14 @@ int wt_cli_parse_argv(int argc, wchar_t **argv, WT_CliOptions *opts,
         else if (wcscmp(t, L"--limit") == 0) {
             if (i + 1 < argc) opts->limit = wcstol(argv[++i], NULL, 10);
             else { fprintf(stderr, "wintune: --limit requires a number\n"); return WT_EXIT_USAGE; }
+        }
+        else if (wcscmp(t, L"--page") == 0) {
+            if (i + 1 < argc) opts->page = wcstol(argv[++i], NULL, 10);
+            else { fprintf(stderr, "wintune: --page requires a number\n"); return WT_EXIT_USAGE; }
+        }
+        else if (wcscmp(t, L"--page-size") == 0) {
+            if (i + 1 < argc) opts->page_size = wcstol(argv[++i], NULL, 10);
+            else { fprintf(stderr, "wintune: --page-size requires a number\n"); return WT_EXIT_USAGE; }
         }
         else if (wcscmp(t, L"--interval") == 0) {
             if (i + 1 < argc) opts->interval_ms = wcstol(argv[++i], NULL, 10);

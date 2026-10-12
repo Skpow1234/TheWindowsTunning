@@ -32,7 +32,7 @@ GitHub Release.
 3. Bump `PackageVersion` in all three YAML files to match the tag (no `v` prefix).
    The drafts currently match the published **0.3.0** release.
    The binary must be built from a commit that statically links the CRT
-   (`MSVC_RUNTIME_LIBRARY=MultiThreaded`). An older zip imports
+   (`MSVC_RUNTIME_LIBRARY=MultiThreaded`). An older zip imports         
    `VCRUNTIME140.dll`. WinGet then runs `wintune.exe` on a clean image and
    records exit `-1073741515` (`STATUS_DLL_NOT_FOUND`). Do not declare a
    `Microsoft.VCRedist` dependency for that; ship the static binary instead.

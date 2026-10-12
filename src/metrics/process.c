@@ -9,6 +9,7 @@
 #include <psapi.h>
 #include <strsafe.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define WT_PROCESS_DEFAULT_SAMPLE_MS 500
 #define WT_PROCESS_NET_RATE_CAP 512
@@ -458,6 +459,159 @@ WT_Result wt_collect_processes(WT_ProcessInfo *out,
 
     CloseHandle(snapshot);
     return result;
+}
+
+WT_Result wt_process_page_bounds(size_t total,
+                                 size_t page,
+                                 size_t page_size,
+                                 size_t *out_offset,
+                                 size_t *out_count,
+                                 size_t *out_page_count)
+{
+    if (page == 0 || page_size == 0 || out_offset == NULL ||
+            out_count == NULL || out_page_count == NULL) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+    if (page_size > WT_PROCESS_PAGE_MAX) {
+        page_size = WT_PROCESS_PAGE_MAX;
+    }
+
+    size_t pages = 1;
+    if (total > 0) {
+        pages = (total + page_size - 1) / page_size;
+    }
+    *out_page_count = pages;
+    if (page > pages) {
+        *out_offset = 0;
+        *out_count = 0;
+        return WT_ERR_NOT_FOUND;
+    }
+
+    *out_offset = (page - 1) * page_size;
+    if (*out_offset >= total) {
+        *out_count = 0;
+        return WT_OK;
+    }
+    size_t remain = total - *out_offset;
+    *out_count = (remain < page_size) ? remain : page_size;
+    return WT_OK;
+}
+
+static void wt_apply_net_rates(WT_ProcessInfo *items, size_t count,
+                               const WT_ProcessNetRate *rates, size_t rate_count)
+{
+    for (size_t i = 0; i < count; ++i) {
+        const WT_ProcessNetRate *nr =
+            wt_find_process_net_rate(rates, rate_count, items[i].pid);
+        if (nr != NULL) {
+            items[i].net_recv_bytes_per_sec = nr->recv_bytes_per_sec;
+            items[i].net_send_bytes_per_sec = nr->send_bytes_per_sec;
+        } else {
+            items[i].net_recv_bytes_per_sec = 0.0;
+            items[i].net_send_bytes_per_sec = 0.0;
+        }
+    }
+}
+
+WT_Result wt_collect_process_page(WT_ProcessInfo *out,
+                                  size_t out_cap,
+                                  size_t page,
+                                  size_t page_size,
+                                  WT_ProcessSort sort,
+                                  unsigned int sample_ms,
+                                  int include_network,
+                                  size_t *out_count,
+                                  WT_ProcessPageInfo *page_info)
+{
+    if (out == NULL || out_count == NULL || page_info == NULL || out_cap == 0) {
+        return WT_ERR_INVALID_ARGUMENT;
+    }
+    *out_count = 0;
+    ZeroMemory(page_info, sizeof(*page_info));
+
+    if (page_size == 0 || page_size > WT_PROCESS_PAGE_MAX) {
+        page_size = WT_PROCESS_PAGE_MAX;
+    }
+    if (sort == WT_PROCESS_SORT_NETWORK) {
+        include_network = 1;
+    }
+
+    WT_ProcessInfo *all = (WT_ProcessInfo *)HeapAlloc(
+        GetProcessHeap(), HEAP_ZERO_MEMORY,
+        WT_PROCESS_ENUM_MAX * sizeof(WT_ProcessInfo));
+    if (all == NULL) {
+        return WT_ERR_OUT_OF_MEMORY;
+    }
+
+    size_t total = 0;
+    WT_Result result = wt_collect_processes(all, WT_PROCESS_ENUM_MAX, &total);
+    if (result != WT_OK) {
+        HeapFree(GetProcessHeap(), 0, all);
+        return result;
+    }
+    page_info->truncated = (total >= WT_PROCESS_ENUM_MAX) ? 1 : 0;
+
+    int need_rates = (sort != WT_PROCESS_SORT_MEMORY) || include_network;
+    if (need_rates && total > 0) {
+        if (sample_ms == 0) {
+            sample_ms = WT_PROCESS_DEFAULT_SAMPLE_MS;
+        }
+
+        WT_NetTcpSampleSession net_session;
+        ZeroMemory(&net_session, sizeof(net_session));
+        int net_sampling = 0;
+        if (include_network &&
+                wt_net_tcp_sample_start(&net_session, sample_ms) == WT_OK) {
+            net_sampling = 1;
+        }
+
+        WT_Result enrich = wt_enrich_process_metrics(all, total, sample_ms);
+        if (enrich != WT_OK) {
+            if (net_sampling) {
+                wt_net_tcp_sample_abort(&net_session);
+            }
+            HeapFree(GetProcessHeap(), 0, all);
+            return enrich;
+        }
+
+        if (net_sampling) {
+            WT_ProcessNetRate net_rates[WT_PROCESS_NET_RATE_CAP];
+            size_t net_rate_count = 0;
+            if (wt_net_tcp_sample_finish(&net_session, net_rates,
+                                         WT_PROCESS_NET_RATE_CAP,
+                                         &net_rate_count) == WT_OK) {
+                wt_apply_net_rates(all, total, net_rates, net_rate_count);
+            }
+        }
+    }
+
+    wt_sort_processes(all, total, sort);
+
+    size_t offset = 0;
+    size_t slice = 0;
+    size_t pages = 0;
+    result = wt_process_page_bounds(total, page, page_size, &offset, &slice,
+                                    &pages);
+    page_info->page = page;
+    page_info->page_size = page_size;
+    page_info->page_count = pages;
+    page_info->total = total;
+    if (result != WT_OK) {
+        HeapFree(GetProcessHeap(), 0, all);
+        return result;
+    }
+
+    if (slice > out_cap) {
+        slice = out_cap;
+    }
+    if (slice > 0) {
+        memcpy(out, all + offset, slice * sizeof(WT_ProcessInfo));
+    }
+    *out_count = slice;
+    wt_enrich_process_identity(out, slice);
+
+    HeapFree(GetProcessHeap(), 0, all);
+    return WT_OK;
 }
 
 static int wt_compare_by_memory_desc(const void *a, const void *b)

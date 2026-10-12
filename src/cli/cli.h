@@ -29,6 +29,8 @@ typedef struct WT_CliOptions {
     int watch;                  /* --watch */
     int no_recommendations;     /* --no-recommendations */
     long limit;                 /* --limit N         (-1 = default) */
+    long page;                  /* --page N          (-1 = top-K, not a page) */
+    long page_size;             /* --page-size N     (-1 = default page size) */
     long interval_ms;           /* --interval N      (-1 = default) */
     long duration_ms;           /* --duration N      (-1 = default) */
     long samples;               /* --samples N       (-1 = default) */

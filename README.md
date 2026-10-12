@@ -7,7 +7,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.3.0](https://img.shields.io/badge/Version-0.3.0-blue.svg)](docs/roadmap.md)
-[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9353%20Done-brightgreen.svg)](#project-status)
+[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9354%20Done-brightgreen.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -231,7 +231,8 @@ wintune help            # usage
 wintune version         # version info
 wintune scan            # full local scan (implemented)
 wintune top             # top processes by memory (implemented)
-wintune top --limit 20  # show more rows
+wintune top --limit 20  # show more rows (capped at 32)
+wintune top --page 2    # next page of the full process list
 wintune top --watch     # live refresh in place (q or Ctrl+C to quit)
 wintune recommend       # explainable recommendations, no changes (implemented)
 wintune doctor          # scan + recommendations + summary (implemented)
@@ -307,7 +308,8 @@ Common options for `scan`/`top` today:
 
 ```powershell
 wintune scan --interval 1000   # CPU sampling interval (ms)
-wintune top --limit 15         # number of rows
+wintune top --limit 15         # number of rows (capped at 32)
+wintune top --page 2           # page through the full process list
 wintune top --watch            # live monitor (default 1000 ms)
 wintune top --watch --interval 2000   # refresh every 2 seconds
 ```
@@ -442,7 +444,8 @@ end-user release polish.
 | 49 | Memory dump / WER signals | Done |
 | 50 | Pagefile & commit charge depth | Done |
 | 51–53 | Maintenance windows, Authenticode CI, installer/channels | Done |
-| 54–153 | Next milestones: measure, explain, apply, history, TUI, CLI, service, boot, fleet, release | Planned |
+| 54 | Full process list (`top --page`) | Done |
+| 55–153 | Next milestones: measure, explain, apply, history, TUI, CLI, service, boot, fleet, release | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.
@@ -457,8 +460,8 @@ exit non-zero.
   `--json`).
 - Remote SSH sessions auto-enable conservative rendering (`--safe-terminal`
   semantics) for interactive PTY sessions.
-- Process enumeration uses a top-K collector (no full-process buffer) for
-  `scan`, `top`, and `tui`.
+- `scan` and unpaged `top` keep a top-K cap of 32. `wintune top --page` walks
+  the rest of the process list (page size 32). The TUI still shows a top-K view.
 - Per-process CPU and disk I/O rates are sampled during `scan` and `top`; very
   short-lived processes may be missed.
 - Recommendations cover power, memory, disk free space, disk activity
