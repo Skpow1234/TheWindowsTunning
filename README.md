@@ -7,7 +7,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.3.0](https://img.shields.io/badge/Version-0.3.0-blue.svg)](docs/roadmap.md)
-[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9360%20Done-brightgreen.svg)](#project-status)
+[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9361%20Done-brightgreen.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -451,7 +451,8 @@ end-user release polish.
 | 58 | UDP byte rates beside TCP EStats | Done |
 | 59 | Disk latency percentiles | Done |
 | 60 | Storage temperature and NVMe health log | Done |
-| 61–157 | Next milestones: measure, explain, apply, history, TUI, CLI, service, boot, fleet, release, signing, winget publish, schema 1 retirement, opt-in update check | Planned |
+| 61 | Windows 11 power mode and battery rate | Done |
+| 62–157 | Next milestones: measure, explain, apply, history, TUI, CLI, service, boot, fleet, release, signing, winget publish, schema 1 retirement, opt-in update check | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.

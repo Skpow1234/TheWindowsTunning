@@ -681,14 +681,22 @@ static void wt_tui_render_power(WT_TuiScreen *s, const WT_TuiTheme *t)
                            p.charging == 1 ? " charging" : "",
                            p.discharging == 1 ? " discharging" : "");
     }
-    if (p.rate_ok && p.on_ac == 0 && p.discharging == 1 && p.rate_mw < 0) {
-        wt_tui_screen_line(s, "Discharge   : %.1f W%s",
-                           (-(double)p.rate_mw) / 1000.0,
-                           p.estimated_seconds > 0 ? "" : "");
-        if (p.estimated_seconds > 0) {
+    if (p.rate_ok && p.rate_mw < 0) {
+        wt_tui_screen_line(s, "Discharge   : %.1f W",
+                           (-(double)p.rate_mw) / 1000.0);
+        if (p.on_ac == 0 && p.estimated_seconds > 0) {
             wt_tui_screen_line(s, "Est. remain : ~%d min",
                                p.estimated_seconds / 60);
         }
+    } else if (p.rate_ok && p.rate_mw > 0) {
+        wt_tui_screen_line(s, "Charge      : %.1f W",
+                           ((double)p.rate_mw) / 1000.0);
+    }
+    if (p.mode_ac_ok) {
+        wt_tui_screen_line(s, "Mode (AC)   : %s", wt_power_mode_label(p.mode_ac));
+    }
+    if (p.mode_dc_ok) {
+        wt_tui_screen_line(s, "Mode (batt.): %s", wt_power_mode_label(p.mode_dc));
     }
     if (p.processor_max_pct_ac >= 0 || p.processor_max_pct_dc >= 0) {
         char acbuf[16], dcbuf[16];
@@ -708,6 +716,7 @@ static void wt_tui_render_power(WT_TuiScreen *s, const WT_TuiTheme *t)
     wt_tui_screen_line(s, "");
     wt_tui_empty_line(s, t,
                       "Use 'wintune power --set <plan>' to change the plan.");
+    wt_tui_empty_line(s, t, "Power mode is recorded only and is not changed.");
     wt_tui_empty_line(s, t,
                       "Read-only budget hints — no fan or firmware changes.");
 }

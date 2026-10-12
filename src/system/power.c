@@ -22,6 +22,18 @@ static const GUID WT_GUID_PROCESSOR_SETTINGS =
 static const GUID WT_GUID_PROCTHROTTLEMAX =
     {0xbc5038f7, 0x23e0, 0x4960, {0x96, 0xda, 0x33, 0xab, 0xaf, 0x59, 0x35, 0xec}};
 
+/* Windows 11 power-mode overlay GUIDs (winnt.h). Not power-plan GUIDs. */
+static const GUID WT_GUID_MODE_BEST_EFFICIENCY =
+    {0x961cc777, 0x2547, 0x4f9d, {0x81, 0x74, 0x7d, 0x86, 0x18, 0x1b, 0x8a, 0x7a}};
+static const GUID WT_GUID_MODE_BALANCED =
+    {0x00000000, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+static const GUID WT_GUID_MODE_BETTER_PERFORMANCE =
+    {0x3af9b8d9, 0x7c97, 0x431d, {0xad, 0x78, 0x34, 0xa8, 0xbf, 0xea, 0x43, 0x9f}};
+static const GUID WT_GUID_MODE_BEST_PERFORMANCE =
+    {0xded574b5, 0x45a0, 0x4f42, {0x87, 0x37, 0x46, 0x34, 0x5c, 0x09, 0xc2, 0x38}};
+
+typedef DWORD (WINAPI *WT_PowerGetModeFn)(GUID *mode);
+
 static const GUID *wt_power_scheme_guid(WT_PowerScheme scheme)
 {
     switch (scheme) {
@@ -30,6 +42,91 @@ static const GUID *wt_power_scheme_guid(WT_PowerScheme scheme)
     case WT_POWER_POWER_SAVER: return &WT_GUID_POWER_SAVER;
     case WT_POWER_ULTIMATE:    return &WT_GUID_ULTIMATE;
     default:                   return NULL;
+    }
+}
+
+const char *wt_power_mode_token(WT_PowerMode mode)
+{
+    switch (mode) {
+    case WT_POWER_MODE_BEST_EFFICIENCY:    return "best_efficiency";
+    case WT_POWER_MODE_BALANCED:           return "balanced";
+    case WT_POWER_MODE_BETTER_PERFORMANCE: return "better_performance";
+    case WT_POWER_MODE_BEST_PERFORMANCE:   return "best_performance";
+    default:                               return "unknown";
+    }
+}
+
+const char *wt_power_mode_label(WT_PowerMode mode)
+{
+    switch (mode) {
+    case WT_POWER_MODE_BEST_EFFICIENCY:    return "Best power efficiency";
+    case WT_POWER_MODE_BALANCED:           return "Balanced";
+    case WT_POWER_MODE_BETTER_PERFORMANCE: return "Better performance";
+    case WT_POWER_MODE_BEST_PERFORMANCE:   return "Best performance";
+    default:                               return "Unknown";
+    }
+}
+
+WT_PowerMode wt_power_active_mode(const WT_PowerInfo *info, int *ok)
+{
+    int have = 0;
+    WT_PowerMode mode = WT_POWER_MODE_UNKNOWN;
+    if (info != NULL) {
+        if (info->on_ac == 0 && info->mode_dc_ok) {
+            have = 1;
+            mode = info->mode_dc;
+        } else if (info->on_ac == 1 && info->mode_ac_ok) {
+            have = 1;
+            mode = info->mode_ac;
+        }
+    }
+    if (ok != NULL) {
+        *ok = have;
+    }
+    return mode;
+}
+
+static WT_PowerMode wt_power_mode_from_guid(const GUID *guid)
+{
+    if (guid == NULL) {
+        return WT_POWER_MODE_UNKNOWN;
+    }
+    if (IsEqualGUID(guid, &WT_GUID_MODE_BEST_EFFICIENCY)) {
+        return WT_POWER_MODE_BEST_EFFICIENCY;
+    }
+    if (IsEqualGUID(guid, &WT_GUID_MODE_BALANCED)) {
+        return WT_POWER_MODE_BALANCED;
+    }
+    if (IsEqualGUID(guid, &WT_GUID_MODE_BETTER_PERFORMANCE)) {
+        return WT_POWER_MODE_BETTER_PERFORMANCE;
+    }
+    if (IsEqualGUID(guid, &WT_GUID_MODE_BEST_PERFORMANCE)) {
+        return WT_POWER_MODE_BEST_PERFORMANCE;
+    }
+    return WT_POWER_MODE_UNKNOWN;
+}
+
+/* Resolved once. NULL when this Windows build has no power-mode export
+ * (Windows 10). The calls are read-only. */
+static void wt_power_read_modes(WT_PowerInfo *out)
+{
+    HMODULE mod = GetModuleHandleW(L"powrprof.dll");
+    WT_PowerGetModeFn get_ac;
+    WT_PowerGetModeFn get_dc;
+    GUID guid;
+
+    if (mod == NULL) {
+        return;
+    }
+    get_ac = (WT_PowerGetModeFn)GetProcAddress(mod, "PowerGetUserConfiguredACPowerMode");
+    get_dc = (WT_PowerGetModeFn)GetProcAddress(mod, "PowerGetUserConfiguredDCPowerMode");
+    if (get_ac != NULL && get_ac(&guid) == ERROR_SUCCESS) {
+        out->mode_ac = wt_power_mode_from_guid(&guid);
+        out->mode_ac_ok = 1;
+    }
+    if (get_dc != NULL && get_dc(&guid) == ERROR_SUCCESS) {
+        out->mode_dc = wt_power_mode_from_guid(&guid);
+        out->mode_dc_ok = 1;
     }
 }
 
@@ -184,6 +281,7 @@ WT_Result wt_collect_power_info(WT_PowerInfo *out)
     }
 
     wt_power_read_battery_budget(out);
+    wt_power_read_modes(out);
 
     if (out->on_ac == 1 && out->processor_max_pct_ac >= 0 &&
         out->processor_max_pct_ac < 100) {

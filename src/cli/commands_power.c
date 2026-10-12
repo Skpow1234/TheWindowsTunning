@@ -77,9 +77,30 @@ static int wt_power_show(const WT_CliOptions *opts, const WT_PowerInfo *p)
             printf("  \"processor_max_pct_ac\": null,\n");
         }
         if (p->processor_max_pct_dc >= 0) {
-            printf("  \"processor_max_pct_dc\": %d\n", p->processor_max_pct_dc);
+            printf("  \"processor_max_pct_dc\": %d,\n", p->processor_max_pct_dc);
         } else {
-            printf("  \"processor_max_pct_dc\": null\n");
+            printf("  \"processor_max_pct_dc\": null,\n");
+        }
+        {
+            int mode_ok = 0;
+            WT_PowerMode mode = wt_power_active_mode(p, &mode_ok);
+            if (mode_ok) {
+                printf("  \"power_mode\": \"%s\",\n", wt_power_mode_token(mode));
+            } else {
+                printf("  \"power_mode\": null,\n");
+            }
+            if (p->mode_ac_ok) {
+                printf("  \"power_mode_ac\": \"%s\",\n",
+                       wt_power_mode_token(p->mode_ac));
+            } else {
+                printf("  \"power_mode_ac\": null,\n");
+            }
+            if (p->mode_dc_ok) {
+                printf("  \"power_mode_dc\": \"%s\"\n",
+                       wt_power_mode_token(p->mode_dc));
+            } else {
+                printf("  \"power_mode_dc\": null\n");
+            }
         }
         printf("}\n");
         return 0;
@@ -100,11 +121,21 @@ static int wt_power_show(const WT_CliOptions *opts, const WT_PowerInfo *p)
     } else if (p->discharging == 1) {
         printf("  Battery state: discharging\n");
     }
-    if (p->rate_ok && p->on_ac == 0 && p->discharging == 1 && p->rate_mw < 0) {
+    if (p->rate_ok && p->rate_mw < 0) {
         printf("  Discharge rate: %.1f W\n", (-(double)p->rate_mw) / 1000.0);
-        if (p->estimated_seconds > 0) {
+        if (p->on_ac == 0 && p->estimated_seconds > 0) {
             printf("  Est. remaining: ~%d min\n", p->estimated_seconds / 60);
         }
+    } else if (p->rate_ok && p->rate_mw > 0) {
+        printf("  Charge rate: %.1f W\n", ((double)p->rate_mw) / 1000.0);
+    } else if (p->rate_ok) {
+        printf("  Battery rate: 0 W\n");
+    }
+    if (p->mode_ac_ok) {
+        printf("  Power mode (AC): %s\n", wt_power_mode_label(p->mode_ac));
+    }
+    if (p->mode_dc_ok) {
+        printf("  Power mode (battery): %s\n", wt_power_mode_label(p->mode_dc));
     }
     if (p->processor_max_pct_ac >= 0 || p->processor_max_pct_dc >= 0) {
         printf("  Processor max: AC %s",
@@ -137,6 +168,7 @@ static int wt_power_show(const WT_CliOptions *opts, const WT_PowerInfo *p)
     } else {
         printf("\nThe current power plan looks appropriate for the power source.\n");
     }
+    printf("Power mode is recorded only. This command does not change it.\n");
     return 0;
 }
 

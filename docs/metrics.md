@@ -469,6 +469,8 @@ PowerSetActiveScheme
 PowerEnumerate
 PowerReadFriendlyName
 PowerReadACValueIndex / PowerReadDCValueIndex  /* PROCTHROTTLEMAX */
+PowerGetUserConfiguredACPowerMode              /* Windows 11 slider, read-only */
+PowerGetUserConfiguredDCPowerMode
 GetSystemPowerStatus
 CallNtPowerInformation(SystemBatteryState)     /* rate mW, charge state */
 ```
@@ -478,6 +480,15 @@ charging/discharging, signed discharge rate (mW; negative while draining),
 estimated remaining time when available, and the active plan’s processor
 maximum state for AC and DC (Phase 29). A “capped” flag is set when the current
 source’s max is below 100%.
+
+Phase 61 records the Windows 11 power-mode slider separately from the power
+plan. JSON keys `power_mode`, `power_mode_ac`, and `power_mode_dc` are
+`best_efficiency`, `balanced`, `better_performance`, or `best_performance`.
+They are null when the export is missing (Windows 10) or the call fails.
+`power_mode` is the slider for the current source. `rate_mw` stays the
+battery rate: negative while draining, positive while charging, null when
+no battery answered. WinTune does not call `PowerSetUserConfiguredACPowerMode`
+or `PowerSetUserConfiguredDCPowerMode`.
 
 Recommendations use existing Windows plans only (`WT-POWER-001`/`002` apply;
 `WT-POWER-003`/`004` are advisory). WinTune never edits fan curves or firmware.

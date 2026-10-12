@@ -1,6 +1,6 @@
 # WinTune milestones 54–157
 
-Phases 0–60 are done. See [`roadmap.md`](roadmap.md). Phases 61–157 are
+Phases 0–61 are done. See [`roadmap.md`](roadmap.md). Phases 62–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -100,9 +100,16 @@ failure stays `degraded`. A crossed temperature or NVMe threshold is
 
 ### Phase 61 — Power mode
 
-**Status:** Planned
+**Status:** Done
 
-**Deliver:** Record the Windows 11 power mode and battery drain rate. Do not change them yet.
+**Deliver:** Record the Windows 11 power mode and battery drain rate. Do not
+change them yet. `PowerGetUserConfiguredACPowerMode` and
+`PowerGetUserConfiguredDCPowerMode` supply the slider for AC and battery
+(`best_efficiency`, `balanced`, `better_performance`, `best_performance`).
+The lookup is resolved at runtime, so a Windows 10 build leaves the fields
+null. The signed battery rate from `SYSTEM_BATTERY_STATE` is shown whenever
+it is measured, as a discharge or a charge. `wintune power --set` still
+changes only an existing power plan. The power mode is not written.
 
 ### Phase 62 — Memory lists
 

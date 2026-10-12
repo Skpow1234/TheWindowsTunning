@@ -498,10 +498,13 @@ wintune power --set saver
 wintune power --json
 ```
 
-Shows plan, AC/battery source, optional discharge rate (W) and estimated
-remaining time on battery, and whether the active plan caps processor max
-state. JSON includes `rate_mw`, `processor_max_pct_ac` / `_dc`, and
-`processor_capped`.
+Shows plan, AC/battery source, battery rate in watts when the battery
+reports one (discharge or charge), estimated remaining time while draining,
+whether the active plan caps processor max state, and the Windows 11 power
+mode for AC and battery. JSON includes `rate_mw`, `processor_max_pct_ac` /
+`_dc`, `processor_capped`, `power_mode`, `power_mode_ac`, and
+`power_mode_dc`. `--set` changes an existing power plan only. It does not
+change the power mode.
 
 ```text
 Current power plan: Balanced

@@ -1015,6 +1015,28 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
         }
         wt_json_key(&w, "processor_capped");
         wt_json_bool(&w, report->power.processor_capped);
+        {
+            int mode_ok = 0;
+            WT_PowerMode mode = wt_power_active_mode(&report->power, &mode_ok);
+            wt_json_key(&w, "power_mode");
+            if (mode_ok) {
+                wt_json_string(&w, wt_power_mode_token(mode));
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "power_mode_ac");
+            if (report->power.mode_ac_ok) {
+                wt_json_string(&w, wt_power_mode_token(report->power.mode_ac));
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "power_mode_dc");
+            if (report->power.mode_dc_ok) {
+                wt_json_string(&w, wt_power_mode_token(report->power.mode_dc));
+            } else {
+                wt_json_null(&w);
+            }
+        }
     }
     wt_json_end_object(&w);
 

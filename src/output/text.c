@@ -107,15 +107,24 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
             fprintf(out, ")");
         }
         fprintf(out, "\n");
-        if (report->power.rate_ok && report->power.on_ac == 0 &&
-            report->power.discharging == 1 && report->power.rate_mw < 0) {
+        if (report->power.rate_ok && report->power.rate_mw < 0) {
             fprintf(out, "  Discharge: %.1f W",
                     (-(double)report->power.rate_mw) / 1000.0);
-            if (report->power.estimated_seconds > 0) {
+            if (report->power.on_ac == 0 && report->power.estimated_seconds > 0) {
                 fprintf(out, "  | ~%d min remaining",
                         report->power.estimated_seconds / 60);
             }
             fprintf(out, "\n");
+        } else if (report->power.rate_ok && report->power.rate_mw > 0) {
+            fprintf(out, "  Charge: %.1f W\n",
+                    ((double)report->power.rate_mw) / 1000.0);
+        }
+        if (report->power.mode_ac_ok || report->power.mode_dc_ok) {
+            int mode_ok = 0;
+            WT_PowerMode mode = wt_power_active_mode(&report->power, &mode_ok);
+            if (mode_ok) {
+                fprintf(out, "  Power mode: %s\n", wt_power_mode_label(mode));
+            }
         }
         if (report->power.processor_capped) {
             int cap = (report->power.on_ac == 1)
