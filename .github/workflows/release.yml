@@ -1,5 +1,8 @@
 name: Release
 
+permissions:
+  contents: read
+
 on:
   push:
     tags:
@@ -10,9 +13,6 @@ on:
         description: "Release version (e.g. 0.3.0 or v0.3.0)"
         required: true
         type: string
-
-permissions:
-  contents: write
 
 jobs:
   resolve-version:
@@ -25,11 +25,15 @@ jobs:
       - name: Resolve version
         id: version
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            v="${{ inputs.version }}"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            v="$INPUT_VERSION"
           else
-            v="${{ github.ref_name }}"
+            v="$REF_NAME"
           fi
           v="${v#v}"
           v="${v#V}"
@@ -46,9 +50,12 @@ jobs:
     name: Package (x64)
     needs: resolve-version
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Package x64
         shell: pwsh
@@ -91,7 +98,7 @@ jobs:
             -SignIfConfigured -SkipIfMissingInno
 
       - name: Upload x64 artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wintune-x64
           path: |
@@ -100,7 +107,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload x64 installer (optional)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wintune-x64-setup
           path: |
@@ -112,12 +119,15 @@ jobs:
     name: Package (ARM64)
     needs: resolve-version
     runs-on: windows-11-vs2026-arm
+    timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup CMake 4.3+
-        uses: lukka/get-cmake@latest
+        uses: lukka/get-cmake@fffaaafeea488556c2c12dad60690008bc1caacb # v4.4.2
         with:
           cmakeVersion: "4.3.3"
 
@@ -162,7 +172,7 @@ jobs:
             -SignIfConfigured -SkipIfMissingInno
 
       - name: Upload ARM64 artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wintune-arm64
           path: |
@@ -171,7 +181,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload ARM64 installer (optional)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wintune-arm64-setup
           path: |
@@ -185,22 +195,25 @@ jobs:
     # never starts, the x64 zip is never uploaded and WinGet reports 404.
     needs: [resolve-version, package-x64]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - name: Download x64 artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: wintune-x64
           path: dist
 
       - name: Download x64 installer (optional)
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: wintune-x64-setup
           path: dist
 
       - name: Upload x64 release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', needs.resolve-version.outputs.value) || github.ref_name }}
           name: WinTune ${{ needs.resolve-version.outputs.value }}
@@ -219,22 +232,25 @@ jobs:
     needs: [resolve-version, package-arm64, release]
     if: ${{ needs.package-arm64.result == 'success' && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - name: Download ARM64 artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: wintune-arm64
           path: dist
 
       - name: Download ARM64 installer (optional)
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: wintune-arm64-setup
           path: dist
 
       - name: Upload ARM64 release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', needs.resolve-version.outputs.value) || github.ref_name }}
           fail_on_unmatched_files: false

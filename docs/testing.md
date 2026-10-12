@@ -40,6 +40,8 @@ Unit-test executables are `EXCLUDE_FROM_ALL` so a plain `cmake --build`
 `wintune_tests_all` / `test.ps1`. When a production `.c` file gains new link
 deps (e.g. `file_identity`, `wintrust`), update the matching `wt_add_unit_test`
 source list and `target_link_libraries` or CI will fail with `LNK2019`.
+`test_json` links `src/metrics/integrity.c` because `json.c` calls
+`wt_integrity_level_name`.
 
 ---
 

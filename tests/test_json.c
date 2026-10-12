@@ -1,4 +1,5 @@
 #include "output/json.h"
+#include "metrics/process.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -127,6 +128,14 @@ int main(void)
     expect_not_contains(buf, "schema_compat_min", "no compat on v1");
     expect_not_contains(buf, "\"document\"", "no document on v1");
     free((void *)buf);
+
+    if (strcmp(wt_integrity_level_name(WT_INTEGRITY_MEDIUM), "medium") != 0 ||
+            strcmp(wt_integrity_level_name(WT_INTEGRITY_UNKNOWN), "unknown") != 0 ||
+            strcmp(wt_integrity_level_name(WT_INTEGRITY_MEDIUM_PLUS),
+                   "medium_plus") != 0) {
+        fputs("FAIL integrity level names\n", stderr);
+        g_failed = 1;
+    }
 
     if (g_failed) {
         fputs("json tests failed\n", stderr);

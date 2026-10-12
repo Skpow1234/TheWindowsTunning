@@ -55,6 +55,7 @@ add_executable(wintune
     src/metrics/memory.c
     src/metrics/disk.c
     src/metrics/process.c
+    src/metrics/integrity.c
     src/metrics/network.c
     src/metrics/gpu.c
 
@@ -274,6 +275,7 @@ wt_add_unit_test(test_json
     tests/test_json.c
     tests/json_link_stubs.c
     src/output/json.c
+    src/metrics/integrity.c
     src/common/error.c
     src/common/units.c
     src/platform/time.c

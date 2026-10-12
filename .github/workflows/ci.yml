@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main, master]
@@ -25,14 +28,17 @@ jobs:
     # Stable name — set this as a required status check on main/master.
     name: Lint and build (Windows x64)
     runs-on: windows-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Cache CMake build (x64)
         id: cache-build
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: build
           key: wintune-x64-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'resources/**', 'tests/**', 'scripts/cmake-configure.ps1') }}
@@ -81,19 +87,22 @@ jobs:
     # Native ARM64 + VS 2026. Cross-compiling ARM64 on windows-latest (x64) lacks
     # the MSVC ARM64 toolchain unless the workload is installed separately.
     runs-on: windows-11-vs2026-arm
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup CMake 4.3+
-        uses: lukka/get-cmake@latest
+        uses: lukka/get-cmake@fffaaafeea488556c2c12dad60690008bc1caacb # v4.4.2
         with:
           cmakeVersion: "4.3.3"
 
       - name: Cache CMake build (ARM64)
         id: cache-build-arm
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: build-arm64
           key: wintune-arm64-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'resources/**', 'tests/**', 'scripts/cmake-configure.ps1') }}
@@ -161,6 +170,7 @@ jobs:
   package-dry-run:
     name: Package dry-run (x64)
     runs-on: windows-latest
+    timeout-minutes: 30
     # Tags, PRs labeled "release", or manual workflow_dispatch with package_dry_run.
     if: >
       startsWith(github.ref, 'refs/tags/v') ||
@@ -169,7 +179,9 @@ jobs:
        contains(join(github.event.pull_request.labels.*.name, ','), 'release'))
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Package x64 ZIP (dry-run)
         shell: pwsh
@@ -206,7 +218,7 @@ jobs:
           Write-Host "Package dry-run OK"
 
       - name: Upload dry-run artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wintune-x64-dry-run
           path: |

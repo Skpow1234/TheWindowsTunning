@@ -29,6 +29,17 @@ Make this check **required** on `main` / `master` so link/test breaks cannot mer
 
 The job `name:` in `ci.yml` must stay stable — renaming it breaks the required check.
 
+### Workflow hardening
+
+CI grants `GITHUB_TOKEN` `contents: read` only. The release workflow stays
+read-only except the two publish jobs, which set `contents: write`. Checkouts
+use `persist-credentials: false`. Third-party actions are pinned to a commit
+SHA (Dependabot opens weekly update PRs via `.github/dependabot.yml`). Jobs
+set `timeout-minutes` so a hung build or smoke run cannot use the 6-hour
+default. Manual release version input is passed through an environment
+variable, then checked against the semver pattern, so the shell script does
+not interpolate the raw input.
+
 ### Caching
 
 Both architecture jobs cache the CMake build directory (`actions/cache`):
