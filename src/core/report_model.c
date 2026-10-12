@@ -2,6 +2,42 @@
 
 #include <string.h>
 
+const char *wt_collector_name(int id)
+{
+    switch (id) {
+    case WT_COLLECTOR_OS:
+        return "os";
+    case WT_COLLECTOR_MEMORY:
+        return "memory";
+    case WT_COLLECTOR_CPU:
+        return "cpu";
+    case WT_COLLECTOR_NETWORK:
+        return "network";
+    case WT_COLLECTOR_DISK:
+        return "disk";
+    case WT_COLLECTOR_DISK_IO:
+        return "disk_io";
+    case WT_COLLECTOR_POWER:
+        return "power";
+    case WT_COLLECTOR_GPU:
+        return "gpu";
+    case WT_COLLECTOR_AUDIO:
+        return "audio";
+    case WT_COLLECTOR_SEARCH:
+        return "search";
+    case WT_COLLECTOR_DEFENDER:
+        return "defender";
+    case WT_COLLECTOR_BOOT:
+        return "boot";
+    case WT_COLLECTOR_UPDATES:
+        return "updates";
+    case WT_COLLECTOR_PROCESSES:
+        return "processes";
+    default:
+        return "unknown";
+    }
+}
+
 WT_Result wt_scan_report_init(WT_ScanReport *report)
 {
     if (report == NULL) {

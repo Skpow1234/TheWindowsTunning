@@ -25,6 +25,57 @@
 #define WT_SCAN_DEFAULT_SAMPLE_INTERVAL_MS 1000
 #define WT_SCAN_MAX_SAMPLES 32
 
+static LARGE_INTEGER wt_scan_qpc_freq(void)
+{
+    LARGE_INTEGER freq;
+
+    if (!QueryPerformanceFrequency(&freq) || freq.QuadPart <= 0) {
+        freq.QuadPart = 0;
+    }
+    return freq;
+}
+
+static LARGE_INTEGER wt_scan_qpc_now(void)
+{
+    LARGE_INTEGER now;
+
+    if (!QueryPerformanceCounter(&now)) {
+        now.QuadPart = 0;
+    }
+    return now;
+}
+
+static unsigned int wt_scan_elapsed_ms(LARGE_INTEGER start, LARGE_INTEGER freq)
+{
+    LARGE_INTEGER end;
+    unsigned long long ticks;
+
+    if (freq.QuadPart <= 0) {
+        return 0;
+    }
+    if (!QueryPerformanceCounter(&end) || end.QuadPart < start.QuadPart) {
+        return 0;
+    }
+    ticks = (unsigned long long)(end.QuadPart - start.QuadPart);
+    return (unsigned int)((ticks * 1000ull +
+                           (unsigned long long)(freq.QuadPart / 2)) /
+                          (unsigned long long)freq.QuadPart);
+}
+
+static void wt_scan_time_add(WT_ScanReport *report, int id, LARGE_INTEGER start,
+                             LARGE_INTEGER freq)
+{
+    unsigned int ms;
+    unsigned long long sum;
+
+    if (report == NULL || id < 0 || id >= WT_COLLECTOR_COUNT) {
+        return;
+    }
+    ms = wt_scan_elapsed_ms(start, freq);
+    sum = (unsigned long long)report->collector_ms[id] + ms;
+    report->collector_ms[id] = sum > 0xFFFFFFFFull ? 0xFFFFFFFFu : (unsigned int)sum;
+}
+
 static void wt_scan_collect_top_processes(WT_ScanReport *report, size_t top_limit,
                                           unsigned int sample_ms)
 {
@@ -338,6 +389,17 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
         acc->network_ok = 1;
     }
 
+    if (sample_index > 0) {
+        int id;
+        for (id = 0; id < WT_COLLECTOR_COUNT; ++id) {
+            unsigned long long sum =
+                (unsigned long long)acc->collector_ms[id] +
+                sample->collector_ms[id];
+            acc->collector_ms[id] =
+                sum > 0xFFFFFFFFull ? 0xFFFFFFFFu : (unsigned int)sum;
+        }
+    }
+
     (void)sample_total;
 }
 
@@ -355,14 +417,28 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
         }
     }
 
+    LARGE_INTEGER qpc_freq = wt_scan_qpc_freq();
+    LARGE_INTEGER t0;
+
+    t0 = wt_scan_qpc_now();
     report->os_ok = (wt_collect_os_info(&report->os) == WT_OK);
+    wt_scan_time_add(report, WT_COLLECTOR_OS, t0, qpc_freq);
+
+    t0 = wt_scan_qpc_now();
     report->memory_ok = (wt_collect_memory_metrics(&report->memory) == WT_OK);
+    wt_scan_time_add(report, WT_COLLECTOR_MEMORY, t0, qpc_freq);
     {
         WT_NetTotals net_before;
         WT_NetTotals net_after;
         ULONGLONG net_t0 = GetTickCount64();
-        int net_before_ok = (wt_collect_net_totals(&net_before) == WT_OK);
+        int net_before_ok;
+        t0 = wt_scan_qpc_now();
+        net_before_ok = (wt_collect_net_totals(&net_before) == WT_OK);
+        wt_scan_time_add(report, WT_COLLECTOR_NETWORK, t0, qpc_freq);
+        t0 = wt_scan_qpc_now();
         report->cpu_ok = (wt_collect_cpu_metrics(sample_ms, &report->cpu) == WT_OK);
+        wt_scan_time_add(report, WT_COLLECTOR_CPU, t0, qpc_freq);
+        t0 = wt_scan_qpc_now();
         if (net_before_ok && wt_collect_net_totals(&net_after) == WT_OK) {
             unsigned int elapsed = (unsigned int)(GetTickCount64() - net_t0);
             wt_net_apply_rates(&net_before, &net_after, elapsed, &report->network);
@@ -370,6 +446,7 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
         } else {
             report->network_ok = 0;
         }
+        wt_scan_time_add(report, WT_COLLECTOR_NETWORK, t0, qpc_freq);
     }
 
     report->cpu_ok_samples = (report->cpu_ok && report->cpu.available) ? 1u : 0u;
@@ -393,13 +470,16 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
         }
     }
 
+    t0 = wt_scan_qpc_now();
     report->disk_ok =
         (wt_collect_disk_volumes(report->volumes, WT_MAX_VOLUMES,
                                  &report->volume_count) == WT_OK);
+    wt_scan_time_add(report, WT_COLLECTOR_DISK, t0, qpc_freq);
 
     WT_DiskIoMetrics disk_io;
     ZeroMemory(&disk_io, sizeof(disk_io));
     disk_io.avg_queue_length = -1.0;
+    t0 = wt_scan_qpc_now();
     if (wt_collect_disk_io_ex(sample_ms, &disk_io, report->volumes,
                               report->disk_ok ? report->volume_count : 0) ==
         WT_OK) {
@@ -458,23 +538,44 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
         report->disk_write_latency_ms_p50 = -1.0;
         report->disk_write_latency_ms_p95 = -1.0;
     }
+    wt_scan_time_add(report, WT_COLLECTOR_DISK_IO, t0, qpc_freq);
+
+    t0 = wt_scan_qpc_now();
     report->power_ok = (wt_collect_power_info(&report->power) == WT_OK);
+    wt_scan_time_add(report, WT_COLLECTOR_POWER, t0, qpc_freq);
 
+    t0 = wt_scan_qpc_now();
     report->gpu_ok = (wt_collect_gpu_metrics(sample_ms, &report->gpu) == WT_OK);
-    report->audio_ok = (wt_collect_audio(&report->audio) == WT_OK);
-    report->search_ok = (wt_collect_search(&report->search) == WT_OK);
-    report->defender_ok = (wt_collect_defender(&report->defender) == WT_OK);
+    wt_scan_time_add(report, WT_COLLECTOR_GPU, t0, qpc_freq);
 
+    t0 = wt_scan_qpc_now();
+    report->audio_ok = (wt_collect_audio(&report->audio) == WT_OK);
+    wt_scan_time_add(report, WT_COLLECTOR_AUDIO, t0, qpc_freq);
+
+    t0 = wt_scan_qpc_now();
+    report->search_ok = (wt_collect_search(&report->search) == WT_OK);
+    wt_scan_time_add(report, WT_COLLECTOR_SEARCH, t0, qpc_freq);
+
+    t0 = wt_scan_qpc_now();
+    report->defender_ok = (wt_collect_defender(&report->defender) == WT_OK);
+    wt_scan_time_add(report, WT_COLLECTOR_DEFENDER, t0, qpc_freq);
+
+    t0 = wt_scan_qpc_now();
     WT_Result boot_r = wt_collect_boot_report(&report->boot, NULL);
+    wt_scan_time_add(report, WT_COLLECTOR_BOOT, t0, qpc_freq);
     report->boot_ok = (boot_r == WT_OK);
     if (boot_r != WT_OK && boot_r != WT_ERR_NOT_FOUND) {
         WT_LOGD("boot metrics unavailable (%s)", wt_result_to_string(boot_r));
     }
 
+    t0 = wt_scan_qpc_now();
     WT_Result upd_r = wt_collect_update_status_fast(&report->updates);
+    wt_scan_time_add(report, WT_COLLECTOR_UPDATES, t0, qpc_freq);
     report->updates_ok = (upd_r == WT_OK);
 
+    t0 = wt_scan_qpc_now();
     wt_scan_collect_top_processes(report, top_limit, sample_ms);
+    wt_scan_time_add(report, WT_COLLECTOR_PROCESSES, t0, qpc_freq);
 
     return WT_OK;
 }

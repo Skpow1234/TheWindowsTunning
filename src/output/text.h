@@ -21,4 +21,7 @@ void wt_print_recommendations_text(const WT_RecommendationList *recs);
 /* Doctor closing summary (counts by severity). */
 void wt_print_doctor_summary_text(FILE *out, const WT_RecommendationList *recs);
 
+/* One line: how long each scan collector took. */
+void wt_print_collector_timing(FILE *out, const WT_ScanReport *report);
+
 #endif /* WINTUNE_TEXT_H */

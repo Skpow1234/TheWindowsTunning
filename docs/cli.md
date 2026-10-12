@@ -110,7 +110,9 @@ are listed with `kind` and receive/send bytes per second, including VPN and
 virtual switches. A missing rate is null. WinTune does not change network
 settings. `short_lived` lists processes that exited during the sample
 window (PID, parent PID, name). The array is empty when none exited.
-WinTune does not end processes.
+WinTune does not end processes. `timing` reports how long each collector
+took, in milliseconds. `total_ms` is the sum. The pause between samples is
+not included.
 
 ```bash
 wintune scan

@@ -280,6 +280,7 @@ wt_add_unit_test(test_json
     tests/test_json.c
     tests/json_link_stubs.c
     src/output/json.c
+    src/core/report_model.c
     src/metrics/integrity.c
     src/common/error.c
     src/common/units.c

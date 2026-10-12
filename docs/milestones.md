@@ -1,6 +1,6 @@
 # WinTune milestones 54–157
 
-Phases 0–70 are done. See [`roadmap.md`](roadmap.md). Phases 71–157 are
+Phases 0–71 are done. See [`roadmap.md`](roadmap.md). Phases 72–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -220,9 +220,16 @@ none exited. WinTune does not end processes.
 
 ### Phase 71 — Collector timing
 
-**Status:** Planned
+**Status:** Done
 
 **Deliver:** Add a tool self-timing line: how long each collector took.
+`timing.collectors` lists `name` and `duration_ms` for os, memory, cpu,
+network, disk, disk I/O, power, gpu, audio, search, defender, boot, updates,
+and processes. `timing.total_ms` is their sum. A multi-sample scan adds each
+collector's time. The pause between samples is not included. Network time is
+the two adapter snapshots. CPU, disk I/O, GPU, and process times include
+their sample waits. There is no recommendation id. WinTune does not change
+what the collectors measure.
 
 ### Phase 72 — PDH query reuse
 

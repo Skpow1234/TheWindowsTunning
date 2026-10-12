@@ -21,6 +21,29 @@
 #define WT_MAX_VOLUMES 32
 #define WT_MAX_TOP_PROCESSES 32
 
+/* Phase 71: wall time of each scan collector, in milliseconds. Network is
+ * the two adapter snapshots only. CPU, disk I/O, GPU, and process times
+ * include their sample waits. */
+typedef enum WT_CollectorId {
+    WT_COLLECTOR_OS = 0,
+    WT_COLLECTOR_MEMORY,
+    WT_COLLECTOR_CPU,
+    WT_COLLECTOR_NETWORK,
+    WT_COLLECTOR_DISK,
+    WT_COLLECTOR_DISK_IO,
+    WT_COLLECTOR_POWER,
+    WT_COLLECTOR_GPU,
+    WT_COLLECTOR_AUDIO,
+    WT_COLLECTOR_SEARCH,
+    WT_COLLECTOR_DEFENDER,
+    WT_COLLECTOR_BOOT,
+    WT_COLLECTOR_UPDATES,
+    WT_COLLECTOR_PROCESSES,
+    WT_COLLECTOR_COUNT
+} WT_CollectorId;
+
+const char *wt_collector_name(int id);
+
 /* The stable in-memory model produced by a scan and consumed by every output
  * format (text now; JSON/TUI later). Per-section `*_ok` flags allow partial
  * results: a section that failed to collect is simply reported as unavailable
@@ -80,6 +103,7 @@ typedef struct WT_ScanReport {
 
     unsigned int scan_sample_count;
     unsigned int scan_sample_interval_ms;
+    unsigned int collector_ms[WT_COLLECTOR_COUNT];
 
     int os_ok;
     int cpu_ok;

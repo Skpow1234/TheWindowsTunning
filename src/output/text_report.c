@@ -1,4 +1,5 @@
 #include "output/text_report.h"
+#include "output/text.h"
 #include "output/table.h"
 #include "common/units.h"
 #include "platform/time.h"
@@ -505,6 +506,8 @@ void wt_print_performance_report_text(FILE *out,
     } else {
         fputs("  Process data unavailable.\n", out);
     }
+
+    wt_print_collector_timing(out, report);
 
     wt_report_section(out, "Recommendations");
     if (recs == NULL || recs->count == 0) {

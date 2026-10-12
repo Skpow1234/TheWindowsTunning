@@ -1382,6 +1382,29 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     wt_json_end_array(&w);
     wt_json_end_object(&w);
 
+    /* collector timing (Phase 71) */
+    wt_json_key(&w, "timing");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "collectors");
+    wt_json_begin_array(&w);
+    {
+        int id;
+        unsigned long long total_ms = 0;
+        for (id = 0; id < WT_COLLECTOR_COUNT; ++id) {
+            wt_json_begin_object(&w);
+            wt_json_key(&w, "name");
+            wt_json_string(&w, wt_collector_name(id));
+            wt_json_key(&w, "duration_ms");
+            wt_json_uint64(&w, report->collector_ms[id]);
+            wt_json_end_object(&w);
+            total_ms += report->collector_ms[id];
+        }
+        wt_json_end_array(&w);
+        wt_json_key(&w, "total_ms");
+        wt_json_uint64(&w, total_ms);
+    }
+    wt_json_end_object(&w);
+
     /* recommendations */
     wt_json_emit_recommendations_array(&w, recs);
 

@@ -601,10 +601,31 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
         fprintf(out, "  (unavailable)\n");
     }
 
+    wt_print_collector_timing(out, report);
+
     if (recs != NULL) {
         fprintf(out, "\n");
         wt_print_recommendations_to(out, recs);
     }
+}
+
+void wt_print_collector_timing(FILE *out, const WT_ScanReport *report)
+{
+    int id;
+    unsigned long long total_ms = 0;
+
+    if (out == NULL || report == NULL) {
+        return;
+    }
+    fputs("Collector timing: ", out);
+    for (id = 0; id < WT_COLLECTOR_COUNT; ++id) {
+        if (id > 0) {
+            fputs(", ", out);
+        }
+        fprintf(out, "%s %u ms", wt_collector_name(id), report->collector_ms[id]);
+        total_ms += report->collector_ms[id];
+    }
+    fprintf(out, " (total %llu ms)\n", total_ms);
 }
 
 void wt_print_scan_report_text(const WT_ScanReport *report,

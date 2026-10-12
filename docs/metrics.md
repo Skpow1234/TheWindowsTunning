@@ -605,6 +605,18 @@ The previous scheme is preserved as rollback metadata before any plan change.
 
 ---
 
+## Collector timing
+
+Phase 71 times each scan collector with `QueryPerformanceCounter` and reports
+whole milliseconds. JSON `timing.collectors` has `name` and `duration_ms`
+for os, memory, cpu, network, disk, disk_io, power, gpu, audio, search,
+defender, boot, updates, and processes. `timing.total_ms` is the sum. A
+multi-sample scan adds each collector's time. The pause between samples is
+not included. Network time is the two adapter snapshots. CPU, disk I/O, GPU,
+and process times include their sample waits. There is no recommendation.
+
+---
+
 ## The Scan Report Model
 
 All metrics feed a single stable model consumed by text, JSON, and TUI outputs.
