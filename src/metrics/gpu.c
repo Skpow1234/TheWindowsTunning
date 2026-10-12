@@ -231,25 +231,193 @@ static double wt_gpu_max_for_luid(const WT_GpuEngKey *keys, size_t count,
     return best;
 }
 
+static void wt_display_set_primary_size(WT_DisplayInfo *out)
+{
+    unsigned int i;
+    for (i = 0; i < out->monitor_count; ++i) {
+        if (out->monitors[i].primary && out->monitors[i].width > 0) {
+            out->primary_width = out->monitors[i].width;
+            out->primary_height = out->monitors[i].height;
+            return;
+        }
+    }
+    if (out->monitor_count > 0 && out->monitors[0].width > 0) {
+        out->primary_width = out->monitors[0].width;
+        out->primary_height = out->monitors[0].height;
+    }
+}
+
+static int wt_display_from_config(WT_DisplayInfo *out)
+{
+    UINT32 path_count = 0;
+    UINT32 mode_count = 0;
+    DISPLAYCONFIG_PATH_INFO *paths = NULL;
+    DISPLAYCONFIG_MODE_INFO *modes = NULL;
+    LONG rc;
+    UINT32 i;
+    int saw_primary = 0;
+
+    rc = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &path_count,
+                                     &mode_count);
+    if (rc != ERROR_SUCCESS || path_count == 0 || mode_count == 0) {
+        return 0;
+    }
+    if (path_count > 64) {
+        path_count = 64;
+    }
+    if (mode_count > 128) {
+        mode_count = 128;
+    }
+    paths = (DISPLAYCONFIG_PATH_INFO *)calloc(path_count, sizeof(*paths));
+    modes = (DISPLAYCONFIG_MODE_INFO *)calloc(mode_count, sizeof(*modes));
+    if (paths == NULL || modes == NULL) {
+        free(paths);
+        free(modes);
+        return 0;
+    }
+    rc = QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &path_count, paths,
+                            &mode_count, modes, NULL);
+    if (rc != ERROR_SUCCESS) {
+        free(paths);
+        free(modes);
+        return 0;
+    }
+
+    for (i = 0; i < path_count && out->monitor_count < WT_MAX_DISPLAYS; ++i) {
+        WT_DisplayMonitor *mon;
+        DISPLAYCONFIG_TARGET_DEVICE_NAME target;
+        DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO color;
+        UINT32 mode_index;
+        DISPLAYCONFIG_RATIONAL rate;
+
+        if ((paths[i].flags & DISPLAYCONFIG_PATH_ACTIVE) == 0) {
+            continue;
+        }
+        mon = &out->monitors[out->monitor_count];
+        ZeroMemory(mon, sizeof(*mon));
+        mon->refresh_hz = -1.0;
+
+        mode_index = paths[i].sourceInfo.modeInfoIdx;
+        if (mode_index != DISPLAYCONFIG_PATH_MODE_IDX_INVALID &&
+            mode_index < mode_count &&
+            modes[mode_index].infoType == DISPLAYCONFIG_MODE_INFO_TYPE_SOURCE) {
+            mon->width = modes[mode_index].sourceMode.width;
+            mon->height = modes[mode_index].sourceMode.height;
+            if (modes[mode_index].sourceMode.position.x == 0 &&
+                modes[mode_index].sourceMode.position.y == 0) {
+                mon->primary = 1;
+                saw_primary = 1;
+            }
+        }
+
+        rate = paths[i].targetInfo.refreshRate;
+        if (rate.Denominator != 0 && rate.Numerator != 0) {
+            double hz = (double)rate.Numerator / (double)rate.Denominator;
+            if (hz >= 1.0 && hz <= 1000.0) {
+                mon->refresh_hz = hz;
+            }
+        }
+
+        ZeroMemory(&target, sizeof(target));
+        target.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+        target.header.size = sizeof(target);
+        target.header.adapterId = paths[i].targetInfo.adapterId;
+        target.header.id = paths[i].targetInfo.id;
+        if (DisplayConfigGetDeviceInfo(&target.header) == ERROR_SUCCESS &&
+            target.monitorFriendlyDeviceName[0] != L'\0') {
+            StringCchCopyW(mon->name, ARRAYSIZE(mon->name),
+                           target.monitorFriendlyDeviceName);
+        }
+
+        ZeroMemory(&color, sizeof(color));
+        color.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
+        color.header.size = sizeof(color);
+        color.header.adapterId = paths[i].targetInfo.adapterId;
+        color.header.id = paths[i].targetInfo.id;
+        if (DisplayConfigGetDeviceInfo(&color.header) == ERROR_SUCCESS) {
+            mon->hdr_ok = 1;
+            mon->hdr_supported = color.advancedColorSupported ? 1 : 0;
+            mon->hdr_enabled = color.advancedColorEnabled ? 1 : 0;
+        }
+
+        out->monitor_count++;
+    }
+
+    free(paths);
+    free(modes);
+    if (out->monitor_count == 0) {
+        return 0;
+    }
+    if (!saw_primary) {
+        out->monitors[0].primary = 1;
+    }
+    return 1;
+}
+
+static void wt_display_from_enum(WT_DisplayInfo *out)
+{
+    DWORD i;
+    for (i = 0; out->monitor_count < WT_MAX_DISPLAYS; ++i) {
+        DISPLAY_DEVICEW adapter;
+        DISPLAY_DEVICEW monitor;
+        DEVMODEW mode;
+        WT_DisplayMonitor *mon;
+
+        ZeroMemory(&adapter, sizeof(adapter));
+        adapter.cb = sizeof(adapter);
+        if (!EnumDisplayDevicesW(NULL, i, &adapter, 0)) {
+            break;
+        }
+        if ((adapter.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) == 0) {
+            continue;
+        }
+        mon = &out->monitors[out->monitor_count];
+        ZeroMemory(mon, sizeof(*mon));
+        mon->refresh_hz = -1.0;
+        mon->primary =
+            (adapter.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0 ? 1 : 0;
+
+        ZeroMemory(&monitor, sizeof(monitor));
+        monitor.cb = sizeof(monitor);
+        if (EnumDisplayDevicesW(adapter.DeviceName, 0, &monitor, 0) &&
+            monitor.DeviceString[0] != L'\0') {
+            StringCchCopyW(mon->name, ARRAYSIZE(mon->name), monitor.DeviceString);
+        } else if (adapter.DeviceString[0] != L'\0') {
+            StringCchCopyW(mon->name, ARRAYSIZE(mon->name), adapter.DeviceString);
+        }
+
+        ZeroMemory(&mode, sizeof(mode));
+        mode.dmSize = sizeof(mode);
+        if (EnumDisplaySettingsW(adapter.DeviceName, ENUM_CURRENT_SETTINGS,
+                                 &mode)) {
+            if ((mode.dmFields & DM_PELSWIDTH) != 0) {
+                mon->width = (unsigned int)mode.dmPelsWidth;
+            }
+            if ((mode.dmFields & DM_PELSHEIGHT) != 0) {
+                mon->height = (unsigned int)mode.dmPelsHeight;
+            }
+            if ((mode.dmFields & DM_DISPLAYFREQUENCY) != 0 &&
+                mode.dmDisplayFrequency > 1 &&
+                mode.dmDisplayFrequency <= 1000) {
+                mon->refresh_hz = (double)mode.dmDisplayFrequency;
+            }
+        }
+        out->monitor_count++;
+    }
+}
+
 static void wt_gpu_collect_displays(WT_DisplayInfo *out)
 {
     ZeroMemory(out, sizeof(*out));
-    unsigned int count = 0;
-    for (DWORD i = 0; ; ++i) {
-        DISPLAY_DEVICEW dd;
-        ZeroMemory(&dd, sizeof(dd));
-        dd.cb = sizeof(dd);
-        if (!EnumDisplayDevicesW(NULL, i, &dd, 0)) {
-            break;
-        }
-        if ((dd.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) != 0) {
-            count++;
-        }
+    if (!wt_display_from_config(out)) {
+        out->monitor_count = 0;
+        wt_display_from_enum(out);
     }
-    out->display_count = count;
+    out->display_count = out->monitor_count;
     out->primary_width = (unsigned int)GetSystemMetrics(SM_CXSCREEN);
     out->primary_height = (unsigned int)GetSystemMetrics(SM_CYSCREEN);
-    out->available = (count > 0 || out->primary_width > 0) ? 1 : 0;
+    wt_display_set_primary_size(out);
+    out->available = (out->display_count > 0 || out->primary_width > 0) ? 1 : 0;
 }
 
 static WT_Result wt_gpu_enum_adapters(WT_GpuMetrics *out)

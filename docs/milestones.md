@@ -1,6 +1,6 @@
 # WinTune milestones 54–157
 
-Phases 0–64 are done. See [`roadmap.md`](roadmap.md). Phases 65–157 are
+Phases 0–65 are done. See [`roadmap.md`](roadmap.md). Phases 66–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -148,9 +148,15 @@ administrator. Read-only. No driver is installed.
 
 ### Phase 65 — Displays
 
-**Status:** Planned
+**Status:** Done
 
-**Deliver:** Inventory monitors, refresh rate, and HDR state as display readiness.
+**Deliver:** Inventory monitors, refresh rate, and HDR state as display
+readiness. `QueryDisplayConfig` lists each active path. Refresh comes from
+the path rational. HDR is the advanced-color supported and enabled bits from
+`DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO`. A missing value is JSON
+null. If the display-config query fails, the inventory falls back to
+`EnumDisplayDevices` and `EnumDisplaySettings` without an HDR claim.
+Read-only. WinTune does not change the display mode or HDR.
 
 ### Phase 66 — Audio endpoints
 

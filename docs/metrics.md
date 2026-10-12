@@ -339,6 +339,7 @@ DNS, proxy, firewall, routing, or adapter settings in v1.
 ```c
 CreateDXGIFactory1 / IDXGIAdapter1::GetDesc1   /* hardware adapters */
 EnumDisplayDevicesW / GetSystemMetrics         /* display count + primary size */
+QueryDisplayConfig / DisplayConfigGetDeviceInfo /* refresh + advanced color / HDR */
 \GPU Engine(*)\Utilization Percentage          /* PDH; aggregate by LUID and by PID */
 ```
 
@@ -350,6 +351,10 @@ EnumDisplayDevicesW / GetSystemMetrics         /* display count + primary size *
   instances on that adapter during the sample, clamped to 0–100%
   (`engine_percent`). This is engine time, not a driver or clock change.
 - Active desktop display count and primary resolution.
+- Phase 65 inventories each active monitor: name, resolution, refresh rate,
+  and advanced-color / HDR state (`hdr_supported`, `hdr_enabled`). A missing
+  refresh or HDR query is JSON null. WinTune does not change the mode or
+  turn HDR on or off.
 
 Read-only only. WinTune never installs drivers, overclocks, undervolts, or
 claims FPS “boosts.” Advisory `WT-GPU-001` may note very high engine busy.

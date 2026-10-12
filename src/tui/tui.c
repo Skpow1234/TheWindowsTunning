@@ -645,6 +645,31 @@ static void wt_tui_render_gpu(WT_TuiScreen *s, const WT_TuiTheme *t)
         wt_tui_screen_line(s, "Displays: %u active   primary %ux%u",
                            gpu.display.display_count, gpu.display.primary_width,
                            gpu.display.primary_height);
+        for (unsigned int mi = 0; mi < gpu.display.monitor_count && mi < 4; ++mi) {
+            const WT_DisplayMonitor *mon = &gpu.display.monitors[mi];
+            char name[64];
+            WideCharToMultiByte(CP_UTF8, 0,
+                                mon->name[0] != L'\0' ? mon->name : L"(monitor)",
+                                -1, name, sizeof(name), NULL, NULL);
+            {
+                char hz[16];
+                if (mon->refresh_hz >= 0.0) {
+                    snprintf(hz, sizeof(hz), "%.0f Hz", mon->refresh_hz);
+                } else {
+                    snprintf(hz, sizeof(hz), "n/a");
+                }
+                if (mon->hdr_ok) {
+                    wt_tui_screen_line(s, "  %-24.24s %4ux%-4u %6s  HDR %s%s",
+                                       name, mon->width, mon->height, hz,
+                                       mon->hdr_enabled ? "on" : "off",
+                                       mon->primary ? "  primary" : "");
+                } else {
+                    wt_tui_screen_line(s, "  %-24.24s %4ux%-4u %6s%s",
+                                       name, mon->width, mon->height, hz,
+                                       mon->primary ? "  primary" : "");
+                }
+            }
+        }
         wt_tui_screen_line(s, "");
     }
 

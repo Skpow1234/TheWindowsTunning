@@ -308,6 +308,22 @@ void wt_print_performance_report_text(FILE *out,
                     report->gpu.display.primary_height);
         }
         fprintf(out, "\n");
+        for (unsigned int mi = 0; mi < report->gpu.display.monitor_count; ++mi) {
+            const WT_DisplayMonitor *mon = &report->gpu.display.monitors[mi];
+            fwprintf(out, L"    %ls%s",
+                     mon->name[0] != L'\0' ? mon->name : L"(monitor)",
+                     mon->primary ? L"  primary" : L"");
+            if (mon->width > 0 && mon->height > 0) {
+                fprintf(out, "  %ux%u", mon->width, mon->height);
+            }
+            if (mon->refresh_hz >= 0.0) {
+                fprintf(out, "  %.0f Hz", mon->refresh_hz);
+            }
+            if (mon->hdr_ok) {
+                fprintf(out, "  HDR %s", mon->hdr_enabled ? "on" : "off");
+            }
+            fprintf(out, "\n");
+        }
     }
 
     if (report->boot_ok && report->boot.boot_duration_ms > 0) {

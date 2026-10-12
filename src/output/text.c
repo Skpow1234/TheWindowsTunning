@@ -312,6 +312,28 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
                     report->gpu.display.primary_height);
         }
         fprintf(out, "\n");
+        for (unsigned int mi = 0; mi < report->gpu.display.monitor_count; ++mi) {
+            const WT_DisplayMonitor *mon = &report->gpu.display.monitors[mi];
+            fwprintf(out, L"    %ls%s",
+                     mon->name[0] != L'\0' ? mon->name : L"(monitor)",
+                     mon->primary ? L"  primary" : L"");
+            if (mon->width > 0 && mon->height > 0) {
+                fprintf(out, "  %ux%u", mon->width, mon->height);
+            }
+            if (mon->refresh_hz >= 0.0) {
+                double nearest = (double)(int)(mon->refresh_hz + 0.5);
+                if (mon->refresh_hz - nearest < 0.05 &&
+                    nearest - mon->refresh_hz < 0.05) {
+                    fprintf(out, "  %.0f Hz", mon->refresh_hz);
+                } else {
+                    fprintf(out, "  %.2f Hz", mon->refresh_hz);
+                }
+            }
+            if (mon->hdr_ok) {
+                fprintf(out, "  HDR %s", mon->hdr_enabled ? "on" : "off");
+            }
+            fprintf(out, "\n");
+        }
     }
     fprintf(out, "\n");
 

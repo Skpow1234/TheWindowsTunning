@@ -30,11 +30,29 @@ typedef struct WT_GpuAdapter {
     size_t process_count;
 } WT_GpuAdapter;
 
+#define WT_MAX_DISPLAYS 8
+#define WT_DISPLAY_NAME_MAX 64
+
+/* One active monitor. refresh_hz is negative when Windows did not report it.
+ * hdr_ok is 0 when the advanced-color query was not answered. */
+typedef struct WT_DisplayMonitor {
+    wchar_t name[WT_DISPLAY_NAME_MAX];
+    unsigned int width;
+    unsigned int height;
+    double refresh_hz;
+    int hdr_ok;
+    int hdr_supported;
+    int hdr_enabled;
+    int primary;
+} WT_DisplayMonitor;
+
 typedef struct WT_DisplayInfo {
     unsigned int display_count; /* active attached displays */
     unsigned int primary_width;
     unsigned int primary_height;
     int available;
+    WT_DisplayMonitor monitors[WT_MAX_DISPLAYS];
+    unsigned int monitor_count;
 } WT_DisplayInfo;
 
 typedef struct WT_GpuMetrics {

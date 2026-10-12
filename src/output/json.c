@@ -1001,6 +1001,44 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
         wt_json_uint64(&w, report->gpu.display.primary_width);
         wt_json_key(&w, "primary_height");
         wt_json_uint64(&w, report->gpu.display.primary_height);
+        wt_json_key(&w, "monitors");
+        wt_json_begin_array(&w);
+        for (unsigned int mi = 0; mi < report->gpu.display.monitor_count; ++mi) {
+            const WT_DisplayMonitor *mon = &report->gpu.display.monitors[mi];
+            wt_json_begin_object(&w);
+            wt_json_key(&w, "name");
+            if (mon->name[0] != L'\0') {
+                wt_json_wstring(&w, mon->name);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "width");
+            wt_json_uint64(&w, mon->width);
+            wt_json_key(&w, "height");
+            wt_json_uint64(&w, mon->height);
+            wt_json_key(&w, "refresh_hz");
+            if (mon->refresh_hz >= 0.0) {
+                wt_json_double(&w, mon->refresh_hz);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "hdr_supported");
+            if (mon->hdr_ok) {
+                wt_json_bool(&w, mon->hdr_supported);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "hdr_enabled");
+            if (mon->hdr_ok) {
+                wt_json_bool(&w, mon->hdr_enabled);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "primary");
+            wt_json_bool(&w, mon->primary);
+            wt_json_end_object(&w);
+        }
+        wt_json_end_array(&w);
     }
     wt_json_end_object(&w);
     wt_json_end_object(&w);
