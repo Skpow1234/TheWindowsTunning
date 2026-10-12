@@ -460,6 +460,10 @@ CloseHandle
 - Handle count and GDI object count (Phase 63). JSON `handle_count` and
   `gdi_count` are null when that process could not be queried. Zero is a
   measured count. WinTune does not close handles or GDI objects.
+- Phase 70 keeps processes that exit during the sample window. Snapshots
+  about every 50 ms record the PID and name. `short_lived` lists up to 16
+  that were gone at the end. Still-running processes stay in the top list.
+  WinTune does not end processes.
 - I/O counters.
 - Session ID, when `ProcessIdToSessionId` succeeds.
 - Integrity level from the process token (`unknown` when the token cannot be opened).

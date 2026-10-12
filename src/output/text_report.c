@@ -493,6 +493,15 @@ void wt_print_performance_report_text(FILE *out,
                 fprintf(out, "         Path: %.90ls\n", p->identity.path);
             }
         }
+        if (report->short_lived_count > 0) {
+            fprintf(out, "  Short-lived (exited during the sample):\n");
+            for (size_t i = 0; i < report->short_lived_count; ++i) {
+                const WT_ShortLivedProcess *lived = &report->short_lived[i];
+                fwprintf(out, L"    %lu  parent %lu  %ls\n", lived->pid,
+                         lived->parent_pid,
+                         lived->name[0] != L'\0' ? lived->name : L"(process)");
+            }
+        }
     } else {
         fputs("  Process data unavailable.\n", out);
     }

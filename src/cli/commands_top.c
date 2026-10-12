@@ -48,12 +48,15 @@ static size_t wt_top_clamp_limit(long requested)
 
 static WT_Result wt_top_snapshot(WT_ProcessInfo *buffer, size_t limit,
                                  WT_ProcessSort sort, unsigned int sample_ms,
-                                 int include_network, size_t *out_shown)
+                                 int include_network, size_t *out_shown,
+                                 WT_ShortLivedProcess *short_lived,
+                                 size_t *short_count)
 {
     size_t count = 0;
     WT_Result r =
         wt_collect_top_processes(buffer, limit, sort, sample_ms,
-                                 include_network, &count, NULL, NULL);
+                                 include_network, &count, NULL, NULL,
+                                 short_lived, WT_MAX_SHORT_LIVED, short_count);
     if (r != WT_OK) {
         return r;
     }
@@ -141,7 +144,7 @@ static int wt_top_watch(size_t limit, WT_ProcessSort sort,
                                      include_network, &shown, &page_info);
         } else {
             r = wt_top_snapshot(buffer, limit, sort, sample_ms, include_network,
-                                &shown);
+                                &shown, NULL, NULL);
         }
 
         fputs("\x1b[H\x1b[2J", stdout);
@@ -208,6 +211,8 @@ static int wt_top_ndjson_stream(const WT_CliOptions *opts, size_t limit,
     unsigned int elapsed = 0;
     for (;;) {
         size_t shown = 0;
+        WT_ShortLivedProcess short_lived[WT_MAX_SHORT_LIVED];
+        size_t short_count = 0;
         WT_ProcessPageInfo page_info;
         ZeroMemory(&page_info, sizeof(page_info));
         WT_Result r;
@@ -216,7 +221,7 @@ static int wt_top_ndjson_stream(const WT_CliOptions *opts, size_t limit,
                                      include_network, &shown, &page_info);
         } else {
             r = wt_top_snapshot(buffer, limit, sort, sample_ms, include_network,
-                                &shown);
+                                &shown, short_lived, &short_count);
         }
         if (r != WT_OK) {
             free(buffer);
@@ -230,7 +235,7 @@ static int wt_top_ndjson_stream(const WT_CliOptions *opts, size_t limit,
         if (paged) {
             wt_print_processes_page_json(buffer, shown, &page_info, out);
         } else {
-            wt_print_processes_json(buffer, shown, out);
+            wt_print_processes_json(buffer, shown, short_lived, short_count, out);
         }
         fflush(out);
 
@@ -357,6 +362,8 @@ int wt_cmd_top(const WT_CliOptions *opts)
     }
 
     size_t shown = 0;
+    WT_ShortLivedProcess short_lived[WT_MAX_SHORT_LIVED];
+    size_t short_count = 0;
     WT_ProcessPageInfo page_info;
     ZeroMemory(&page_info, sizeof(page_info));
     WT_Result r;
@@ -365,7 +372,7 @@ int wt_cmd_top(const WT_CliOptions *opts)
                                  include_network, &shown, &page_info);
     } else {
         r = wt_top_snapshot(buffer, limit, sort, sample_ms, include_network,
-                            &shown);
+                            &shown, short_lived, &short_count);
     }
     if (r != WT_OK) {
         free(buffer);
@@ -395,7 +402,7 @@ int wt_cmd_top(const WT_CliOptions *opts)
         if (paged) {
             wt_print_processes_page_json(buffer, shown, &page_info, out);
         } else {
-            wt_print_processes_json(buffer, shown, out);
+            wt_print_processes_json(buffer, shown, short_lived, short_count, out);
         }
         if (opened != NULL) {
             fclose(opened);
@@ -405,6 +412,16 @@ int wt_cmd_top(const WT_CliOptions *opts)
             wt_top_print_page_banner(&page_info);
         }
         wt_print_process_table(buffer, shown);
+        if (!paged && short_count > 0) {
+            size_t i;
+            printf("\nShort-lived (exited during the sample):\n");
+            for (i = 0; i < short_count; ++i) {
+                fwprintf(stdout, L"  %lu  parent %lu  %ls\n", short_lived[i].pid,
+                         short_lived[i].parent_pid,
+                         short_lived[i].name[0] != L'\0' ? short_lived[i].name
+                                                         : L"(process)");
+            }
+        }
     }
 
     free(buffer);

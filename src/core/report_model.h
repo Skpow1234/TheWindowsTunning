@@ -59,6 +59,9 @@ typedef struct WT_ScanReport {
     WT_ProcessInfo top_processes[WT_MAX_TOP_PROCESSES];
     size_t top_process_count;
 
+    WT_ShortLivedProcess short_lived[WT_MAX_SHORT_LIVED];
+    size_t short_lived_count;
+
     WT_PowerInfo power;
 
     WT_BootReport boot;

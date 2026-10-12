@@ -1358,6 +1358,28 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
         }
     }
     wt_json_end_array(&w);
+    wt_json_key(&w, "short_lived");
+    wt_json_begin_array(&w);
+    if (report->processes_ok) {
+        for (size_t si = 0; si < report->short_lived_count; ++si) {
+            const WT_ShortLivedProcess *lived = &report->short_lived[si];
+            wt_json_begin_object(&w);
+            wt_json_key(&w, "pid");
+            wt_json_uint64(&w, lived->pid);
+            wt_json_key(&w, "parent_pid");
+            wt_json_uint64(&w, lived->parent_pid);
+            wt_json_key(&w, "name");
+            if (lived->name[0] != L'\0') {
+                wt_json_wstring(&w, lived->name);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "exited");
+            wt_json_bool(&w, lived->exited);
+            wt_json_end_object(&w);
+        }
+    }
+    wt_json_end_array(&w);
     wt_json_end_object(&w);
 
     /* recommendations */
@@ -1983,7 +2005,9 @@ void wt_print_maintenance_json(const WT_MaintenanceReport *report, FILE *out)
 static void wt_json_emit_process_list(WT_JsonWriter *w,
                                       const WT_ProcessInfo *items,
                                       size_t count,
-                                      const WT_ProcessPageInfo *page)
+                                      const WT_ProcessPageInfo *page,
+                                      const WT_ShortLivedProcess *short_lived,
+                                      size_t short_lived_count)
 {
     wt_json_begin_object(w);
     wt_json_emit_envelope_head(w, "processes");
@@ -2005,14 +2029,39 @@ static void wt_json_emit_process_list(WT_JsonWriter *w,
         wt_json_emit_process(w, &items[i]);
     }
     wt_json_end_array(w);
+    if (short_lived != NULL) {
+        size_t i;
+        wt_json_key(w, "short_lived");
+        wt_json_begin_array(w);
+        for (i = 0; i < short_lived_count; ++i) {
+            wt_json_begin_object(w);
+            wt_json_key(w, "pid");
+            wt_json_uint64(w, short_lived[i].pid);
+            wt_json_key(w, "parent_pid");
+            wt_json_uint64(w, short_lived[i].parent_pid);
+            wt_json_key(w, "name");
+            if (short_lived[i].name[0] != L'\0') {
+                wt_json_wstring(w, short_lived[i].name);
+            } else {
+                wt_json_null(w);
+            }
+            wt_json_key(w, "exited");
+            wt_json_bool(w, short_lived[i].exited);
+            wt_json_end_object(w);
+        }
+        wt_json_end_array(w);
+    }
     wt_json_end_object(w);
 }
 
-void wt_print_processes_json(const WT_ProcessInfo *items, size_t count, FILE *out)
+void wt_print_processes_json(const WT_ProcessInfo *items, size_t count,
+                             const WT_ShortLivedProcess *short_lived,
+                             size_t short_lived_count, FILE *out)
 {
     WT_JsonWriter w;
     wt_json_init(&w, out);
-    wt_json_emit_process_list(&w, items, count, NULL);
+    wt_json_emit_process_list(&w, items, count, NULL, short_lived,
+                              short_lived_count);
     wt_json_finish(&w);
 }
 
@@ -2021,6 +2070,6 @@ void wt_print_processes_page_json(const WT_ProcessInfo *items, size_t count,
 {
     WT_JsonWriter w;
     wt_json_init(&w, out);
-    wt_json_emit_process_list(&w, items, count, page);
+    wt_json_emit_process_list(&w, items, count, page, NULL, 0);
     wt_json_finish(&w);
 }

@@ -35,10 +35,14 @@ static void wt_scan_collect_top_processes(WT_ScanReport *report, size_t top_limi
     size_t count = 0;
     double user_cpu_max = -1.0;
     double user_cpu_sum = -1.0;
+    size_t short_count = 0;
     if (wt_collect_top_processes(report->top_processes, top_limit,
                                  WT_PROCESS_SORT_MEMORY, sample_ms, 0,
-                                 &count, &user_cpu_max, &user_cpu_sum) == WT_OK) {
+                                 &count, &user_cpu_max, &user_cpu_sum,
+                                 report->short_lived, WT_MAX_SHORT_LIVED,
+                                 &short_count) == WT_OK) {
         report->top_process_count = count;
+        report->short_lived_count = short_count;
         report->processes_ok = 1;
         if (report->cpu_ok && report->cpu.available) {
             wt_cpu_attribute_kernel_source(&report->cpu, user_cpu_max,
@@ -305,6 +309,25 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
     if (sample_index > 0 && sample->defender_ok) {
         acc->defender = sample->defender;
         acc->defender_ok = 1;
+    }
+    if (sample_index > 0 && sample->processes_ok) {
+        unsigned int i;
+        for (i = 0; i < sample->short_lived_count &&
+                    acc->short_lived_count < WT_MAX_SHORT_LIVED;
+             ++i) {
+            unsigned int j;
+            int known = 0;
+            for (j = 0; j < acc->short_lived_count; ++j) {
+                if (acc->short_lived[j].pid == sample->short_lived[i].pid) {
+                    known = 1;
+                    break;
+                }
+            }
+            if (!known) {
+                acc->short_lived[acc->short_lived_count++] =
+                    sample->short_lived[i];
+            }
+        }
     }
     if (sample_index > 0 && sample->network_ok) {
         if (acc->network_ok) {

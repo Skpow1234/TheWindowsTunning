@@ -588,6 +588,15 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
                             : "not responding (blocked SendMessage)");
             }
         }
+        if (report->short_lived_count > 0) {
+            fprintf(out, "  Short-lived (exited during the sample):\n");
+            for (size_t i = 0; i < report->short_lived_count; ++i) {
+                const WT_ShortLivedProcess *lived = &report->short_lived[i];
+                fwprintf(out, L"    %lu  parent %lu  %ls\n", lived->pid,
+                         lived->parent_pid,
+                         lived->name[0] != L'\0' ? lived->name : L"(process)");
+            }
+        }
     } else {
         fprintf(out, "  (unavailable)\n");
     }

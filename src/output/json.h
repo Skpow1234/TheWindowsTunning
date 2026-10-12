@@ -69,7 +69,9 @@ void wt_json_finish(WT_JsonWriter *w); /* trailing newline */
  * NULL, in which case the recommendations array is emitted empty. */
 void wt_print_scan_report_json(const WT_ScanReport *report,
                                const WT_RecommendationList *recs, FILE *out);
-void wt_print_processes_json(const WT_ProcessInfo *items, size_t count, FILE *out);
+void wt_print_processes_json(const WT_ProcessInfo *items, size_t count,
+                             const WT_ShortLivedProcess *short_lived,
+                             size_t short_lived_count, FILE *out);
 void wt_print_processes_page_json(const WT_ProcessInfo *items, size_t count,
                                   const WT_ProcessPageInfo *page, FILE *out);
 void wt_print_recommendations_json(const WT_RecommendationList *recs, FILE *out);

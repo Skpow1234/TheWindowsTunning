@@ -55,6 +55,18 @@ typedef struct WT_ProcessInfo {
     WT_FileIdentity identity;            /* publisher / Authenticode (top only) */
 } WT_ProcessInfo;
 
+/* Processes observed during the sample window that were gone at the end.
+ * Read-only. WinTune does not end them. */
+#define WT_MAX_SHORT_LIVED 16
+#define WT_SHORT_LIVED_NAME_MAX 64
+
+typedef struct WT_ShortLivedProcess {
+    unsigned long pid;
+    unsigned long parent_pid;
+    wchar_t name[WT_SHORT_LIVED_NAME_MAX];
+    int exited;
+} WT_ShortLivedProcess;
+
 /* One page of a full process list. `page` is 1-based. */
 #define WT_PROCESS_PAGE_MAX 32
 #define WT_PROCESS_ENUM_MAX 8192
@@ -104,7 +116,9 @@ void wt_sort_processes(WT_ProcessInfo *items, size_t count, WT_ProcessSort sort)
  * (opt-in; higher overhead; no payload capture). */
 /* `out_user_cpu_max` and `out_user_cpu_sum` receive machine-wide CPU percent
  * for user processes (kernel pseudo-processes excluded), or -1 when CPU was
- * not sampled. Either pointer may be NULL. */
+ * not sampled. Either pointer may be NULL.
+ * `out_short_lived` receives processes seen during the sample that had exited
+ * by the end, capped at `short_lived_cap`. Pass NULL to skip that tracking. */
 WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
                                    size_t limit,
                                    WT_ProcessSort sort,
@@ -112,7 +126,10 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
                                    int include_network,
                                    size_t *out_count,
                                    double *out_user_cpu_max,
-                                   double *out_user_cpu_sum);
+                                   double *out_user_cpu_sum,
+                                   WT_ShortLivedProcess *out_short_lived,
+                                   size_t short_lived_cap,
+                                   size_t *out_short_lived_count);
 
 /* Backward-compatible wrapper: top processes by memory without CPU/disk rates. */
 WT_Result wt_collect_top_processes_by_memory(WT_ProcessInfo *out,

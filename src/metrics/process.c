@@ -16,6 +16,9 @@
 #define WT_PROCESS_NET_RATE_CAP 512
 #define WT_WAIT_THREADS_PER_PROCESS 6
 #define WT_WAIT_QUERY_CAP 96
+#define WT_SHORT_POLL_MS 50
+#define WT_SHORT_POLL_MAX 20
+#define WT_SEEN_CAP 1024
 
 typedef struct WT_ProcessIoSample {
     unsigned long pid;
@@ -977,6 +980,131 @@ static int wt_process_kernel_pseudo(unsigned long pid, const wchar_t *name)
            _wcsicmp(name, L"Secure System") == 0;
 }
 
+typedef struct WT_SeenProc {
+    unsigned long pid;
+    unsigned long parent_pid;
+    wchar_t name[WT_SHORT_LIVED_NAME_MAX];
+    int at_start;
+    int at_end;
+} WT_SeenProc;
+
+static void wt_seen_note(WT_SeenProc *seen, size_t *count,
+                         const PROCESSENTRY32W *entry, int at_start, int at_end)
+{
+    size_t i;
+
+    if (entry == NULL || entry->th32ProcessID <= 4) {
+        return;
+    }
+    for (i = 0; i < *count; ++i) {
+        if (seen[i].pid == entry->th32ProcessID) {
+            if (at_start) {
+                seen[i].at_start = 1;
+            }
+            if (at_end) {
+                seen[i].at_end = 1;
+            }
+            return;
+        }
+    }
+    if (*count >= WT_SEEN_CAP) {
+        return;
+    }
+    ZeroMemory(&seen[*count], sizeof(seen[*count]));
+    seen[*count].pid = entry->th32ProcessID;
+    seen[*count].parent_pid = entry->th32ParentProcessID;
+    StringCchCopyW(seen[*count].name, WT_SHORT_LIVED_NAME_MAX, entry->szExeFile);
+    seen[*count].at_start = at_start ? 1 : 0;
+    seen[*count].at_end = at_end ? 1 : 0;
+    (*count)++;
+}
+
+static void wt_seen_snapshot(WT_SeenProc *seen, size_t *count, int at_start,
+                             int at_end)
+{
+    HANDLE snapshot;
+    PROCESSENTRY32W entry;
+
+    if (seen == NULL || count == NULL) {
+        return;
+    }
+    snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snapshot == INVALID_HANDLE_VALUE) {
+        return;
+    }
+    entry.dwSize = sizeof(entry);
+    if (Process32FirstW(snapshot, &entry)) {
+        do {
+            wt_seen_note(seen, count, &entry, at_start, at_end);
+        } while (Process32NextW(snapshot, &entry));
+    }
+    CloseHandle(snapshot);
+}
+
+static void wt_seen_emit(const WT_SeenProc *seen, size_t seen_count,
+                         WT_ShortLivedProcess *out, size_t cap, size_t *out_count)
+{
+    int pass;
+    size_t i;
+    size_t n = 0;
+
+    if (out_count != NULL) {
+        *out_count = 0;
+    }
+    if (seen == NULL || out == NULL || out_count == NULL || cap == 0) {
+        return;
+    }
+    if (cap > WT_MAX_SHORT_LIVED) {
+        cap = WT_MAX_SHORT_LIVED;
+    }
+    for (pass = 0; pass < 2 && n < cap; ++pass) {
+        for (i = 0; i < seen_count && n < cap; ++i) {
+            int born_died = !seen[i].at_start && !seen[i].at_end;
+            int exited = seen[i].at_start && !seen[i].at_end;
+            if (pass == 0 && !born_died) {
+                continue;
+            }
+            if (pass == 1 && !exited) {
+                continue;
+            }
+            if (wt_process_kernel_pseudo(seen[i].pid, seen[i].name)) {
+                continue;
+            }
+            ZeroMemory(&out[n], sizeof(out[n]));
+            out[n].pid = seen[i].pid;
+            out[n].parent_pid = seen[i].parent_pid;
+            StringCchCopyW(out[n].name, WT_SHORT_LIVED_NAME_MAX, seen[i].name);
+            out[n].exited = 1;
+            n++;
+        }
+    }
+    *out_count = n;
+}
+
+static void wt_sample_window(unsigned int sample_ms, WT_SeenProc *seen,
+                             size_t *seen_count)
+{
+    unsigned int left = sample_ms;
+    unsigned int polls = 0;
+
+    if (seen != NULL && seen_count != NULL) {
+        wt_seen_snapshot(seen, seen_count, 1, 0);
+    }
+    while (left > 0) {
+        unsigned int slice = WT_SHORT_POLL_MS;
+        if (polls >= WT_SHORT_POLL_MAX || slice > left) {
+            slice = left;
+        }
+        Sleep(slice);
+        left -= slice;
+        if (seen != NULL && seen_count != NULL && left > 0 &&
+            polls < WT_SHORT_POLL_MAX) {
+            wt_seen_snapshot(seen, seen_count, 0, 0);
+            polls++;
+        }
+    }
+}
+
 WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
                                    size_t limit,
                                    WT_ProcessSort sort,
@@ -984,7 +1112,10 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
                                    int include_network,
                                    size_t *out_count,
                                    double *out_user_cpu_max,
-                                   double *out_user_cpu_sum)
+                                   double *out_user_cpu_sum,
+                                   WT_ShortLivedProcess *out_short_lived,
+                                   size_t short_lived_cap,
+                                   size_t *out_short_lived_count)
 {
     double user_max = -1.0;
     double user_sum = 0.0;
@@ -997,6 +1128,9 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
     }
     if (out_user_cpu_sum != NULL) {
         *out_user_cpu_sum = -1.0;
+    }
+    if (out_short_lived_count != NULL) {
+        *out_short_lived_count = 0;
     }
     if (out == NULL || out_count == NULL || limit == 0) {
         return WT_ERR_INVALID_ARGUMENT;
@@ -1078,7 +1212,14 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
         }
     }
 
-    Sleep(sample_ms);
+    WT_SeenProc *seen = NULL;
+    size_t seen_count = 0;
+    if (out_short_lived != NULL && out_short_lived_count != NULL &&
+        short_lived_cap > 0) {
+        seen = (WT_SeenProc *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
+                                        WT_SEEN_CAP * sizeof(WT_SeenProc));
+    }
+    wt_sample_window(sample_ms, seen, seen != NULL ? &seen_count : NULL);
 
     WT_ProcessNetRate net_rates[WT_PROCESS_NET_RATE_CAP];
     size_t net_rate_count = 0;
@@ -1100,6 +1241,9 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
         }
         HeapFree(GetProcessHeap(), 0, cpu_before);
         HeapFree(GetProcessHeap(), 0, io_before);
+        if (seen != NULL) {
+            HeapFree(GetProcessHeap(), 0, seen);
+        }
         return WT_ERR_OUT_OF_MEMORY;
     }
 
@@ -1113,6 +1257,9 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
         HeapFree(GetProcessHeap(), 0, cpu_after);
         HeapFree(GetProcessHeap(), 0, cpu_before);
         HeapFree(GetProcessHeap(), 0, io_before);
+        if (seen != NULL) {
+            HeapFree(GetProcessHeap(), 0, seen);
+        }
         return WT_ERR_OUT_OF_MEMORY;
     }
 
@@ -1125,6 +1272,9 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
         HeapFree(GetProcessHeap(), 0, cpu_after);
         HeapFree(GetProcessHeap(), 0, cpu_before);
         HeapFree(GetProcessHeap(), 0, io_before);
+        if (seen != NULL) {
+            HeapFree(GetProcessHeap(), 0, seen);
+        }
         return WT_ERR_WIN32;
     }
 
@@ -1138,6 +1288,9 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
         do {
             WT_ProcessInfo info;
             wt_process_fill(&info, &entry);
+            if (seen != NULL) {
+                wt_seen_note(seen, &seen_count, &entry, 0, 1);
+            }
 
             if (info.cpu_percent < 0.0) {
                 const WT_ProcessCpuSample *cb =
@@ -1200,6 +1353,11 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
     }
 
     CloseHandle(snapshot);
+    wt_seen_emit(seen, seen_count, out_short_lived, short_lived_cap,
+                 out_short_lived_count);
+    if (seen != NULL) {
+        HeapFree(GetProcessHeap(), 0, seen);
+    }
     HeapFree(GetProcessHeap(), 0, io_before);
     HeapFree(GetProcessHeap(), 0, io_after);
     HeapFree(GetProcessHeap(), 0, cpu_before);
@@ -1226,7 +1384,7 @@ WT_Result wt_collect_top_processes_by_memory(WT_ProcessInfo *out,
                                              size_t *out_count)
 {
     return wt_collect_top_processes(out, limit, WT_PROCESS_SORT_MEMORY, 0, 0,
-                                    out_count, NULL, NULL);
+                                    out_count, NULL, NULL, NULL, 0, NULL);
 }
 
 void wt_sort_processes_by_memory(WT_ProcessInfo *items, size_t count)

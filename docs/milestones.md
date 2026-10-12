@@ -1,6 +1,6 @@
 # WinTune milestones 54–157
 
-Phases 0–69 are done. See [`roadmap.md`](roadmap.md). Phases 70–157 are
+Phases 0–70 are done. See [`roadmap.md`](roadmap.md). Phases 71–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -208,9 +208,15 @@ WinTune does not change network settings.
 
 ### Phase 70 — Short-lived processes
 
-**Status:** Planned
+**Status:** Done
 
-**Deliver:** Track short-lived processes across the sample window so they are not missed.
+**Deliver:** Track short-lived processes across the sample window so they are
+not missed. During the existing sample, process snapshots are taken about
+every 50 ms (at most 20 times). A process seen in that window and gone at
+the end is listed in `short_lived` with its PID, parent PID, and name.
+`exited` is true. Processes that are still running stay in the normal top
+list. The list is capped at 16. JSON `short_lived` is an empty array when
+none exited. WinTune does not end processes.
 
 ### Phase 71 — Collector timing
 
