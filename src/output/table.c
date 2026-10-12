@@ -123,6 +123,25 @@ void wt_print_process_table(const WT_ProcessInfo *items, size_t count)
         }
     }
 
+    int any_hung = 0;
+    for (size_t i = 0; i < count; ++i) {
+        if (items[i].hung) {
+            any_hung = 1;
+            break;
+        }
+    }
+    if (any_hung) {
+        printf("\nWait chain (read-only; WinTune does not end processes):\n");
+        for (size_t i = 0; i < count; ++i) {
+            if (!items[i].hung) {
+                continue;
+            }
+            printf("  %lu %ls is %s.\n", items[i].pid, items[i].name,
+                   items[i].wait_cycle
+                       ? "in a deadlock"
+                       : "not responding (blocked SendMessage)");
+        }
+    }
     if (any_unusual) {
         printf("\nLoc marked with ! is worth a calm review (temp/downloads, or "
                "Microsoft-labeled binary outside Windows/Program Files). "

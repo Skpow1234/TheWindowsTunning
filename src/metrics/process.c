@@ -7,12 +7,15 @@
 #include <windows.h>
 #include <tlhelp32.h>
 #include <psapi.h>
+#include <wct.h>
 #include <strsafe.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define WT_PROCESS_DEFAULT_SAMPLE_MS 500
 #define WT_PROCESS_NET_RATE_CAP 512
+#define WT_WAIT_THREADS_PER_PROCESS 6
+#define WT_WAIT_QUERY_CAP 96
 
 typedef struct WT_ProcessIoSample {
     unsigned long pid;
@@ -691,6 +694,7 @@ WT_Result wt_collect_process_page(WT_ProcessInfo *out,
     }
     *out_count = slice;
     wt_enrich_process_identity(out, slice);
+    wt_enrich_process_wait_chain(out, slice);
 
     HeapFree(GetProcessHeap(), 0, all);
     return WT_OK;
@@ -764,6 +768,124 @@ static int wt_compare_by_network_desc(const void *a, const void *b)
     return 0;
 }
 
+static int wt_wait_chain_is_hung(const WAITCHAIN_NODE_INFO *nodes, DWORD count,
+                                BOOL cycle, int *out_cycle)
+{
+    if (out_cycle != NULL) {
+        *out_cycle = 0;
+    }
+    if (cycle) {
+        if (out_cycle != NULL) {
+            *out_cycle = 1;
+        }
+        return 1;
+    }
+    for (DWORD i = 0; i < count; ++i) {
+        /* A thread blocked in SendMessage is the official "not responding"
+         * wait chain. Ordinary blocked threads are normal and are ignored. */
+        if (nodes[i].ObjectType == WctSendMessageType) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void wt_enrich_process_wait_chain(WT_ProcessInfo *items, size_t count)
+{
+    if (items == NULL || count == 0) {
+        return;
+    }
+    for (size_t i = 0; i < count; ++i) {
+        items[i].wait_checked = 0;
+        items[i].hung = 0;
+        items[i].wait_cycle = 0;
+    }
+
+    HWCT session = OpenThreadWaitChainSession(0, NULL);
+    if (session == NULL) {
+        return;
+    }
+
+    unsigned long *tids = (unsigned long *)HeapAlloc(
+        GetProcessHeap(), HEAP_ZERO_MEMORY,
+        count * WT_WAIT_THREADS_PER_PROCESS * sizeof(unsigned long));
+    int *seen = (int *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
+                                 count * sizeof(int));
+    if (tids == NULL || seen == NULL) {
+        if (tids != NULL) {
+            HeapFree(GetProcessHeap(), 0, tids);
+        }
+        if (seen != NULL) {
+            HeapFree(GetProcessHeap(), 0, seen);
+        }
+        CloseThreadWaitChainSession(session);
+        return;
+    }
+
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (snap != INVALID_HANDLE_VALUE) {
+        THREADENTRY32 te;
+        te.dwSize = sizeof(te);
+        if (Thread32First(snap, &te)) {
+            do {
+                for (size_t i = 0; i < count; ++i) {
+                    if (items[i].pid < 8 ||
+                            items[i].pid != te.th32OwnerProcessID) {
+                        continue;
+                    }
+                    if (seen[i] >= WT_WAIT_THREADS_PER_PROCESS) {
+                        break;
+                    }
+                    tids[(i * WT_WAIT_THREADS_PER_PROCESS) + (size_t)seen[i]] =
+                        te.th32ThreadID;
+                    seen[i]++;
+                    break;
+                }
+            } while (Thread32Next(snap, &te));
+        }
+        CloseHandle(snap);
+    }
+
+    int queries = 0;
+    for (size_t i = 0; i < count && queries < WT_WAIT_QUERY_CAP; ++i) {
+        if (items[i].pid < 8 || seen[i] == 0) {
+            continue;
+        }
+        int any_ok = 0;
+        for (int t = 0; t < seen[i] && queries < WT_WAIT_QUERY_CAP; ++t) {
+            WAITCHAIN_NODE_INFO nodes[WCT_MAX_NODE_COUNT];
+            DWORD node_count = WCT_MAX_NODE_COUNT;
+            BOOL cycle = FALSE;
+            ZeroMemory(nodes, sizeof(nodes));
+            queries++;
+            if (!GetThreadWaitChain(
+                    session, 0,
+                    WCT_OUT_OF_PROC_FLAG | WCT_OUT_OF_PROC_CS_FLAG,
+                    tids[(i * WT_WAIT_THREADS_PER_PROCESS) + (size_t)t],
+                    &node_count, nodes, &cycle)) {
+                continue;
+            }
+            any_ok = 1;
+            int is_cycle = 0;
+            if (node_count > WCT_MAX_NODE_COUNT) {
+                node_count = WCT_MAX_NODE_COUNT;
+            }
+            if (wt_wait_chain_is_hung(nodes, node_count, cycle, &is_cycle)) {
+                items[i].hung = 1;
+                if (is_cycle) {
+                    items[i].wait_cycle = 1;
+                }
+                break;
+            }
+        }
+        items[i].wait_checked = any_ok;
+    }
+
+    HeapFree(GetProcessHeap(), 0, tids);
+    HeapFree(GetProcessHeap(), 0, seen);
+    CloseThreadWaitChainSession(session);
+}
+
 void wt_enrich_process_identity(WT_ProcessInfo *items, size_t count)
 {
     if (items == NULL) {
@@ -821,6 +943,7 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
         if (result == WT_OK) {
             wt_sort_processes(out, *out_count, sort);
             wt_enrich_process_identity(out, *out_count);
+            wt_enrich_process_wait_chain(out, *out_count);
         }
         return result;
     }
@@ -986,6 +1109,7 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
     if (result == WT_OK) {
         wt_sort_processes(out, *out_count, sort);
         wt_enrich_process_identity(out, *out_count);
+        wt_enrich_process_wait_chain(out, *out_count);
     }
     return result;
 }

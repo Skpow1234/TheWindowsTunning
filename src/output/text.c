@@ -349,6 +349,26 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
                 fprintf(out, "\n");
             }
         }
+        int any_hung = 0;
+        for (size_t i = 0; i < report->top_process_count; ++i) {
+            if (report->top_processes[i].hung) {
+                any_hung = 1;
+                break;
+            }
+        }
+        if (any_hung) {
+            fprintf(out, "  Wait chain (read-only; WinTune does not end processes):\n");
+            for (size_t i = 0; i < report->top_process_count; ++i) {
+                const WT_ProcessInfo *p = &report->top_processes[i];
+                if (!p->hung) {
+                    continue;
+                }
+                fprintf(out, "    %lu %ls is %s.\n", p->pid, p->name,
+                        p->wait_cycle
+                            ? "in a deadlock"
+                            : "not responding (blocked SendMessage)");
+            }
+        }
     } else {
         fprintf(out, "  (unavailable)\n");
     }

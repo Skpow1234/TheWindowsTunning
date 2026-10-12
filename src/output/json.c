@@ -318,6 +318,18 @@ static void wt_json_emit_process(WT_JsonWriter *w, const WT_ProcessInfo *p)
     }
     wt_json_key(w, "integrity");
     wt_json_string(w, wt_integrity_level_name(p->integrity));
+    wt_json_key(w, "hung");
+    if (p->wait_checked) {
+        wt_json_bool(w, p->hung);
+    } else {
+        wt_json_null(w);
+    }
+    wt_json_key(w, "wait_cycle");
+    if (p->wait_checked) {
+        wt_json_bool(w, p->wait_cycle);
+    } else {
+        wt_json_null(w);
+    }
     wt_json_key(w, "name");               wt_json_wstring(w, p->name);
     wt_json_key(w, "working_set_bytes");  wt_json_uint64(w, p->working_set_bytes);
     wt_json_key(w, "private_bytes");      wt_json_uint64(w, p->private_bytes);

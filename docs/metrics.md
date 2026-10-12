@@ -319,6 +319,8 @@ CloseHandle
 - I/O counters.
 - Session ID, when `ProcessIdToSessionId` succeeds.
 - Integrity level from the process token (`unknown` when the token cannot be opened).
+- Wait-chain hang or deadlock for the rows that are returned (`GetThreadWaitChain`).
+  A blocked thread is not a hang by itself. WinTune does not end the process.
 - For top-process lists: publisher (`CompanyName`), product (`ProductName`),
   Authenticode status, origin cue, install-location class, and
   `unusual_location` (calm review only) via `src/system/file_identity.c`.

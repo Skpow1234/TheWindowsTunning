@@ -504,6 +504,21 @@ static void wt_tui_render_processes(WT_TuiScreen *s, const WT_TuiTheme *t,
     if (scroll + (size_t)shown < count) {
         wt_tui_empty_line(s, t, "... more (j/k or arrows to scroll)");
     }
+    size_t hung_n = 0;
+    size_t cycle_n = 0;
+    for (size_t i = 0; i < count; ++i) {
+        if (procs[i].hung) {
+            hung_n++;
+        }
+        if (procs[i].wait_cycle) {
+            cycle_n++;
+        }
+    }
+    if (hung_n > 0) {
+        wt_tui_screen_line(s, "%swait-chain:%s %zu hung, %zu deadlock (read-only)%s",
+                           wt_tui_dim(t), wt_tui_reset(t), hung_n, cycle_n,
+                           wt_tui_reset(t));
+    }
 }
 
 static void wt_tui_render_disk(WT_TuiScreen *s, const WT_TuiTheme *t, double active)

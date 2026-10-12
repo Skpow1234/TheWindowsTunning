@@ -85,7 +85,9 @@ beside the `processes` array. A top-K `top --json` snapshot omits those keys.
 
 Each process object includes `parent_pid`, `session_id` (null when unread), and
 `integrity` (`unknown`, `untrusted`, `low`, `medium`, `medium_plus`, `high`,
-`system`, or `protected`).
+`system`, or `protected`). `hung` and `wait_cycle` are booleans when a
+wait-chain query succeeded, and null when it did not. `hung` means a
+`SendMessage` hang or a deadlock. `wait_cycle` is true only for a cycle.
 
 ## Error documents (`--json-errors`)
 

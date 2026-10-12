@@ -178,7 +178,11 @@ when measured; JSON adds `net_recv_bytes_per_sec` / `net_send_bytes_per_sec`
 JSON process rows include provenance (`publisher`, `product_name`, `location`,
 `unusual_location`, …) plus `parent_pid`, `session_id` (null when unread), and
 `integrity` (`unknown`, `untrusted`, `low`, `medium`, `medium_plus`, `high`,
-`system`, `protected`). Text tables add PPID, Sess, and Integrity. `parent_pid`
+`system`, `protected`), plus `hung` and `wait_cycle`. Those two are JSON null
+when the wait-chain query did not succeed. A `hung` process is blocked in
+`SendMessage` or is in a deadlock (`wait_cycle`). Ordinary blocked threads are
+not hangs. Text output lists hung rows only when one is found, and WinTune
+does not end them. Text tables add PPID, Sess, and Integrity. `parent_pid`
 is the ToolHelp parent and can be reused after that process exits. Integrity
 is `unknown` when the process token cannot be opened. `!` on Loc means calm
 review only.

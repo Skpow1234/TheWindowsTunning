@@ -379,7 +379,7 @@ Test-ExpectExit "top --page past end" @("top", "--page", "999999", "--page-size"
     -ExitCodes @(12) -StdoutOrErrRegex "page"
 Test-JsonArrayItemFields "top --json provenance" @("top", "--json", "--limit", "5") `
     -ArrayKey "processes" `
-    -ItemFields @("publisher", "product_name", "location", "unusual_location", "image_path", "origin", "signature", "parent_pid", "session_id", "integrity")
+    -ItemFields @("publisher", "product_name", "location", "unusual_location", "image_path", "origin", "signature", "parent_pid", "session_id", "integrity", "hung", "wait_cycle")
 
 Test-ExpectOk "doctor" @("doctor", "--samples", "1", "--interval", "200") `
     -StdoutContains @("WinTune") -TimeoutSec $scanTimeout

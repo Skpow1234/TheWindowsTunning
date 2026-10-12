@@ -33,6 +33,9 @@ typedef struct WT_ProcessInfo {
     unsigned long session_id;
     int session_ok;                      /* 0 when the session could not be read */
     WT_IntegrityLevel integrity;         /* UNKNOWN when the token cannot be read */
+    int wait_checked;                    /* 1 when a wait-chain query succeeded */
+    int hung;                            /* 1 when the wait chain is a hang or deadlock */
+    int wait_cycle;                      /* 1 when the wait chain contains a cycle */
     wchar_t name[WT_PROCESS_NAME_MAX];
     unsigned long long working_set_bytes;
     unsigned long long private_bytes;
@@ -71,6 +74,10 @@ const char *wt_integrity_level_name(WT_IntegrityLevel level);
 
 /* Best-effort publisher/signature fill for an existing process list. */
 void wt_enrich_process_identity(WT_ProcessInfo *items, size_t count);
+
+/* Read-only wait-chain check for an existing process list (not the full
+ * machine). Sets hung/wait_cycle only when a query succeeds. */
+void wt_enrich_process_wait_chain(WT_ProcessInfo *items, size_t count);
 
 /* Enumerates running processes (Tool Help) and collects per-process memory and
  * I/O counters (PSAPI). Processes that cannot be opened are still listed with

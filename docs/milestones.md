@@ -1,6 +1,6 @@
 # WinTune milestones 54–153
 
-Phases 0–55 are done. See [`roadmap.md`](roadmap.md). Phases 56–153 are
+Phases 0–56 are done. See [`roadmap.md`](roadmap.md). Phases 57–153 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -38,9 +38,12 @@ opened. Nothing here changes a token or a process.
 
 ### Phase 56 — Hung processes
 
-**Status:** Planned
+**Status:** Done
 
 **Deliver:** Detect hung processes with the official wait-chain API. Read-only.
+`GetThreadWaitChain` runs only on the rows `top` and `scan` already return.
+`hung` is a `SendMessage` block or a deadlock cycle. Ordinary waits are not
+hangs. WinTune does not end the process.
 
 ### Phase 57 — Per-process GPU
 
