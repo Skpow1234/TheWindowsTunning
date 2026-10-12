@@ -118,6 +118,8 @@ static void wt_process_init_metrics(WT_ProcessInfo *p)
     p->disk_write_bytes_per_sec = -1.0;
     p->net_recv_bytes_per_sec = -1.0;
     p->net_send_bytes_per_sec = -1.0;
+    p->udp_recv_bytes_per_sec = -1.0;
+    p->udp_send_bytes_per_sec = -1.0;
 }
 
 const char *wt_integrity_level_name(WT_IntegrityLevel level)
@@ -250,7 +252,9 @@ static int wt_process_sort_key(const WT_ProcessInfo *p, WT_ProcessSort sort)
     case WT_PROCESS_SORT_NETWORK: {
         /* Include idle measured processes, but skip inaccessible shells. */
         if (p->net_recv_bytes_per_sec < 0.0 &&
-            p->net_send_bytes_per_sec < 0.0) {
+            p->net_send_bytes_per_sec < 0.0 &&
+            p->udp_recv_bytes_per_sec < 0.0 &&
+            p->udp_send_bytes_per_sec < 0.0) {
             return 0;
         }
         double rate = 0.0;
@@ -259,6 +263,12 @@ static int wt_process_sort_key(const WT_ProcessInfo *p, WT_ProcessSort sort)
         }
         if (p->net_send_bytes_per_sec >= 0.0) {
             rate += p->net_send_bytes_per_sec;
+        }
+        if (p->udp_recv_bytes_per_sec >= 0.0) {
+            rate += p->udp_recv_bytes_per_sec;
+        }
+        if (p->udp_send_bytes_per_sec >= 0.0) {
+            rate += p->udp_send_bytes_per_sec;
         }
         if (rate > 0.0) {
             return 1;
@@ -297,7 +307,13 @@ static unsigned long long wt_process_sort_value(const WT_ProcessInfo *p,
         if (p->net_send_bytes_per_sec >= 0.0) {
             rate += p->net_send_bytes_per_sec;
         }
-        /* Active TCP traffic ranks first; idle falls back to memory. */
+        if (p->udp_recv_bytes_per_sec >= 0.0) {
+            rate += p->udp_recv_bytes_per_sec;
+        }
+        if (p->udp_send_bytes_per_sec >= 0.0) {
+            rate += p->udp_send_bytes_per_sec;
+        }
+        /* Active TCP/UDP traffic ranks first; idle falls back to memory. */
         if (rate > 0.0) {
             return (unsigned long long)rate;
         }
@@ -582,19 +598,30 @@ WT_Result wt_process_page_bounds(size_t total,
     return WT_OK;
 }
 
+static void wt_apply_one_net_rate(WT_ProcessInfo *item, const WT_ProcessNetRate *nr,
+                                  int udp_measured)
+{
+    if (nr != NULL) {
+        item->net_recv_bytes_per_sec = nr->recv_bytes_per_sec;
+        item->net_send_bytes_per_sec = nr->send_bytes_per_sec;
+        item->udp_recv_bytes_per_sec = nr->udp_recv_bytes_per_sec;
+        item->udp_send_bytes_per_sec = nr->udp_send_bytes_per_sec;
+    } else {
+        item->net_recv_bytes_per_sec = 0.0;
+        item->net_send_bytes_per_sec = 0.0;
+        item->udp_recv_bytes_per_sec = udp_measured ? 0.0 : -1.0;
+        item->udp_send_bytes_per_sec = udp_measured ? 0.0 : -1.0;
+    }
+}
+
 static void wt_apply_net_rates(WT_ProcessInfo *items, size_t count,
-                               const WT_ProcessNetRate *rates, size_t rate_count)
+                               const WT_ProcessNetRate *rates, size_t rate_count,
+                               int udp_measured)
 {
     for (size_t i = 0; i < count; ++i) {
         const WT_ProcessNetRate *nr =
             wt_find_process_net_rate(rates, rate_count, items[i].pid);
-        if (nr != NULL) {
-            items[i].net_recv_bytes_per_sec = nr->recv_bytes_per_sec;
-            items[i].net_send_bytes_per_sec = nr->send_bytes_per_sec;
-        } else {
-            items[i].net_recv_bytes_per_sec = 0.0;
-            items[i].net_send_bytes_per_sec = 0.0;
-        }
+        wt_apply_one_net_rate(&items[i], nr, udp_measured);
     }
 }
 
@@ -665,7 +692,8 @@ WT_Result wt_collect_process_page(WT_ProcessInfo *out,
             if (wt_net_tcp_sample_finish(&net_session, net_rates,
                                          WT_PROCESS_NET_RATE_CAP,
                                          &net_rate_count) == WT_OK) {
-                wt_apply_net_rates(all, total, net_rates, net_rate_count);
+                wt_apply_net_rates(all, total, net_rates, net_rate_count,
+                                   net_session.udp_measured);
             }
         }
     }
@@ -755,11 +783,23 @@ static int wt_compare_by_network_desc(const void *a, const void *b)
     if (pa->net_send_bytes_per_sec >= 0.0) {
         da += pa->net_send_bytes_per_sec;
     }
+    if (pa->udp_recv_bytes_per_sec >= 0.0) {
+        da += pa->udp_recv_bytes_per_sec;
+    }
+    if (pa->udp_send_bytes_per_sec >= 0.0) {
+        da += pa->udp_send_bytes_per_sec;
+    }
     if (pb->net_recv_bytes_per_sec >= 0.0) {
         db += pb->net_recv_bytes_per_sec;
     }
     if (pb->net_send_bytes_per_sec >= 0.0) {
         db += pb->net_send_bytes_per_sec;
+    }
+    if (pb->udp_recv_bytes_per_sec >= 0.0) {
+        db += pb->udp_recv_bytes_per_sec;
+    }
+    if (pb->udp_send_bytes_per_sec >= 0.0) {
+        db += pb->udp_send_bytes_per_sec;
     }
     if (da < db) return 1;
     if (da > db) return -1;
@@ -1085,13 +1125,7 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
                 const WT_ProcessNetRate *nr =
                     wt_find_process_net_rate(net_rates, net_rate_count,
                                              info.pid);
-                if (nr != NULL) {
-                    info.net_recv_bytes_per_sec = nr->recv_bytes_per_sec;
-                    info.net_send_bytes_per_sec = nr->send_bytes_per_sec;
-                } else {
-                    info.net_recv_bytes_per_sec = 0.0;
-                    info.net_send_bytes_per_sec = 0.0;
-                }
+                wt_apply_one_net_rate(&info, nr, net_session.udp_measured);
             }
 
             wt_topk_insert(out, out_count, limit, &info, sort);

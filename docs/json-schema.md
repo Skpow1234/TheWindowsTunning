@@ -91,6 +91,11 @@ Each process object includes `parent_pid`, `session_id` (null when unread), and
 `system`, or `protected`). `hung` and `wait_cycle` are booleans when a
 wait-chain query succeeded, and null when it did not. `hung` means a
 `SendMessage` hang or a deadlock. `wait_cycle` is true only for a cycle.
+`net_recv_bytes_per_sec` and `net_send_bytes_per_sec` are TCP Extended Stats
+rates, null when network sampling is off. `udp_recv_bytes_per_sec` and
+`udp_send_bytes_per_sec` are TCP/IP summary byte rates from the same window,
+null when that trace did not start, and 0 when it ran and the process had no
+UDP summary events.
 
 ## Error documents (`--json-errors`)
 

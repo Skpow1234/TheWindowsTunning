@@ -78,7 +78,8 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 55 | Process identity (parent, session, integrity) | Done |
 | 56 | Hung processes (wait chain, read-only) | Done |
 | 57 | Per-process GPU engine time | Done |
-| 58–73 | Measurement depth | Planned |
+| 58 | UDP byte rates beside TCP EStats | Done |
+| 59–73 | Measurement depth | Planned |
 | 74–83 | Clearer explanations | Planned |
 | 84–97 | Safe apply completion | Planned |
 | 98–105, 114 | Local history and baselines | Planned |
@@ -742,7 +743,7 @@ wintune top --json
   `GetPerTcpConnectionEStats`) for per-process send/recv rates (equivalent
   official path to always-on TCPIP ETW; no payload capture).
 - Off by default (`--include-network` or `--sort network`; TUI `w` / `4`).
-- Clear overhead note in CLI help/docs; UDP not included.
+- Clear overhead note in CLI help/docs. UDP byte rates are Phase 58.
 - Net R / Net W columns in `top` text + JSON; Net column in TUI when enabled.
 
 **Depends on:** Phases 10, 15.
@@ -1289,10 +1290,10 @@ allow-list. Memory, disk, CPU, boot, update, and uninstall findings stay
 advisory. Nothing in this range disables Defender, Windows Update, or the
 firewall, and nothing uploads a report.
 
-The phase-by-phase list is [`milestones.md`](milestones.md). Phases 54–57
+The phase-by-phase list is [`milestones.md`](milestones.md). Phases 54–58
 are done; the rest of this range is still planned.
 
-Phases 54–57 are done (`wintune top --page`, process identity, read-only wait chain, per-process GPU time). Suggested order inside v4: measurement (58–73), explanations (74–83), apply
+Phases 54–58 are done (`wintune top --page`, process identity, read-only wait chain, per-process GPU time, UDP byte rates). Suggested order inside v4: measurement (59–73), explanations (74–83), apply
 (84–97), history (98–105), TUI (106–115), CLI (116–124), service (125–132),
 boot (133–140), fleet (141–148), release (149–153).
 

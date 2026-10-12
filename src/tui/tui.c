@@ -395,7 +395,9 @@ static void wt_tui_render_processes(WT_TuiScreen *s, const WT_TuiTheme *t,
             show_cpu = 1;
         }
         if (procs[i].net_recv_bytes_per_sec >= 0.0 ||
-            procs[i].net_send_bytes_per_sec >= 0.0) {
+            procs[i].net_send_bytes_per_sec >= 0.0 ||
+            procs[i].udp_recv_bytes_per_sec >= 0.0 ||
+            procs[i].udp_send_bytes_per_sec >= 0.0) {
             show_net = 1;
         }
     }
@@ -458,6 +460,12 @@ static void wt_tui_render_processes(WT_TuiScreen *s, const WT_TuiTheme *t,
             }
             if (procs[i].net_send_bytes_per_sec >= 0.0) {
                 net_rate += procs[i].net_send_bytes_per_sec;
+            }
+            if (procs[i].udp_recv_bytes_per_sec >= 0.0) {
+                net_rate += procs[i].udp_recv_bytes_per_sec;
+            }
+            if (procs[i].udp_send_bytes_per_sec >= 0.0) {
+                net_rate += procs[i].udp_send_bytes_per_sec;
             }
             char disk[32], net[32];
             wt_tui_rate(disk_rate, disk, sizeof(disk));
@@ -792,7 +800,7 @@ static void wt_tui_render_help(WT_TuiScreen *s, const WT_TuiTheme *t)
     wt_tui_empty_line(s, t,
                       "Themes: --theme default|compact|mono|high-contrast|ssh");
     wt_tui_empty_line(s, t, "SSH: wintune tui --safe-terminal  (or --theme ssh)");
-    wt_tui_empty_line(s, t, "Net columns: TCP Extended Stats only; UDP not included.");
+    wt_tui_empty_line(s, t, "Net column adds TCP and UDP byte rates. Split UDP columns are in top.");
     wt_tui_empty_line(s, t, "Compare deltas are sample differences — not lasting gains.");
     wt_tui_empty_line(s, t, "WinTune never changes the system from the dashboard.");
 }
@@ -1521,7 +1529,7 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
                 state.include_network = 1;
                 state.proc_scroll = 0;
                 state.paused = 0;
-                wt_tui_set_status(&state, "sort: net (TCP EStats on)", 2000);
+                wt_tui_set_status(&state, "sort: net (TCP + UDP byte rates)", 2000);
                 redraw = 1;
                 break;
             case WT_TUI_KEY_TOGGLE_NETWORK:
@@ -1533,7 +1541,7 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
                 state.paused = 0;
                 wt_tui_set_status(&state,
                                   state.include_network
-                                      ? "per-process net: on (TCP only)"
+                                      ? "per-process net: on (TCP + UDP)"
                                       : "per-process net: off",
                                   2000);
                 redraw = 1;

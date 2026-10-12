@@ -38,8 +38,8 @@ Per-process metrics in `top`, `scan`, and TUI:
 - **CPU%** — PDH `\Process(*)\% Processor Time` when available; otherwise
   `GetProcessTimes` delta over the sample window (same approach as Task Manager)
 - **Disk read/write rates** — delta of `GetProcessIoCounters` over the sample window
-- **Network send/recv rates** — opt-in TCP Extended Stats (`--include-network`);
-  see Network section (no payload capture; UDP not included)
+- **Network send/recv rates** — opt-in TCP Extended Stats and UDP summary
+  byte rates (`--include-network`); see Network section (no payload capture)
 
 ---
 
@@ -261,16 +261,22 @@ SetPerTcpConnectionEStats /
 GetPerTcpConnectionEStats          /* opt-in per-process TCP byte rates */
 SetPerTcp6ConnectionEStats /
 GetPerTcp6ConnectionEStats
+StartTraceW / EnableTraceEx2          /* Microsoft-Windows-TCPIP 1169/1170 */
 ```
 
 **Collect:**
 - System-wide received/sent octets across non-loopback interfaces (`wt_collect_net_totals`).
 - Opt-in per-process TCP send/recv bytes/sec (`--include-network` / TUI `w`)
   via IP Helper Extended Stats aggregated by OwningPid (Phase 27).
+- Opt-in per-process UDP send/recv bytes/sec in the same window (Phase 58).
+  Events 1169 and 1170 are byte summaries (keyword SendPath / ReceivePath).
+  The parser keeps the PID and the byte count and skips both socket addresses.
 
 **Overhead:** Per-process sampling enables TCP EStats on up to ~1024 connections
-for one sample window. Keep it off unless you need Net columns or
-`--sort network`. No packet capture of payloads; UDP is not included.
+and a real-time TCP/IP summary trace for one sample window. Keep it off unless
+you need Net columns or `--sort network`. No packet capture of payloads.
+UDP rates need an administrator; a failed trace leaves the UDP fields unset
+and does not drop the TCP sample. A process with no summary events is 0.
 
 Sensitive network details are not exposed by default. WinTune does not change
 DNS, proxy, firewall, routing, or adapter settings in v1.

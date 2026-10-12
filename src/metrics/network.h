@@ -11,13 +11,16 @@ typedef struct WT_NetTotals {
     unsigned int interface_count;  /* operational, non-loopback interfaces */
 } WT_NetTotals;
 
-/* Per-process TCP send/recv rates from IP Helper Extended Stats (Phase 27).
- * Opt-in only: enabling EStats on many connections has measurable overhead.
- * Does not capture payloads. UDP is not included. */
+/* Per-process TCP send/recv rates from IP Helper Extended Stats (Phase 27),
+ * plus UDP send/recv byte rates from TCP/IP summary events (Phase 58).
+ * Opt-in only. Does not capture payloads or store addresses.
+ * udp_* is -1 when the UDP trace did not run (often needs an administrator). */
 typedef struct WT_ProcessNetRate {
     unsigned long pid;
     double recv_bytes_per_sec;
     double send_bytes_per_sec;
+    double udp_recv_bytes_per_sec;
+    double udp_send_bytes_per_sec;
 } WT_ProcessNetRate;
 
 /* Opaque begin/end sample so callers can Sleep once shared with CPU/disk. */
@@ -26,6 +29,8 @@ typedef struct WT_NetTcpSampleSession {
     size_t before_count;
     unsigned int sample_ms;
     int active;
+    int udp_measured; /* 1 when the UDP summary trace ran for this window */
+    void *udp;        /* internal trace state; not for callers */
 } WT_NetTcpSampleSession;
 
 /* Sums cumulative received/sent bytes across operational, non-loopback network

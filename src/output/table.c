@@ -33,7 +33,9 @@ void wt_print_process_table(const WT_ProcessInfo *items, size_t count)
             show_disk = 1;
         }
         if (items[i].net_recv_bytes_per_sec >= 0.0 ||
-                items[i].net_send_bytes_per_sec >= 0.0) {
+                items[i].net_send_bytes_per_sec >= 0.0 ||
+                items[i].udp_recv_bytes_per_sec >= 0.0 ||
+                items[i].udp_send_bytes_per_sec >= 0.0) {
             show_net = 1;
         }
         if (items[i].identity.unusual_location) {
@@ -43,9 +45,10 @@ void wt_print_process_table(const WT_ProcessInfo *items, size_t count)
 
     if (show_cpu || show_disk || show_net) {
         if (show_net) {
-            printf("%-8s %-8s %-5s %-12s %-14s %-9s %-6s %6s %9s %9s %9s %9s %9s\n",
+            printf("%-8s %-8s %-5s %-12s %-14s %-9s %-6s %6s %9s %9s %9s %9s %9s %9s %9s\n",
                    "PID", "PPID", "Sess", "Integrity", "Process", "Origin", "Loc",
-                   "CPU%", "Memory", "Disk R", "Disk W", "Net R", "Net W");
+                   "CPU%", "Memory", "Disk R", "Disk W", "Net R", "Net W",
+                   "UDP R", "UDP W");
         } else {
             printf("%-8s %-8s %-5s %-12s %-16s %-11s %-8s %7s %11s %11s %11s\n",
                    "PID", "PPID", "Sess", "Integrity", "Process", "Origin", "Loc",
@@ -87,21 +90,25 @@ void wt_print_process_table(const WT_ProcessInfo *items, size_t count)
             if (show_net) {
                 wchar_t net_r[32];
                 wchar_t net_w[32];
+                wchar_t udp_r[32];
+                wchar_t udp_w[32];
                 wt_format_rate(items[i].net_recv_bytes_per_sec, net_r, 32);
                 wt_format_rate(items[i].net_send_bytes_per_sec, net_w, 32);
+                wt_format_rate(items[i].udp_recv_bytes_per_sec, udp_r, 32);
+                wt_format_rate(items[i].udp_send_bytes_per_sec, udp_w, 32);
                 if (items[i].cpu_percent >= 0.0) {
                     printf("%-8lu %-8lu %-5s %-12s %-14.14ls %-9s %-6s %5.1f%% "
-                           "%9ls %9ls %9ls %9ls %9ls\n",
+                           "%9ls %9ls %9ls %9ls %9ls %9ls %9ls\n",
                            items[i].pid, items[i].parent_pid, session, integrity,
                            items[i].name, origin, loc_mark,
                            items[i].cpu_percent, memory, disk_r, disk_w, net_r,
-                           net_w);
+                           net_w, udp_r, udp_w);
                 } else {
                     printf("%-8lu %-8lu %-5s %-12s %-14.14ls %-9s %-6s %6s %9ls "
-                           "%9ls %9ls %9ls %9ls\n",
+                           "%9ls %9ls %9ls %9ls %9ls %9ls\n",
                            items[i].pid, items[i].parent_pid, session, integrity,
                            items[i].name, origin, loc_mark, "-",
-                           memory, disk_r, disk_w, net_r, net_w);
+                           memory, disk_r, disk_w, net_r, net_w, udp_r, udp_w);
                 }
             } else if (items[i].cpu_percent >= 0.0) {
                 printf("%-8lu %-8lu %-5s %-12s %-16.16ls %-11s %-8s %6.1f%% "
@@ -148,7 +155,8 @@ void wt_print_process_table(const WT_ProcessInfo *items, size_t count)
                "Not a malware claim.\n");
     }
     if (show_net) {
-        printf("\nNet columns are TCP Extended Stats only (opt-in; no payload "
-               "capture; UDP not included).\n");
+        printf("\nNet columns are TCP Extended Stats. UDP R/W are TCP/IP "
+               "summary byte rates (no addresses or payloads). UDP shows - "
+               "when that trace did not start (an administrator is required).\n");
     }
 }

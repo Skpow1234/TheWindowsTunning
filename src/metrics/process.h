@@ -46,6 +46,8 @@ typedef struct WT_ProcessInfo {
     double disk_write_bytes_per_sec;     /* -1.0 when not measured */
     double net_recv_bytes_per_sec;       /* -1.0 when not measured (opt-in) */
     double net_send_bytes_per_sec;       /* -1.0 when not measured (opt-in) */
+    double udp_recv_bytes_per_sec;       /* -1.0 when UDP summary trace did not run */
+    double udp_send_bytes_per_sec;
     WT_FileIdentity identity;            /* publisher / Authenticode (top only) */
 } WT_ProcessInfo;
 

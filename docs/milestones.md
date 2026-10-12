@@ -1,6 +1,6 @@
 # WinTune milestones 54–153
 
-Phases 0–57 are done. See [`roadmap.md`](roadmap.md). Phases 58–153 are
+Phases 0–58 are done. See [`roadmap.md`](roadmap.md). Phases 59–153 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -56,9 +56,17 @@ adapter during the sample, clamped to 100. Read-only.
 
 ### Phase 58 — UDP rates
 
-**Status:** Planned
+**Status:** Done
 
 **Deliver:** Sample UDP byte rates beside the TCP EStats already collected.
+`--include-network` (and `--sort network`) starts a short real-time
+Microsoft-Windows-TCPIP trace for summary events 1169 (send bytes) and 1170
+(deliver bytes) during the same window as TCP Extended Stats. JSON adds
+`udp_recv_bytes_per_sec` and `udp_send_bytes_per_sec` (null when the trace
+did not start). Text tables add UDP R / UDP W. Addresses and payloads are
+not stored. The trace needs an administrator; without one, TCP rates still
+work and the UDP fields stay null. A process with no summary events in the
+window is 0, not null.
 
 ### Phase 59 — Disk latency
 

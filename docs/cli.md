@@ -169,11 +169,15 @@ JSON from `--page` adds `page`, `page_size`, `page_count`, `total`, and
 not add those keys.
 
 `--include-network` (also implied by `--sort network`) samples **TCP Extended
-Stats** via IP Helper during the process sample window. It is off by default
-because enabling EStats on many connections adds overhead. It does **not**
-capture payloads; UDP is not included. Text tables add Net R / Net W columns
-when measured; JSON adds `net_recv_bytes_per_sec` / `net_send_bytes_per_sec`
-(null when not sampled).
+Stats** via IP Helper and **UDP byte rates** from Microsoft-Windows-TCPIP
+summary events during the same window. It is off by default because enabling
+EStats and a short real-time trace adds overhead. It does **not** capture
+payloads or store addresses. Text tables add Net R / Net W and UDP R / UDP W.
+JSON adds `net_recv_bytes_per_sec` / `net_send_bytes_per_sec` and
+`udp_recv_bytes_per_sec` / `udp_send_bytes_per_sec` (null when that side was
+not sampled). UDP rates need an administrator; without one the UDP fields
+stay null and TCP rates still appear. A measured process with no UDP
+datagrams in the window is 0.
 
 JSON process rows include provenance (`publisher`, `product_name`, `location`,
 `unusual_location`, …) plus `parent_pid`, `session_id` (null when unread), and

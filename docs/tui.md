@@ -111,7 +111,7 @@ o                  overview
 d / m / n / g / p / s  disk / memory / network / GPU / power / services
 t                  cycle sort: cpu → memory → disk → net
 1 / 2 / 3 / 4      sort by CPU / memory / disk / network
-w                  toggle per-process TCP net columns (extra overhead)
+w                  toggle per-process TCP and UDP byte rates (extra overhead)
 j / k or arrows    scroll process or service list
 PgUp / PgDn        page scroll
 e                  export snapshot to Documents\WinTune\Reports\
@@ -122,8 +122,10 @@ c                  before/after compare view (measured deltas only)
 ```
 
 Services stay on `s`. Snapshot export uses `e` so the keys do not conflict.
-Per-process net columns use TCP Extended Stats only (no payload capture; UDP
-not included) and stay off until `w` or `--include-network`.
+The process Net column adds TCP Extended Stats and UDP summary byte rates
+(no payload or address capture). Split UDP R / UDP W columns are in
+`wintune top --include-network`. The column stays off until `w` or
+`--include-network`. UDP rates need an administrator.
 
 The TUI must **never** apply system changes without confirmation.
 

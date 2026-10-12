@@ -391,7 +391,7 @@ Test-ExpectOk "top --sort memory" @("top", "--sort", "memory", "--limit", "5")
 Test-ExpectOk "top --sort disk" @("top", "--sort", "disk", "--limit", "5")
 Test-ExpectOk "top --sort network" @("top", "--sort", "network", "--limit", "5") -TimeoutSec 60
 Test-JsonOk "top --json --include-network" @("top", "--json", "--include-network", "--limit", "5") `
-    -MustContain @("processes", "net_recv_bytes_per_sec", "net_send_bytes_per_sec") -TimeoutSec 60
+    -MustContain @("processes", "net_recv_bytes_per_sec", "net_send_bytes_per_sec", "udp_recv_bytes_per_sec", "udp_send_bytes_per_sec") -TimeoutSec 60
 Test-JsonOk "top --json" @("top", "--json", "--limit", "5") -MustContain @("processes")
 Test-ExpectOk "top --page 1" @("top", "--page", "1", "--page-size", "5") `
     -StdoutRegex @("Processes .*page 1")

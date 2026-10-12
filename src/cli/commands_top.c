@@ -276,8 +276,9 @@ int wt_cmd_top(const WT_CliOptions *opts)
     if (include_network && !json) {
         wt_cli_user_note(
             opts,
-            "wintune: --include-network samples TCP Extended Stats "
-            "(extra overhead; no payload capture; UDP not included).\n");
+            "wintune: --include-network samples TCP Extended Stats and UDP "
+            "byte rates (extra overhead; no payload or address capture). "
+            "UDP rates need an administrator.\n");
     }
 
     unsigned int sample_ms = WT_TOP_DEFAULT_SAMPLE_MS;

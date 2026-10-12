@@ -98,7 +98,7 @@ static void wt_print_usage(void)
         "  --theme <name>    TUI theme: default|compact|mono|high-contrast|ssh\n"
         "  --frames <n>      TUI smoke: render n frames then quit (CI-friendly)\n"
         "  --schema-version  JSON schema major: 1 (legacy pin) or 2 (default)\n"
-        "  --include-network Opt-in per-process TCP rates (extra overhead; top/tui)\n"
+        "  --include-network Opt-in per-process TCP and UDP byte rates (extra overhead; top/tui)\n"
         "  --page <n>        top: 1-based page of the full process list\n"
         "  --page-size <n>   top: rows per page (default 32, max 32)\n",
         WT_VERSION_STRING);
