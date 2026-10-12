@@ -304,7 +304,7 @@ Recommendations (advisory):
 **APIs / counters:**
 
 ```c
-GetIfTable                         /* system-wide interface octets (TUI) */
+GetIfTable2                        /* per-adapter octets, including VPN and vSwitch */
 GetExtendedTcpTable                /* TCP table with owning PID */
 SetPerTcpConnectionEStats /
 GetPerTcpConnectionEStats          /* opt-in per-process TCP byte rates */
@@ -314,7 +314,14 @@ StartTraceW / EnableTraceEx2          /* Microsoft-Windows-TCPIP 1169/1170 */
 ```
 
 **Collect:**
-- System-wide received/sent octets across non-loopback interfaces (`wt_collect_net_totals`).
+- Operational adapters from `GetIfTable2`, including VPN tunnels
+  (`IF_TYPE_TUNNEL`, `IF_TYPE_PPP`, `IF_TYPE_PROP_VIRTUAL`) and virtual
+  switches (Hyper-V `vEthernet` and non-hardware Ethernet). Loopback and
+  pure filter interfaces are omitted. Each adapter has `kind`
+  (`ethernet`, `wifi`, `vpn`, `virtual`, or `other`) and receive/send
+  bytes per second across the sample window. A missing rate is JSON null.
+  WinTune does not change adapters, DNS, or routes.
+- System-wide received/sent octets are the sum of those adapters.
 - Opt-in per-process TCP send/recv bytes/sec (`--include-network` / TUI `w`)
   via IP Helper Extended Stats aggregated by OwningPid (Phase 27).
 - Opt-in per-process UDP send/recv bytes/sec in the same window (Phase 58).

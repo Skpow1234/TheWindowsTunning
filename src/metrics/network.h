@@ -5,10 +5,32 @@
 
 #include "common/error.h"
 
+typedef struct WT_NetAdapter {
+    unsigned long if_index;
+    wchar_t name[64];
+    int kind; /* WT_NET_KIND_* */
+    unsigned long long in_bytes;
+    unsigned long long out_bytes;
+    double recv_bytes_per_sec; /* -1 until two samples exist */
+    double send_bytes_per_sec;
+} WT_NetAdapter;
+
+#define WT_MAX_NET_ADAPTERS 16
+
+#define WT_NET_KIND_OTHER 0
+#define WT_NET_KIND_ETHERNET 1
+#define WT_NET_KIND_WIFI 2
+#define WT_NET_KIND_VPN 3
+#define WT_NET_KIND_VIRTUAL 4
+
 typedef struct WT_NetTotals {
     unsigned long long in_bytes;   /* cumulative received octets */
     unsigned long long out_bytes;  /* cumulative sent octets */
-    unsigned int interface_count;  /* operational, non-loopback interfaces */
+    unsigned int interface_count;  /* operational adapters in `adapters` */
+    double recv_bytes_per_sec;     /* -1 until two samples exist */
+    double send_bytes_per_sec;
+    unsigned int adapter_count;
+    WT_NetAdapter adapters[WT_MAX_NET_ADAPTERS];
 } WT_NetTotals;
 
 /* Per-process TCP send/recv rates from IP Helper Extended Stats (Phase 27),
@@ -33,10 +55,22 @@ typedef struct WT_NetTcpSampleSession {
     void *udp;        /* internal trace state; not for callers */
 } WT_NetTcpSampleSession;
 
-/* Sums cumulative received/sent bytes across operational, non-loopback network
- * interfaces (GetIfTable). Read-only. Callers compute throughput by sampling
- * twice and dividing the delta by the elapsed time. */
+/* Sums cumulative received/sent bytes across operational adapters, including
+ * VPN tunnels and virtual switches. Read-only. Rates stay -1 until
+ * wt_net_apply_rates sees a second sample. */
 WT_Result wt_collect_net_totals(WT_NetTotals *out);
+
+/* Fills `out` from `after` and sets per-adapter rates from the counter delta.
+ * A counter reset yields 0. An adapter with no earlier sample stays at -1. */
+void wt_net_apply_rates(const WT_NetTotals *before, const WT_NetTotals *after,
+                        unsigned int elapsed_ms, WT_NetTotals *out);
+
+/* Averages rates for adapters that appear in both samples. `sample_index` is
+ * the 0-based index of `sample` (the first sample is copied by the caller). */
+void wt_net_merge_sample(WT_NetTotals *acc, const WT_NetTotals *sample,
+                         unsigned int sample_index);
+
+const char *wt_net_adapter_kind_token(int kind);
 
 /* Begin TCP EStats capture (enables collection). Pair with finish after Sleep. */
 WT_Result wt_net_tcp_sample_start(WT_NetTcpSampleSession *session,

@@ -9,6 +9,8 @@
 #include "system/storage_health.h"
 #include "system/reliability.h"
 #include "system/maintenance.h"
+#include "system/search.h"
+#include "metrics/network.h"
 
 #include <stddef.h>
 
@@ -111,4 +113,22 @@ const char *wt_maint_kind_name(WT_MaintKind kind)
 {
     (void)kind;
     return "unknown";
+}
+
+const char *wt_search_status_token(int status)
+{
+    (void)status;
+    return "unknown";
+}
+
+const char *wt_search_pause_token(int reason)
+{
+    (void)reason;
+    return "unknown";
+}
+
+const char *wt_net_adapter_kind_token(int kind)
+{
+    (void)kind;
+    return "other";
 }

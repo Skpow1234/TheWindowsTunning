@@ -1180,6 +1180,61 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     }
     wt_json_end_object(&w);
 
+    /* Per-adapter throughput (phase 69), including VPN and virtual switches. */
+    wt_json_key(&w, "network");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "available");
+    wt_json_bool(&w, report->network_ok);
+    wt_json_key(&w, "interface_count");
+    if (report->network_ok) {
+        wt_json_uint64(&w, report->network.interface_count);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "recv_bytes_per_sec");
+    if (report->network_ok && report->network.recv_bytes_per_sec >= 0.0) {
+        wt_json_double(&w, report->network.recv_bytes_per_sec);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "send_bytes_per_sec");
+    if (report->network_ok && report->network.send_bytes_per_sec >= 0.0) {
+        wt_json_double(&w, report->network.send_bytes_per_sec);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "adapters");
+    wt_json_begin_array(&w);
+    if (report->network_ok) {
+        for (unsigned int ni = 0; ni < report->network.adapter_count; ++ni) {
+            const WT_NetAdapter *adapter = &report->network.adapters[ni];
+            wt_json_begin_object(&w);
+            wt_json_key(&w, "name");
+            if (adapter->name[0] != L'\0') {
+                wt_json_wstring(&w, adapter->name);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "kind");
+            wt_json_string(&w, wt_net_adapter_kind_token(adapter->kind));
+            wt_json_key(&w, "recv_bytes_per_sec");
+            if (adapter->recv_bytes_per_sec >= 0.0) {
+                wt_json_double(&w, adapter->recv_bytes_per_sec);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "send_bytes_per_sec");
+            if (adapter->send_bytes_per_sec >= 0.0) {
+                wt_json_double(&w, adapter->send_bytes_per_sec);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_end_object(&w);
+        }
+    }
+    wt_json_end_array(&w);
+    wt_json_end_object(&w);
+
     /* power */
     wt_json_key(&w, "power");
     wt_json_begin_object(&w);

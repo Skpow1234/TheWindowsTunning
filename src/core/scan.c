@@ -5,6 +5,7 @@
 #include "metrics/disk.h"
 #include "metrics/process.h"
 #include "metrics/gpu.h"
+#include "metrics/network.h"
 #include "system/audio.h"
 #include "system/search.h"
 #include "system/defender.h"
@@ -305,6 +306,14 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
         acc->defender = sample->defender;
         acc->defender_ok = 1;
     }
+    if (sample_index > 0 && sample->network_ok) {
+        if (acc->network_ok) {
+            wt_net_merge_sample(&acc->network, &sample->network, sample_index);
+        } else {
+            acc->network = sample->network;
+        }
+        acc->network_ok = 1;
+    }
 
     (void)sample_total;
 }
@@ -325,7 +334,20 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
 
     report->os_ok = (wt_collect_os_info(&report->os) == WT_OK);
     report->memory_ok = (wt_collect_memory_metrics(&report->memory) == WT_OK);
-    report->cpu_ok = (wt_collect_cpu_metrics(sample_ms, &report->cpu) == WT_OK);
+    {
+        WT_NetTotals net_before;
+        WT_NetTotals net_after;
+        ULONGLONG net_t0 = GetTickCount64();
+        int net_before_ok = (wt_collect_net_totals(&net_before) == WT_OK);
+        report->cpu_ok = (wt_collect_cpu_metrics(sample_ms, &report->cpu) == WT_OK);
+        if (net_before_ok && wt_collect_net_totals(&net_after) == WT_OK) {
+            unsigned int elapsed = (unsigned int)(GetTickCount64() - net_t0);
+            wt_net_apply_rates(&net_before, &net_after, elapsed, &report->network);
+            report->network_ok = 1;
+        } else {
+            report->network_ok = 0;
+        }
+    }
 
     report->cpu_ok_samples = (report->cpu_ok && report->cpu.available) ? 1u : 0u;
     report->cpu_max_percent =

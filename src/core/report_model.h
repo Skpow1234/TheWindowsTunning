@@ -9,6 +9,7 @@
 #include "metrics/disk.h"
 #include "metrics/process.h"
 #include "metrics/gpu.h"
+#include "metrics/network.h"
 #include "system/os_info.h"
 #include "system/power.h"
 #include "system/boot.h"
@@ -72,6 +73,8 @@ typedef struct WT_ScanReport {
 
     WT_DefenderReport defender;
 
+    WT_NetTotals network;
+
     unsigned int scan_sample_count;
     unsigned int scan_sample_interval_ms;
 
@@ -91,6 +94,7 @@ typedef struct WT_ScanReport {
     int audio_ok;
     int search_ok;
     int defender_ok;
+    int network_ok;
 } WT_ScanReport;
 
 /* Zero-initializes a report and clears all availability flags. */

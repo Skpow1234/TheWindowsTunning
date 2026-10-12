@@ -4,12 +4,14 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <iphlpapi.h>
+#include <netioapi.h>
 #include <ipifcons.h>
 #include <tcpestats.h>
 #include <evntrace.h>
 #include <evntcons.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 #include <strsafe.h>
 
 #define WT_NET_DEFAULT_SAMPLE_MS 500
@@ -60,44 +62,274 @@ typedef struct WT_TcpConnSnap {
     int ok;
 } WT_TcpConnSnap;
 
+const char *wt_net_adapter_kind_token(int kind)
+{
+    switch (kind) {
+    case WT_NET_KIND_ETHERNET:
+        return "ethernet";
+    case WT_NET_KIND_WIFI:
+        return "wifi";
+    case WT_NET_KIND_VPN:
+        return "vpn";
+    case WT_NET_KIND_VIRTUAL:
+        return "virtual";
+    default:
+        return "other";
+    }
+}
+
+static int wt_net_alias_has(const WCHAR *text, const wchar_t *needle)
+{
+    return text != NULL && needle != NULL && wcsstr(text, needle) != NULL;
+}
+
+static int wt_net_adapter_kind(const MIB_IF_ROW2 *row)
+{
+    if (wt_net_alias_has(row->Alias, L"vEthernet") ||
+        wt_net_alias_has(row->Alias, L"Virtual Switch") ||
+        wt_net_alias_has(row->Description, L"Hyper-V")) {
+        return WT_NET_KIND_VIRTUAL;
+    }
+    if (row->Type == IF_TYPE_TUNNEL || row->Type == IF_TYPE_PPP ||
+        row->Type == IF_TYPE_PROP_VIRTUAL) {
+        return WT_NET_KIND_VPN;
+    }
+    if (row->Type == IF_TYPE_IEEE80211) {
+        return WT_NET_KIND_WIFI;
+    }
+    if (row->Type == IF_TYPE_ETHERNET_CSMACD) {
+        if (!row->InterfaceAndOperStatusFlags.HardwareInterface) {
+            return WT_NET_KIND_VIRTUAL;
+        }
+        return WT_NET_KIND_ETHERNET;
+    }
+    return WT_NET_KIND_OTHER;
+}
+
+static int wt_net_include_row(const MIB_IF_ROW2 *row)
+{
+    if (row->Type == IF_TYPE_SOFTWARE_LOOPBACK) {
+        return 0;
+    }
+    if (row->OperStatus != IfOperStatusUp) {
+        return 0;
+    }
+    /* Lightweight filters (WFP, QoS) sit on top of a real adapter and repeat
+     * its counters. VPN tunnels and virtual switches are not filters. */
+    if (row->InterfaceAndOperStatusFlags.FilterInterface) {
+        return 0;
+    }
+    return 1;
+}
+
+static void wt_net_copy_name(WT_NetAdapter *adapter, const MIB_IF_ROW2 *row)
+{
+    const WCHAR *source = row->Alias;
+    if (source[0] == L'\0') {
+        source = row->Description;
+    }
+    StringCchCopyW(adapter->name, ARRAYSIZE(adapter->name), source);
+}
+
+static unsigned long long wt_net_adapter_octets(const WT_NetAdapter *adapter)
+{
+    return adapter->in_bytes + adapter->out_bytes;
+}
+
+static void wt_net_keep_busiest(WT_NetAdapter *items, unsigned int *count,
+                                const WT_NetAdapter *candidate)
+{
+    unsigned int i;
+    unsigned int quiet = 0;
+
+    if (*count < WT_MAX_NET_ADAPTERS) {
+        items[*count] = *candidate;
+        (*count)++;
+        return;
+    }
+    for (i = 1; i < *count; ++i) {
+        if (wt_net_adapter_octets(&items[i]) < wt_net_adapter_octets(&items[quiet])) {
+            quiet = i;
+        }
+    }
+    if (wt_net_adapter_octets(candidate) > wt_net_adapter_octets(&items[quiet])) {
+        items[quiet] = *candidate;
+    }
+}
+
+static int wt_net_by_index(const void *a, const void *b)
+{
+    const WT_NetAdapter *left = (const WT_NetAdapter *)a;
+    const WT_NetAdapter *right = (const WT_NetAdapter *)b;
+    if (left->if_index < right->if_index) {
+        return -1;
+    }
+    if (left->if_index > right->if_index) {
+        return 1;
+    }
+    return 0;
+}
+
+static void wt_net_clear_rates(WT_NetTotals *out)
+{
+    unsigned int i;
+
+    out->recv_bytes_per_sec = -1.0;
+    out->send_bytes_per_sec = -1.0;
+    for (i = 0; i < out->adapter_count; ++i) {
+        out->adapters[i].recv_bytes_per_sec = -1.0;
+        out->adapters[i].send_bytes_per_sec = -1.0;
+    }
+}
+
 WT_Result wt_collect_net_totals(WT_NetTotals *out)
 {
+    PMIB_IF_TABLE2 table = NULL;
+    DWORD rc;
+    ULONG i;
+
     if (out == NULL) {
         return WT_ERR_INVALID_ARGUMENT;
     }
-    out->in_bytes = 0;
-    out->out_bytes = 0;
-    out->interface_count = 0;
+    ZeroMemory(out, sizeof(*out));
+    wt_net_clear_rates(out);
 
-    ULONG size = 0;
-    DWORD rc = GetIfTable(NULL, &size, FALSE);
-    if (rc != ERROR_INSUFFICIENT_BUFFER || size == 0) {
+    rc = GetIfTable2(&table);
+    if (rc != NO_ERROR || table == NULL) {
         return WT_ERR_WIN32;
     }
 
-    MIB_IFTABLE *table = (MIB_IFTABLE *)malloc(size);
-    if (table == NULL) {
-        return WT_ERR_OUT_OF_MEMORY;
-    }
+    for (i = 0; i < table->NumEntries; ++i) {
+        const MIB_IF_ROW2 *row = &table->Table[i];
+        WT_NetAdapter adapter;
 
-    rc = GetIfTable(table, &size, FALSE);
-    if (rc != NO_ERROR) {
-        free(table);
-        return WT_ERR_WIN32;
-    }
-
-    for (DWORD i = 0; i < table->dwNumEntries; ++i) {
-        const MIB_IFROW *row = &table->table[i];
-        if (row->dwType == IF_TYPE_SOFTWARE_LOOPBACK) {
+        if (!wt_net_include_row(row)) {
             continue;
         }
-        out->in_bytes += row->dwInOctets;
-        out->out_bytes += row->dwOutOctets;
-        out->interface_count++;
+        ZeroMemory(&adapter, sizeof(adapter));
+        adapter.if_index = row->InterfaceIndex;
+        adapter.kind = wt_net_adapter_kind(row);
+        adapter.in_bytes = row->InOctets;
+        adapter.out_bytes = row->OutOctets;
+        adapter.recv_bytes_per_sec = -1.0;
+        adapter.send_bytes_per_sec = -1.0;
+        wt_net_copy_name(&adapter, row);
+        wt_net_keep_busiest(out->adapters, &out->adapter_count, &adapter);
     }
+    FreeMibTable(table);
 
-    free(table);
+    qsort(out->adapters, out->adapter_count, sizeof(out->adapters[0]),
+          wt_net_by_index);
+    out->interface_count = out->adapter_count;
+    for (i = 0; i < out->adapter_count; ++i) {
+        out->in_bytes += out->adapters[i].in_bytes;
+        out->out_bytes += out->adapters[i].out_bytes;
+    }
     return WT_OK;
+}
+
+static double wt_net_delta_rate(unsigned long long before,
+                                unsigned long long after, double seconds)
+{
+    if (seconds <= 0.0) {
+        return -1.0;
+    }
+    if (after < before) {
+        return 0.0;
+    }
+    return (double)(after - before) / seconds;
+}
+
+static const WT_NetAdapter *wt_net_find_adapter(const WT_NetTotals *totals,
+                                                unsigned long if_index)
+{
+    unsigned int i;
+
+    if (totals == NULL) {
+        return NULL;
+    }
+    for (i = 0; i < totals->adapter_count; ++i) {
+        if (totals->adapters[i].if_index == if_index) {
+            return &totals->adapters[i];
+        }
+    }
+    return NULL;
+}
+
+void wt_net_apply_rates(const WT_NetTotals *before, const WT_NetTotals *after,
+                        unsigned int elapsed_ms, WT_NetTotals *out)
+{
+    double seconds;
+    unsigned int i;
+
+    if (out == NULL || after == NULL) {
+        return;
+    }
+    *out = *after;
+    wt_net_clear_rates(out);
+    if (before == NULL || elapsed_ms == 0) {
+        return;
+    }
+    seconds = (double)elapsed_ms / 1000.0;
+    out->recv_bytes_per_sec =
+        wt_net_delta_rate(before->in_bytes, after->in_bytes, seconds);
+    out->send_bytes_per_sec =
+        wt_net_delta_rate(before->out_bytes, after->out_bytes, seconds);
+    for (i = 0; i < out->adapter_count; ++i) {
+        const WT_NetAdapter *prior =
+            wt_net_find_adapter(before, out->adapters[i].if_index);
+        if (prior == NULL) {
+            continue;
+        }
+        out->adapters[i].recv_bytes_per_sec =
+            wt_net_delta_rate(prior->in_bytes, out->adapters[i].in_bytes, seconds);
+        out->adapters[i].send_bytes_per_sec =
+            wt_net_delta_rate(prior->out_bytes, out->adapters[i].out_bytes,
+                              seconds);
+    }
+}
+
+static double wt_net_average_rate(double previous, double sample,
+                                  unsigned int sample_index)
+{
+    if (sample < 0.0) {
+        return previous;
+    }
+    if (previous < 0.0 || sample_index == 0) {
+        return sample;
+    }
+    return ((previous * (double)sample_index) + sample) /
+           (double)(sample_index + 1);
+}
+
+void wt_net_merge_sample(WT_NetTotals *acc, const WT_NetTotals *sample,
+                         unsigned int sample_index)
+{
+    WT_NetTotals merged;
+    unsigned int i;
+
+    if (acc == NULL || sample == NULL || sample_index == 0) {
+        return;
+    }
+    merged = *sample;
+    merged.recv_bytes_per_sec = wt_net_average_rate(
+        acc->recv_bytes_per_sec, sample->recv_bytes_per_sec, sample_index);
+    merged.send_bytes_per_sec = wt_net_average_rate(
+        acc->send_bytes_per_sec, sample->send_bytes_per_sec, sample_index);
+    for (i = 0; i < merged.adapter_count; ++i) {
+        const WT_NetAdapter *prior =
+            wt_net_find_adapter(acc, merged.adapters[i].if_index);
+        if (prior == NULL) {
+            continue;
+        }
+        merged.adapters[i].recv_bytes_per_sec = wt_net_average_rate(
+            prior->recv_bytes_per_sec, merged.adapters[i].recv_bytes_per_sec,
+            sample_index);
+        merged.adapters[i].send_bytes_per_sec = wt_net_average_rate(
+            prior->send_bytes_per_sec, merged.adapters[i].send_bytes_per_sec,
+            sample_index);
+    }
+    *acc = merged;
 }
 
 const WT_ProcessNetRate *wt_find_process_net_rate(const WT_ProcessNetRate *rates,

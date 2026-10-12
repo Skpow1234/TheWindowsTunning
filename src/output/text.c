@@ -427,6 +427,32 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
     fprintf(out, "  This is a status fact. WinTune does not change Defender.\n");
     fprintf(out, "\n");
 
+    fprintf(out, "Network:\n");
+    if (!report->network_ok) {
+        fprintf(out, "  (adapters unavailable)\n");
+    } else if (report->network.adapter_count == 0) {
+        fprintf(out, "  (no operational adapters)\n");
+    } else {
+        for (unsigned int ni = 0; ni < report->network.adapter_count; ++ni) {
+            const WT_NetAdapter *adapter = &report->network.adapters[ni];
+            fwprintf(out, L"  %ls  %hs",
+                     adapter->name[0] != L'\0' ? adapter->name : L"(adapter)",
+                     wt_net_adapter_kind_token(adapter->kind));
+            if (adapter->recv_bytes_per_sec >= 0.0 &&
+                adapter->send_bytes_per_sec >= 0.0) {
+                wchar_t down[32];
+                wchar_t up[32];
+                wt_format_bytes((unsigned long long)adapter->recv_bytes_per_sec,
+                                down, 32);
+                wt_format_bytes((unsigned long long)adapter->send_bytes_per_sec,
+                                up, 32);
+                fwprintf(out, L"  down %ls/s  up %ls/s", down, up);
+            }
+            fprintf(out, "\n");
+        }
+    }
+    fprintf(out, "\n");
+
     if (report->boot_ok && report->boot.boot_duration_ms > 0) {
         wchar_t boot_dur[32];
         wt_format_duration_ms(report->boot.boot_duration_ms, boot_dur, 32);

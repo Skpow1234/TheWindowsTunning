@@ -105,7 +105,10 @@ null when the catalog could not be read. A large backlog or a full crawl
 is advisory `WT-SEARCH-001`. WinTune does not disable Search. Defender
 real-time protection is reported as `realtime_protection`. It is null when
 the Defender status class could not be read. WinTune does not change
-Defender and does not offer a disable action.
+Defender and does not offer a disable action. Operational network adapters
+are listed with `kind` and receive/send bytes per second, including VPN and
+virtual switches. A missing rate is null. WinTune does not change network
+settings.
 
 ```bash
 wintune scan

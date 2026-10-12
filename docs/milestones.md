@@ -1,6 +1,6 @@
 # WinTune milestones 54–157
 
-Phases 0–68 are done. See [`roadmap.md`](roadmap.md). Phases 69–157 are
+Phases 0–69 are done. See [`roadmap.md`](roadmap.md). Phases 70–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -196,9 +196,15 @@ WinTune does not change Defender.
 
 ### Phase 69 — Per-adapter network
 
-**Status:** Planned
+**Status:** Done
 
-**Deliver:** Split network throughput by adapter, including VPN and virtual switches.
+**Deliver:** Split network throughput by adapter, including VPN and virtual
+switches. `GetIfTable2` lists operational adapters. VPN covers tunnel, PPP,
+and proprietary virtual interfaces. Virtual switches cover Hyper-V
+`vEthernet` and non-hardware Ethernet. Loopback and pure filter interfaces
+are left out. Each row has `kind` and receive/send bytes per second. A
+missing rate is JSON null. The machine total is the sum of those adapters.
+WinTune does not change network settings.
 
 ### Phase 70 — Short-lived processes
 

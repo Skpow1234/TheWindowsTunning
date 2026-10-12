@@ -626,6 +626,33 @@ static void wt_tui_render_network(WT_TuiScreen *s, const WT_TuiTheme *t,
     wt_tui_screen_line(s, "");
     wt_tui_screen_line(s, "Throughput   down %-14s  up %-14s", rxs, txs);
     wt_tui_screen_line(s, "Cumulative   in   %-14s  out %-14s", inb, outb);
+    if (now->adapter_count > 0) {
+        unsigned int shown = 0;
+        wt_tui_screen_line(s, "");
+        for (unsigned int i = 0; i < now->adapter_count && shown < 6; ++i) {
+            const WT_NetAdapter *adapter = &now->adapters[i];
+            char name[48];
+            char down[24];
+            char up[24];
+            WideCharToMultiByte(CP_UTF8, 0,
+                                adapter->name[0] != L'\0' ? adapter->name
+                                                          : L"(adapter)",
+                                -1, name, sizeof(name), NULL, NULL);
+            if (adapter->recv_bytes_per_sec >= 0.0) {
+                wt_tui_rate(adapter->recv_bytes_per_sec, down, sizeof(down));
+            } else {
+                snprintf(down, sizeof(down), "n/a");
+            }
+            if (adapter->send_bytes_per_sec >= 0.0) {
+                wt_tui_rate(adapter->send_bytes_per_sec, up, sizeof(up));
+            } else {
+                snprintf(up, sizeof(up), "n/a");
+            }
+            wt_tui_screen_line(s, "%-16s %-8s  down %-10s  up %-10s", name,
+                               wt_net_adapter_kind_token(adapter->kind), down, up);
+            shown++;
+        }
+    }
     wt_tui_screen_line(s, "");
     wt_tui_empty_line(s, t,
                       "Per-process TCP rates: press w (or --include-network).");
@@ -1339,17 +1366,19 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
 
             net_ok = (wt_collect_net_totals(&net_now) == WT_OK);
             ULONGLONG t_now = GetTickCount64();
-            double secs = (double)(t_now - t_prev) / 1000.0;
-            if (secs <= 0.0) secs = 1.0;
+            unsigned int elapsed = (unsigned int)(t_now - t_prev);
             rx = 0.0;
             tx = 0.0;
             if (net_ok && net_prev_ok) {
-                if (net_now.in_bytes >= net_prev.in_bytes) {
-                    rx = (double)(net_now.in_bytes - net_prev.in_bytes) / secs;
+                WT_NetTotals rated;
+                wt_net_apply_rates(&net_prev, &net_now, elapsed, &rated);
+                if (rated.recv_bytes_per_sec >= 0.0) {
+                    rx = rated.recv_bytes_per_sec;
                 }
-                if (net_now.out_bytes >= net_prev.out_bytes) {
-                    tx = (double)(net_now.out_bytes - net_prev.out_bytes) / secs;
+                if (rated.send_bytes_per_sec >= 0.0) {
+                    tx = rated.send_bytes_per_sec;
                 }
+                net_now = rated;
             }
             net_prev = net_now;
             net_prev_ok = net_ok;
