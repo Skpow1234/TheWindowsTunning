@@ -7,7 +7,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.3.0](https://img.shields.io/badge/Version-0.3.0-blue.svg)](docs/roadmap.md)
-[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9372%20Done-brightgreen.svg)](#project-status)
+[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9373%20Done-brightgreen.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -463,7 +463,8 @@ end-user release polish.
 | 70 | Short-lived processes across the sample window | Done |
 | 71 | Collector timing | Done |
 | 72 | PDH query reuse inside one scan | Done |
-| 73–157 | Next milestones: measure, explain, apply, history, TUI, CLI, service, boot, fleet, release, signing, winget publish, schema 1 retirement, opt-in update check | Planned |
+| 73 | Counter catalog | Done |
+| 74–157 | Next milestones: explain, apply, history, TUI, CLI, service, boot, fleet, release, signing, winget publish, schema 1 retirement, opt-in update check | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.

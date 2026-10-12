@@ -38,8 +38,9 @@ wintune top --include-network
 
 Per-process metrics in `top`, `scan`, and TUI:
 
-- **CPU%** — PDH `\Process(*)\% Processor Time` when available; otherwise
-  `GetProcessTimes` delta over the sample window (same approach as Task Manager)
+- **CPU%** — `GetProcessTimes` delta over the sample window for `scan` and
+  unpaged `top`. `top --page` uses PDH `\Process(<instance>)\% Processor Time`
+  matched by `\Process(<instance>)\ID Process`.
 - **Disk read/write rates** — delta of `GetProcessIoCounters` over the sample window
 - **Network send/recv rates** — opt-in TCP Extended Stats and UDP summary
   byte rates (`--include-network`); see Network section (no payload capture)
@@ -54,7 +55,8 @@ Per-process metrics in `top`, `scan`, and TUI:
 \Processor(_Total)\% Processor Time
 \Processor(_Total)\% DPC Time
 \Processor(_Total)\% Interrupt Time
-\Process(*)\% Processor Time
+\Process(<instance>)\% Processor Time
+\Process(<instance>)\ID Process
 ```
 
 **Collect:**
@@ -87,6 +89,7 @@ PDH \\Memory\\Standby Cache Reserve Bytes
 PDH \\Memory\\Standby Cache Normal Priority Bytes
 PDH \\Memory\\Standby Cache Core Bytes
 PDH \\Memory\\Modified Page List Bytes
+PDH \\Process(Memory Compression)\\Working Set
 ```
 
 **Collect:**
@@ -163,12 +166,12 @@ GetProcessIoCounters
 \PhysicalDisk(_Total)\Avg. Disk Queue Length
 \PhysicalDisk(_Total)\Avg. Disk sec/Read
 \PhysicalDisk(_Total)\Avg. Disk sec/Write
-\LogicalDisk(C:)\% Disk Time
-\LogicalDisk(C:)\Disk Read Bytes/sec
-\LogicalDisk(C:)\Disk Write Bytes/sec
-\LogicalDisk(C:)\Avg. Disk Queue Length
-\LogicalDisk(C:)\Avg. Disk sec/Read
-\LogicalDisk(C:)\Avg. Disk sec/Write
+\LogicalDisk(<letter>:)\% Disk Time
+\LogicalDisk(<letter>:)\Disk Read Bytes/sec
+\LogicalDisk(<letter>:)\Disk Write Bytes/sec
+\LogicalDisk(<letter>:)\Avg. Disk Queue Length
+\LogicalDisk(<letter>:)\Avg. Disk sec/Read
+\LogicalDisk(<letter>:)\Avg. Disk sec/Write
 ```
 
 **Collect:**
@@ -617,6 +620,46 @@ defender, boot, updates, and processes. `timing.total_ms` is the sum. A
 multi-sample scan adds each collector's time. The pause between samples is
 not included. Network time is the two adapter snapshots. CPU, disk I/O, GPU,
 and process times include their sample waits. There is no recommendation.
+
+---
+
+## Counter catalog
+
+Phase 73 lists every PDH counter the source adds. Paths are English
+(`PdhAddEnglishCounterW`). The unit is the counter's own unit. A missing
+counter stays unset. WinTune does not add any other PDH path.
+
+| Counter | Unit | API | Source |
+| --- | --- | --- | --- |
+| `\Processor(_Total)\% Processor Time` | percent | `PdhAddEnglishCounterW` | `src/metrics/cpu.c`, `src/tui/tui.c` |
+| `\Processor(_Total)\% DPC Time` | percent | `PdhAddEnglishCounterW` | `src/metrics/cpu.c` |
+| `\Processor(_Total)\% Interrupt Time` | percent | `PdhAddEnglishCounterW` | `src/metrics/cpu.c` |
+| `\Process(<instance>)\% Processor Time` | percent | `PdhAddEnglishCounterW` | `src/metrics/pdh_utils.c` |
+| `\Process(<instance>)\ID Process` | process id | `PdhAddEnglishCounterW` | `src/metrics/pdh_utils.c` |
+| `\Memory\Pages Input/sec` | pages/second | `wt_pdh_sample_single` | `src/metrics/memory.c` |
+| `\Memory\Page Faults/sec` | faults/second | `wt_pdh_sample_single` | `src/metrics/memory.c` |
+| `\Memory\Standby Cache Reserve Bytes` | bytes | `PdhAddEnglishCounterW` | `src/metrics/memory.c` |
+| `\Memory\Standby Cache Normal Priority Bytes` | bytes | `PdhAddEnglishCounterW` | `src/metrics/memory.c` |
+| `\Memory\Standby Cache Core Bytes` | bytes | `PdhAddEnglishCounterW` | `src/metrics/memory.c` |
+| `\Memory\Modified Page List Bytes` | bytes | `PdhAddEnglishCounterW` | `src/metrics/memory.c` |
+| `\Process(Memory Compression)\Working Set` | bytes | `PdhAddEnglishCounterW` | `src/metrics/memory.c` |
+| `\PhysicalDisk(_Total)\% Disk Time` | percent | `PdhAddEnglishCounterW` | `src/metrics/disk.c`, `src/tui/tui.c` |
+| `\PhysicalDisk(_Total)\Disk Read Bytes/sec` | bytes/second | `PdhAddEnglishCounterW` | `src/metrics/disk.c` |
+| `\PhysicalDisk(_Total)\Disk Write Bytes/sec` | bytes/second | `PdhAddEnglishCounterW` | `src/metrics/disk.c` |
+| `\PhysicalDisk(_Total)\Avg. Disk Queue Length` | requests | `PdhAddEnglishCounterW` | `src/metrics/disk.c` |
+| `\PhysicalDisk(_Total)\Avg. Disk sec/Read` | seconds, stored as milliseconds | `PdhAddEnglishCounterW` | `src/metrics/disk.c` |
+| `\PhysicalDisk(_Total)\Avg. Disk sec/Write` | seconds, stored as milliseconds | `PdhAddEnglishCounterW` | `src/metrics/disk.c` |
+| `\LogicalDisk(<letter>:)\` the same six counters | same units as the PhysicalDisk row | `PdhAddEnglishCounterW` | `src/metrics/disk.c` |
+| `\GPU Engine(*)\Utilization Percentage` | percent | `PdhAddEnglishCounterW`, `PdhGetFormattedCounterArrayW` | `src/metrics/gpu.c` |
+
+`<instance>` comes from `PdhEnumObjectItemsW` on the `Process` object.
+`_Total` and `Idle` are skipped, and at most 256 instances are added. That
+pair is used by `top --page`. `scan` and unpaged `top` use `GetProcessTimes`
+instead. `<letter>` is each fixed drive from `GetLogicalDrives`, not only
+`C:`. If the full disk query fails, `% Disk Time` is read again through
+`wt_pdh_sample_single`. Standby bytes in the report are the sum of the three
+standby counters. The GPU wildcard stays one counter. WinTune sums a PID's
+engine instances and takes the busiest engine type per adapter.
 
 ---
 

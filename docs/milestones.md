@@ -1,6 +1,6 @@
 # WinTune milestones 54–157
 
-Phases 0–72 are done. See [`roadmap.md`](roadmap.md). Phases 73–157 are
+Phases 0–73 are done. See [`roadmap.md`](roadmap.md). Phases 74–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -245,9 +245,13 @@ counters measure.
 
 ### Phase 73 — Counter catalog
 
-**Status:** Planned
+**Status:** Done
 
 **Deliver:** Document every counter, its unit, and the API in [`metrics.md`](metrics.md) from the code.
+The catalog lists each PDH path WinTune adds, the counter's unit, and
+`PdhAddEnglishCounterW` (or `PdhGetFormattedCounterArrayW` for the GPU
+wildcard). Process instances and logical-disk letters match the code.
+No new collector and no recommendation id.
 
 ---
 
