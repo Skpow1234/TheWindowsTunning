@@ -7,8 +7,8 @@ metrics, update/reboot helpers, fleet automation, and optional local UI.
 **v3** (Phases 22–53) deepens attribution, metrics, boot analysis, apply UX,
 and distribution — without Electron, cloud telemetry, or “PC cleaner” behavior.
 **v4** (Phases 54–157) has paging, process identity, hang detection,
-per-process GPU time, UDP byte rates, and disk latency percentiles (phases
-54–59, done). The rest is planned: deeper measurement, clearer explanations,
+per-process GPU time, UDP byte rates, disk latency percentiles, and
+storage temperature / NVMe health (phases 54–60, done). The rest is planned: deeper measurement, clearer explanations,
 a few more reversible apply paths, local history, release automation, and
 the doc follow-ups in phases 154–157.
 The full list is [`milestones.md`](milestones.md).
@@ -83,7 +83,8 @@ The feature catalog is this roadmap plus [`milestones.md`](milestones.md).
 | 57 | Per-process GPU engine time | Done |
 | 58 | UDP byte rates beside TCP EStats | Done |
 | 59 | Disk latency percentiles | Done |
-| 60–73 | Measurement depth | Planned |
+| 60 | Storage temperature and NVMe health log | Done |
+| 61–73 | Measurement depth | Planned |
 | 74–83 | Clearer explanations | Planned |
 | 84–97 | Safe apply completion | Planned |
 | 98–105, 114 | Local history and baselines | Planned |
@@ -1301,10 +1302,10 @@ advisory. Nothing in this range disables Defender, Windows Update, or the
 firewall, and nothing uploads a report. Phase 157 is the only opt-in network
 call, and it sends no machine data.
 
-The phase-by-phase list is [`milestones.md`](milestones.md). Phases 54–59
+The phase-by-phase list is [`milestones.md`](milestones.md). Phases 54–60
 are done; the rest of this range is still planned.
 
-Phases 54–59 are done (`wintune top --page`, process identity, read-only wait chain, per-process GPU time, UDP byte rates, disk latency percentiles). Suggested order inside v4: measurement (60–73), explanations (74–83), apply
+Phases 54–60 are done (`wintune top --page`, process identity, read-only wait chain, per-process GPU time, UDP byte rates, disk latency percentiles, storage temperature and NVMe health). Suggested order inside v4: measurement (61–73), explanations (74–83), apply
 (84–97), history (98–105), TUI (106–115), CLI (116–124), service (125–132),
 boot (133–140), fleet (141–148), release (149–157).
 

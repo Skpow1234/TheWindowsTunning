@@ -457,7 +457,7 @@ Test-ExpectOk "blockers" @("blockers")
 Test-JsonOk "blockers --json" @("blockers", "--json") -MustContain @("blockers")
 
 Test-ExpectOk "storage" @("storage")
-Test-JsonOk "storage --json" @("storage", "--json") -MustContain @("storage")
+Test-JsonOk "storage --json" @("storage", "--json") -MustContain @("storage", "temperature_c", "spare_percent", "percentage_used")
 
 Test-ExpectOk "reliability" @("reliability") -AllowAccessDenied
 Test-JsonOk "reliability --json" @("reliability", "--json") -MustContain @("reliability") `

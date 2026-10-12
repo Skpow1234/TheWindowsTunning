@@ -1,6 +1,6 @@
 # WinTune milestones 54–157
 
-Phases 0–59 are done. See [`roadmap.md`](roadmap.md). Phases 60–157 are
+Phases 0–60 are done. See [`roadmap.md`](roadmap.md). Phases 61–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -85,9 +85,18 @@ is JSON null. Read-only.
 
 ### Phase 60 — Storage sensors
 
-**Status:** Planned
+**Status:** Done
 
-**Deliver:** Read storage temperature and SMART health where the public API allows it.
+**Deliver:** Read storage temperature and SMART health where the public API
+allows it. `StorageDeviceTemperatureProperty` supplies Celsius, plus the
+warning and critical thresholds when the device reports them.
+`StorageDeviceProtocolSpecificProperty` reads NVMe health log page 02h:
+spare percent, spare threshold, percentage used, and the critical-warning
+byte. Temperature falls back to that log when the property is absent.
+SATA drives that do not implement the log keep those fields null. WinTune
+does not send ATA passthrough and does not change thresholds. A predicted
+failure stays `degraded`. A crossed temperature or NVMe threshold is
+`warning` and can raise advisory `WT-DISK-006`. Read-only.
 
 ### Phase 61 — Power mode
 

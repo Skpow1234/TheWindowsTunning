@@ -27,6 +27,20 @@ typedef struct WT_StorageDiskHealth {
     int predict_failure; /* 1 = predicted, 0 = not, -1 = not queried */
     int descriptor_ok;
     int predict_ok;
+    /* Phase 60. temperature_c is valid when temperature_ok is 1.
+     * spare_percent, spare_threshold_percent, percentage_used, and
+     * critical_warning are -1 when the NVMe health log was not read. */
+    int temperature_ok;
+    int temperature_c;
+    int warning_temperature_ok;
+    int warning_temperature_c;
+    int critical_temperature_ok;
+    int critical_temperature_c;
+    int smart_ok;
+    int spare_percent;
+    int spare_threshold_percent;
+    int percentage_used;
+    int critical_warning;
     wchar_t note[192];
 } WT_StorageDiskHealth;
 

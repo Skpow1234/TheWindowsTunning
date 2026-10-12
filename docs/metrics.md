@@ -233,19 +233,31 @@ Read-only reliability signals via Windows storage APIs (not PDH):
 ```text
 \\.\PhysicalDriveN
 IOCTL_STORAGE_QUERY_PROPERTY   (identity / bus)
+StorageDeviceTemperatureProperty
+StorageDeviceProtocolSpecificProperty  (NVMe health log page 02h)
 IOCTL_STORAGE_PREDICT_FAILURE  (failure prediction when supported)
 ```
 
 Command: `wintune storage` / `wintune storage --json`.
 
 - Reports model, serial, bus, SSD/HDD hint, and predict-failure status.
+- Phase 60 adds Celsius from `StorageDeviceTemperatureProperty`. When that
+  property is missing and the drive answers the NVMe health log, temperature
+  comes from that log (Kelvin converted to Celsius).
+- The same NVMe log supplies spare percent, spare threshold, percentage used,
+  and the critical-warning byte. A SATA drive that does not implement this
+  log leaves those fields null. WinTune does not send ATA passthrough.
+- JSON `temperature_c` is null when no sensor answered. `spare_percent` and
+  `percentage_used` are null when the NVMe log was not read.
 - Some NVMe/USB devices return “not supported” — that is normal.
-- **Never** wipe, format, or repair disks.
+- **Never** wipe, format, or repair disks. Thresholds are not changed.
 
 Recommendation:
 
 - `WT-DISK-005` — failure prediction reported → back up + vendor diagnostics
   (advisory only).
+- `WT-DISK-006` — temperature or NVMe health is outside the reported
+  threshold (advisory, medium). A missing sensor does not fire this.
 
 ## Reliability / WER signals (Phase 49)
 

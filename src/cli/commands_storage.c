@@ -37,6 +37,30 @@ static void wt_print_storage_text(const WT_StorageHealthReport *r)
             if (d->serial[0] != L'\0') {
                 wprintf(L"         serial: %ls\n", d->serial);
             }
+            if (d->temperature_ok || d->smart_ok) {
+                printf("         ");
+                if (d->temperature_ok) {
+                    printf("temp: %d C", d->temperature_c);
+                    if (d->warning_temperature_ok) {
+                        printf(" (warn %d", d->warning_temperature_c);
+                        if (d->critical_temperature_ok) {
+                            printf(", crit %d", d->critical_temperature_c);
+                        }
+                        printf(")");
+                    }
+                }
+                if (d->smart_ok) {
+                    if (d->temperature_ok) {
+                        printf("  ");
+                    }
+                    printf("spare: %d%%", d->spare_percent);
+                    if (d->spare_threshold_percent >= 0) {
+                        printf(" (threshold %d%%)", d->spare_threshold_percent);
+                    }
+                    printf("  nvme used: %d%%", d->percentage_used);
+                }
+                printf("\n");
+            }
             if (d->note[0] != L'\0' &&
                 d->status != WT_STORAGE_HEALTH_OK) {
                 wprintf(L"         note: %ls\n", d->note);
@@ -54,7 +78,9 @@ static void wt_print_storage_text(const WT_StorageHealthReport *r)
                "vendor's diagnostic tool.\n");
         printf("Also review: wintune scan / wintune doctor\n");
     } else {
-        printf("This is a reliability signal only — not a full SMART dump.\n");
+        printf("Temperature uses the storage temperature property. NVMe "
+               "health is the public log page when the drive provides it. "
+               "This is not an ATA SMART attribute dump.\n");
     }
 }
 

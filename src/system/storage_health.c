@@ -8,6 +8,7 @@
 #endif
 #include <windows.h>
 #include <winioctl.h>
+#include <nvme.h>
 #include <strsafe.h>
 
 const char *wt_storage_health_status_name(WT_StorageHealthStatus status)
@@ -189,15 +190,179 @@ static WT_Result wt_storage_query_predict(HANDLE h, WT_StorageDiskHealth *d)
     d->predict_ok = 1;
     if (pred.PredictFailure != 0) {
         d->predict_failure = 1;
-        d->status = WT_STORAGE_HEALTH_DEGRADED;
         StringCchCopyW(d->note, sizeof(d->note) / sizeof(d->note[0]),
                        L"Windows reports a predicted storage failure. "
                        L"Back up data and check vendor diagnostics.");
     } else {
         d->predict_failure = 0;
-        d->status = WT_STORAGE_HEALTH_OK;
     }
     return WT_OK;
+}
+
+static int wt_storage_temp_reported(SHORT value)
+{
+    return (USHORT)value != (USHORT)STORAGE_TEMPERATURE_VALUE_NOT_REPORTED;
+}
+
+static void wt_storage_query_temperature(HANDLE h, WT_StorageDiskHealth *d)
+{
+    STORAGE_PROPERTY_QUERY q;
+    BYTE buf[sizeof(STORAGE_TEMPERATURE_DATA_DESCRIPTOR) +
+             (sizeof(STORAGE_TEMPERATURE_INFO) * 8)];
+    DWORD bytes = 0;
+    STORAGE_TEMPERATURE_DATA_DESCRIPTOR *desc;
+    USHORT n;
+    USHORT i;
+
+    memset(&q, 0, sizeof(q));
+    q.PropertyId = StorageDeviceTemperatureProperty;
+    q.QueryType = PropertyStandardQuery;
+    memset(buf, 0, sizeof(buf));
+    if (!DeviceIoControl(h, IOCTL_STORAGE_QUERY_PROPERTY, &q, sizeof(q),
+                         buf, sizeof(buf), &bytes, NULL) ||
+        bytes < sizeof(STORAGE_TEMPERATURE_DATA_DESCRIPTOR)) {
+        return;
+    }
+
+    desc = (STORAGE_TEMPERATURE_DATA_DESCRIPTOR *)buf;
+    if (wt_storage_temp_reported(desc->WarningTemperature)) {
+        d->warning_temperature_ok = 1;
+        d->warning_temperature_c = desc->WarningTemperature;
+    }
+    if (wt_storage_temp_reported(desc->CriticalTemperature)) {
+        d->critical_temperature_ok = 1;
+        d->critical_temperature_c = desc->CriticalTemperature;
+    }
+
+    n = desc->InfoCount;
+    if (n > 8) {
+        n = 8;
+    }
+    for (i = 0; i < n; ++i) {
+        size_t need = sizeof(STORAGE_TEMPERATURE_DATA_DESCRIPTOR) +
+                      (sizeof(STORAGE_TEMPERATURE_INFO) * i);
+        if (need > bytes) {
+            break;
+        }
+        if (!wt_storage_temp_reported(desc->TemperatureInfo[i].Temperature)) {
+            continue;
+        }
+        d->temperature_ok = 1;
+        d->temperature_c = desc->TemperatureInfo[i].Temperature;
+        break;
+    }
+}
+
+static void wt_storage_query_nvme_health(HANDLE h, WT_StorageDiskHealth *d)
+{
+    const ULONG proto_off = (ULONG)FIELD_OFFSET(STORAGE_PROPERTY_QUERY,
+                                                 AdditionalParameters);
+    const ULONG in_len = proto_off + sizeof(STORAGE_PROTOCOL_SPECIFIC_DATA) +
+                         sizeof(NVME_HEALTH_INFO_LOG);
+    const ULONG out_len =
+        (ULONG)FIELD_OFFSET(STORAGE_PROTOCOL_DATA_DESCRIPTOR, ProtocolSpecificData) +
+        sizeof(STORAGE_PROTOCOL_SPECIFIC_DATA) + sizeof(NVME_HEALTH_INFO_LOG);
+    BYTE in_buf[1024];
+    BYTE out_buf[1024];
+    STORAGE_PROPERTY_QUERY *q;
+    STORAGE_PROTOCOL_SPECIFIC_DATA *proto;
+    STORAGE_PROTOCOL_DATA_DESCRIPTOR *desc;
+    NVME_HEALTH_INFO_LOG *log;
+    DWORD bytes = 0;
+    unsigned int kelvin;
+
+    if (in_len > sizeof(in_buf) || out_len > sizeof(out_buf)) {
+        return;
+    }
+    memset(in_buf, 0, sizeof(in_buf));
+    memset(out_buf, 0, sizeof(out_buf));
+    q = (STORAGE_PROPERTY_QUERY *)in_buf;
+    q->PropertyId = StorageDeviceProtocolSpecificProperty;
+    q->QueryType = PropertyStandardQuery;
+    proto = (STORAGE_PROTOCOL_SPECIFIC_DATA *)(in_buf + proto_off);
+    proto->ProtocolType = ProtocolTypeNvme;
+    proto->DataType = NVMeDataTypeLogPage;
+    proto->ProtocolDataRequestValue = NVME_LOG_PAGE_HEALTH_INFO;
+    proto->ProtocolDataOffset = sizeof(STORAGE_PROTOCOL_SPECIFIC_DATA);
+    proto->ProtocolDataLength = sizeof(NVME_HEALTH_INFO_LOG);
+
+    if (!DeviceIoControl(h, IOCTL_STORAGE_QUERY_PROPERTY, in_buf, in_len,
+                         out_buf, out_len, &bytes, NULL) ||
+        bytes < sizeof(STORAGE_PROTOCOL_DATA_DESCRIPTOR)) {
+        return;
+    }
+
+    desc = (STORAGE_PROTOCOL_DATA_DESCRIPTOR *)out_buf;
+    if (desc->ProtocolSpecificData.ProtocolDataLength < 5 ||
+        desc->ProtocolSpecificData.ProtocolDataOffset +
+                desc->ProtocolSpecificData.ProtocolDataLength >
+            bytes - (ULONG)FIELD_OFFSET(STORAGE_PROTOCOL_DATA_DESCRIPTOR,
+                                        ProtocolSpecificData)) {
+        return;
+    }
+
+    log = (NVME_HEALTH_INFO_LOG *)((BYTE *)&desc->ProtocolSpecificData +
+                                   desc->ProtocolSpecificData.ProtocolDataOffset);
+    d->smart_ok = 1;
+    d->critical_warning = log->CriticalWarning.AsUchar;
+    d->spare_percent = log->AvailableSpare;
+    d->spare_threshold_percent = log->AvailableSpareThreshold;
+    d->percentage_used = log->PercentageUsed;
+
+    if (!d->temperature_ok) {
+        kelvin = (unsigned int)log->Temperature[0] |
+                 ((unsigned int)log->Temperature[1] << 8);
+        if (kelvin > 200 && kelvin < 500) {
+            d->temperature_ok = 1;
+            d->temperature_c = (int)kelvin - 273;
+        }
+    }
+}
+
+static void wt_storage_finish_status(WT_StorageDiskHealth *d)
+{
+    int sensor_warning = 0;
+
+    if (d->predict_failure == 1) {
+        d->status = WT_STORAGE_HEALTH_DEGRADED;
+        return;
+    }
+    if (d->smart_ok && (d->critical_warning & 0x1F) != 0) {
+        sensor_warning = 1;
+    }
+    if (d->temperature_ok && d->warning_temperature_ok &&
+        d->temperature_c >= d->warning_temperature_c) {
+        sensor_warning = 1;
+    }
+    if (d->smart_ok && d->spare_percent >= 0 &&
+        d->spare_threshold_percent >= 0 &&
+        d->spare_percent < d->spare_threshold_percent) {
+        sensor_warning = 1;
+    }
+    if (d->smart_ok && d->percentage_used >= 100) {
+        sensor_warning = 1;
+    }
+    if (sensor_warning) {
+        d->status = WT_STORAGE_HEALTH_WARNING;
+        if (d->note[0] == L'\0' ||
+            wcsstr(d->note, L"not supported") != NULL) {
+            StringCchCopyW(d->note, sizeof(d->note) / sizeof(d->note[0]),
+                           L"Temperature or NVMe health is outside the "
+                           L"reported threshold. Back up if this persists.");
+        }
+        return;
+    }
+    if (d->predict_ok || d->temperature_ok || d->smart_ok) {
+        d->status = WT_STORAGE_HEALTH_OK;
+        if (wcsstr(d->note, L"not supported") != NULL) {
+            d->note[0] = L'\0';
+        }
+        return;
+    }
+    if (d->status == WT_STORAGE_HEALTH_UNAVAILABLE) {
+        return;
+    }
+    d->status = WT_STORAGE_HEALTH_UNKNOWN;
 }
 
 static HANDLE wt_storage_open_drive(unsigned int index)
@@ -229,6 +394,13 @@ static int wt_storage_probe_disk(unsigned int index, WT_StorageDiskHealth *d)
     memset(d, 0, sizeof(*d));
     d->physical_drive = index;
     d->predict_failure = -1;
+    d->temperature_c = -1;
+    d->warning_temperature_c = -1;
+    d->critical_temperature_c = -1;
+    d->spare_percent = -1;
+    d->spare_threshold_percent = -1;
+    d->percentage_used = -1;
+    d->critical_warning = -1;
     d->status = WT_STORAGE_HEALTH_UNKNOWN;
     StringCchCopyW(d->media_hint, sizeof(d->media_hint) / sizeof(d->media_hint[0]),
                    L"unknown");
@@ -238,10 +410,13 @@ static int wt_storage_probe_disk(unsigned int index, WT_StorageDiskHealth *d)
     (void)wt_storage_query_descriptor(h, d);
     wt_storage_query_media_hint(h, d->media_hint,
                                 sizeof(d->media_hint) / sizeof(d->media_hint[0]));
+    wt_storage_query_temperature(h, d);
+    wt_storage_query_nvme_health(h, d);
     r = wt_storage_query_predict(h, d);
-    if (r == WT_ERR_ACCESS_DENIED) {
+    if (r == WT_ERR_ACCESS_DENIED && !d->temperature_ok && !d->smart_ok) {
         d->status = WT_STORAGE_HEALTH_UNAVAILABLE;
     }
+    wt_storage_finish_status(d);
 
     if (d->model[0] == L'\0') {
         StringCchPrintfW(d->model, sizeof(d->model) / sizeof(d->model[0]),

@@ -310,9 +310,11 @@ WinTune never closes applications automatically.
 
 ## `wintune storage`
 
-Read-only storage reliability summary using Windows failure-prediction IOCTLs
-(when the driver supports them). Identifies physical disks, bus/media hints,
-and predicted failure status.
+Read-only storage reliability summary. Identifies physical disks, bus/media
+hints, predicted failure, Celsius from the storage temperature property, and
+the NVMe health log (spare, percentage used, critical warning) when the drive
+provides it. SATA drives that do not implement that log leave those fields
+null. WinTune does not send ATA passthrough.
 
 ```bash
 wintune storage
@@ -321,7 +323,10 @@ wintune storage --json
 
 - Never wipes, formats, or “repairs” disks.
 - When failure is predicted: back up data and use the vendor’s diagnostic tool.
-- Advisory recommendation: `WT-DISK-005` (also surfaced by `recommend` / `doctor`).
+- Advisory recommendations: `WT-DISK-005` when failure is predicted, and
+  `WT-DISK-006` when temperature or NVMe health crosses a reported threshold
+  (also surfaced by `recommend` / `doctor`). A missing sensor does not fire
+  `WT-DISK-006`.
 
 See [`metrics.md`](metrics.md) (Storage health).
 

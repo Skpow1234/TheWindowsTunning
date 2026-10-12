@@ -1339,6 +1339,48 @@ void wt_print_storage_json(const WT_StorageHealthReport *report, FILE *out)
             wt_json_bool(&w, d->descriptor_ok);
             wt_json_key(&w, "predict_ok");
             wt_json_bool(&w, d->predict_ok);
+            wt_json_key(&w, "temperature_c");
+            if (d->temperature_ok) {
+                wt_json_double(&w, (double)d->temperature_c);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "warning_temperature_c");
+            if (d->warning_temperature_ok) {
+                wt_json_double(&w, (double)d->warning_temperature_c);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "critical_temperature_c");
+            if (d->critical_temperature_ok) {
+                wt_json_double(&w, (double)d->critical_temperature_c);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "spare_percent");
+            if (d->smart_ok && d->spare_percent >= 0) {
+                wt_json_uint64(&w, (unsigned long long)d->spare_percent);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "spare_threshold_percent");
+            if (d->smart_ok && d->spare_threshold_percent >= 0) {
+                wt_json_uint64(&w, (unsigned long long)d->spare_threshold_percent);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "percentage_used");
+            if (d->smart_ok && d->percentage_used >= 0) {
+                wt_json_uint64(&w, (unsigned long long)d->percentage_used);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "critical_warning");
+            if (d->smart_ok && d->critical_warning >= 0) {
+                wt_json_uint64(&w, (unsigned long long)d->critical_warning);
+            } else {
+                wt_json_null(&w);
+            }
             if (d->note[0] != L'\0') {
                 wt_json_key(&w, "note");
                 wt_json_wstring(&w, d->note);

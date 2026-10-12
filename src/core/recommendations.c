@@ -651,6 +651,61 @@ static void wt_check_storage_health(WT_RecommendationList *out)
         wt_str_set(rec->confidence_basis, sizeof(rec->confidence_basis),
                    "IOCTL_STORAGE_PREDICT_FAILURE");
         /* One advisory is enough even if multiple disks fail. */
+        return;
+    }
+
+    for (i = 0; i < health.disk_count; ++i) {
+        const WT_StorageDiskHealth *d = &health.disks[i];
+        WT_Recommendation *rec;
+        if (d->status != WT_STORAGE_HEALTH_WARNING) {
+            continue;
+        }
+        rec = wt_rec_add(out);
+        if (rec == NULL) {
+            break;
+        }
+        wt_str_set(rec->id, sizeof(rec->id), "WT-DISK-006");
+        wt_str_set(rec->title, sizeof(rec->title),
+                   "Storage sensor is outside its threshold");
+        {
+            char model_utf8[128];
+            model_utf8[0] = '\0';
+            if (d->model[0] != L'\0') {
+                (void)WideCharToMultiByte(CP_UTF8, 0, d->model, -1, model_utf8,
+                                          (int)sizeof(model_utf8), NULL, NULL);
+            }
+            if (d->temperature_ok && model_utf8[0] != '\0') {
+                snprintf(rec->reason, sizeof(rec->reason),
+                         "PhysicalDrive%u (%s) reports %d C or an NVMe health "
+                         "threshold. This is advisory.",
+                         d->physical_drive, model_utf8, d->temperature_c);
+            } else if (d->temperature_ok) {
+                snprintf(rec->reason, sizeof(rec->reason),
+                         "PhysicalDrive%u reports %d C or an NVMe health "
+                         "threshold. This is advisory.",
+                         d->physical_drive, d->temperature_c);
+            } else if (model_utf8[0] != '\0') {
+                snprintf(rec->reason, sizeof(rec->reason),
+                         "PhysicalDrive%u (%s) NVMe health log is outside "
+                         "the reported threshold. This is advisory.",
+                         d->physical_drive, model_utf8);
+            } else {
+                snprintf(rec->reason, sizeof(rec->reason),
+                         "PhysicalDrive%u NVMe health log is outside the "
+                         "reported threshold. This is advisory.",
+                         d->physical_drive);
+            }
+        }
+        wt_str_set(rec->action, sizeof(rec->action),
+                   "Check vendor diagnostics if this persists. WinTune does "
+                   "not wipe, format, or repair disks.");
+        rec->severity = WT_SEVERITY_MEDIUM;
+        rec->risk = WT_RISK_NONE;
+        rec->requires_admin = 0;
+        rec->rollback_available = 0;
+        rec->confidence_percent = 70;
+        wt_str_set(rec->confidence_basis, sizeof(rec->confidence_basis),
+                   "Storage temperature property or NVMe health log");
         break;
     }
 }
