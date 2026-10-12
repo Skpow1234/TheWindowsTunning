@@ -430,6 +430,7 @@ wt_add_unit_test(test_recommendations
     src/system/storage_health.c
     src/system/reliability.c
     src/system/maintenance.c
+    src/system/search.c
     src/system/startup.c
     src/system/tasks.c
     src/system/file_identity.c
