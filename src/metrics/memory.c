@@ -102,6 +102,23 @@ static int wt_memory_counter_bytes(PDH_HCOUNTER counter, unsigned long long cap,
     return 1;
 }
 
+static PDH_HQUERY g_mem_query = NULL;
+static PDH_HCOUNTER g_mem_standby[3] = {NULL, NULL, NULL};
+static PDH_HCOUNTER g_mem_modified = NULL;
+static PDH_HCOUNTER g_mem_compression = NULL;
+static unsigned g_mem_gen = 0;
+
+static void wt_memory_pdh_clear(void)
+{
+    g_mem_query = NULL;
+    g_mem_standby[0] = NULL;
+    g_mem_standby[1] = NULL;
+    g_mem_standby[2] = NULL;
+    g_mem_modified = NULL;
+    g_mem_compression = NULL;
+    g_mem_gen = 0;
+}
+
 /* Standby is the sum of the three public cache lists. Modified is its own
  * counter. One extra collect covers providers that reject the first sample.
  * No sleep: these are sizes, not rates. */
@@ -121,26 +138,61 @@ static void wt_memory_read_lists(WT_MemoryMetrics *out)
     unsigned long long part = 0;
     int i;
     int standby_parts = 0;
+    int cached = 0;
 
-    if (PdhOpenQueryW(NULL, 0, &query) != ERROR_SUCCESS) {
-        return;
-    }
-    for (i = 0; i < 3; ++i) {
-        if (PdhAddEnglishCounterW(query, k_standby[i], 0, &standby[i]) !=
-            ERROR_SUCCESS) {
-            standby[i] = NULL;
+    if (wt_pdh_cache_active() && g_mem_query != NULL &&
+        g_mem_gen == wt_pdh_cache_generation()) {
+        query = g_mem_query;
+        for (i = 0; i < 3; ++i) {
+            standby[i] = g_mem_standby[i];
+        }
+        modified = g_mem_modified;
+        compression = g_mem_compression;
+        cached = 1;
+    } else {
+        if (g_mem_query != NULL && wt_pdh_cache_active()) {
+            wt_pdh_cache_forget(g_mem_query);
+            wt_memory_pdh_clear();
+        }
+        if (PdhOpenQueryW(NULL, 0, &query) != ERROR_SUCCESS) {
+            return;
+        }
+        for (i = 0; i < 3; ++i) {
+            if (PdhAddEnglishCounterW(query, k_standby[i], 0, &standby[i]) !=
+                ERROR_SUCCESS) {
+                standby[i] = NULL;
+            }
+        }
+        if (PdhAddEnglishCounterW(query, L"\\Memory\\Modified Page List Bytes", 0,
+                                  &modified) != ERROR_SUCCESS) {
+            modified = NULL;
+        }
+        if (PdhAddEnglishCounterW(
+                query, L"\\Process(Memory Compression)\\Working Set", 0,
+                &compression) != ERROR_SUCCESS) {
+            compression = NULL;
+        }
+        if (standby[0] != NULL || standby[1] != NULL || standby[2] != NULL ||
+            modified != NULL || compression != NULL) {
+            if (wt_pdh_cache_track(query)) {
+                g_mem_query = query;
+                for (i = 0; i < 3; ++i) {
+                    g_mem_standby[i] = standby[i];
+                }
+                g_mem_modified = modified;
+                g_mem_compression = compression;
+                g_mem_gen = wt_pdh_cache_generation();
+                cached = 1;
+            }
         }
     }
-    if (PdhAddEnglishCounterW(query, L"\\Memory\\Modified Page List Bytes", 0,
-                              &modified) != ERROR_SUCCESS) {
-        modified = NULL;
-    }
-    if (PdhAddEnglishCounterW(query, L"\\Process(Memory Compression)\\Working Set",
-                              0, &compression) != ERROR_SUCCESS) {
-        compression = NULL;
-    }
     if (PdhCollectQueryData(query) != ERROR_SUCCESS) {
-        PdhCloseQuery(query);
+        if (cached) {
+            wt_pdh_cache_forget(query);
+            wt_memory_pdh_clear();
+        } else {
+            PdhCloseQuery(query);
+        }
         return;
     }
     (void)PdhCollectQueryData(query);
@@ -163,7 +215,9 @@ static void wt_memory_read_lists(WT_MemoryMetrics *out)
         out->compression_ok = 1;
         out->compression_bytes = part;
     }
-    PdhCloseQuery(query);
+    if (!cached) {
+        PdhCloseQuery(query);
+    }
 }
 
 /* Physical size of the compressed store: the Memory Compression process

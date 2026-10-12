@@ -1,4 +1,5 @@
 #include "metrics/gpu.h"
+#include "metrics/pdh_utils.h"
 
 #define COBJMACROS
 #include <windows.h>
@@ -488,6 +489,17 @@ static WT_Result wt_gpu_enum_adapters(WT_GpuMetrics *out)
     return out->adapters_ok ? WT_OK : WT_ERR_NOT_FOUND;
 }
 
+static PDH_HQUERY g_gpu_query = NULL;
+static PDH_HCOUNTER g_gpu_counter = NULL;
+static unsigned g_gpu_gen = 0;
+
+static void wt_gpu_pdh_clear(void)
+{
+    g_gpu_query = NULL;
+    g_gpu_counter = NULL;
+    g_gpu_gen = 0;
+}
+
 static WT_Result wt_gpu_sample_utilization(WT_GpuMetrics *out,
                                            unsigned int sample_ms)
 {
@@ -501,13 +513,33 @@ static WT_Result wt_gpu_sample_utilization(WT_GpuMetrics *out,
     PDH_HQUERY query = NULL;
     PDH_HCOUNTER counter = NULL;
     WT_Result result = WT_ERR_PDH;
+    int cached = 0;
+    int query_ok = 0;
 
-    if (PdhOpenQueryW(NULL, 0, &query) != ERROR_SUCCESS) {
-        return WT_ERR_PDH;
-    }
-    if (PdhAddEnglishCounterW(query, L"\\GPU Engine(*)\\Utilization Percentage",
-                              0, &counter) != ERROR_SUCCESS) {
-        goto cleanup;
+    if (wt_pdh_cache_active() && g_gpu_query != NULL && g_gpu_counter != NULL &&
+        g_gpu_gen == wt_pdh_cache_generation()) {
+        query = g_gpu_query;
+        counter = g_gpu_counter;
+        cached = 1;
+    } else {
+        if (g_gpu_query != NULL && wt_pdh_cache_active()) {
+            wt_pdh_cache_forget(g_gpu_query);
+            wt_gpu_pdh_clear();
+        }
+        if (PdhOpenQueryW(NULL, 0, &query) != ERROR_SUCCESS) {
+            return WT_ERR_PDH;
+        }
+        if (PdhAddEnglishCounterW(query,
+                                  L"\\GPU Engine(*)\\Utilization Percentage", 0,
+                                  &counter) != ERROR_SUCCESS) {
+            goto cleanup;
+        }
+        if (wt_pdh_cache_track(query)) {
+            g_gpu_query = query;
+            g_gpu_counter = counter;
+            g_gpu_gen = wt_pdh_cache_generation();
+            cached = 1;
+        }
     }
     if (PdhCollectQueryData(query) != ERROR_SUCCESS) {
         goto cleanup;
@@ -516,6 +548,7 @@ static WT_Result wt_gpu_sample_utilization(WT_GpuMetrics *out,
     if (PdhCollectQueryData(query) != ERROR_SUCCESS) {
         goto cleanup;
     }
+    query_ok = 1;
 
     DWORD buf_size = 0;
     DWORD item_count = 0;
@@ -610,7 +643,14 @@ static WT_Result wt_gpu_sample_utilization(WT_GpuMetrics *out,
     result = out->utilization_ok ? WT_OK : WT_ERR_NOT_FOUND;
 
 cleanup:
-    if (query != NULL) {
+    if (!query_ok) {
+        if (g_gpu_query == query) {
+            wt_pdh_cache_forget(query);
+            wt_gpu_pdh_clear();
+        } else if (query != NULL) {
+            PdhCloseQuery(query);
+        }
+    } else if (!cached && query != NULL) {
         PdhCloseQuery(query);
     }
     return result;

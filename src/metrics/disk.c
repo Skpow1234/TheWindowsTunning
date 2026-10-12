@@ -258,6 +258,64 @@ static void wt_disk_apply_volume(WT_DiskVolumeMetrics *v, const WT_VolCounters *
     }
 }
 
+#define WT_DISK_PDH_VOL_MAX 32
+
+typedef struct WT_DiskPdhCache {
+    unsigned gen;
+    int want_total;
+    PDH_HQUERY query;
+    size_t volume_count;
+    wchar_t letters[WT_DISK_PDH_VOL_MAX];
+    PDH_HCOUNTER active;
+    PDH_HCOUNTER read;
+    PDH_HCOUNTER write;
+    PDH_HCOUNTER queue;
+    PDH_HCOUNTER read_lat;
+    PDH_HCOUNTER write_lat;
+    WT_VolCounters vols[WT_DISK_PDH_VOL_MAX];
+    size_t vol_added;
+} WT_DiskPdhCache;
+
+static WT_DiskPdhCache g_disk_pdh;
+
+static void wt_disk_pdh_clear(void)
+{
+    memset(&g_disk_pdh, 0, sizeof(g_disk_pdh));
+}
+
+static void wt_disk_fill_letters(const WT_DiskVolumeMetrics *volumes,
+                                 size_t volume_count, wchar_t *letters)
+{
+    size_t i;
+
+    for (i = 0; i < volume_count; ++i) {
+        wchar_t letter = 0;
+        letters[i] = 0;
+        if (volumes != NULL && wt_disk_volume_letter(&volumes[i], &letter)) {
+            if (letter >= L'a' && letter <= L'z') {
+                letter = (wchar_t)(letter - L'a' + L'A');
+            }
+            letters[i] = letter;
+        }
+    }
+}
+
+static int wt_disk_pdh_hit(int want_total, const wchar_t *letters,
+                           size_t volume_count)
+{
+    if (!wt_pdh_cache_active() || g_disk_pdh.query == NULL ||
+        g_disk_pdh.gen != wt_pdh_cache_generation() ||
+        g_disk_pdh.want_total != want_total ||
+        g_disk_pdh.volume_count != volume_count) {
+        return 0;
+    }
+    if (volume_count > 0 &&
+        memcmp(g_disk_pdh.letters, letters, volume_count * sizeof(wchar_t)) != 0) {
+        return 0;
+    }
+    return 1;
+}
+
 WT_Result wt_collect_disk_io_ex(unsigned int sample_ms,
                                 WT_DiskIoMetrics *total_out,
                                 WT_DiskVolumeMetrics *volumes,
@@ -279,13 +337,7 @@ WT_Result wt_collect_disk_io_ex(unsigned int sample_ms,
     }
 
     WT_VolCounters *slots = NULL;
-    if (volumes != NULL && volume_count > 0) {
-        slots = (WT_VolCounters *)calloc(volume_count, sizeof(WT_VolCounters));
-        if (slots == NULL) {
-            return WT_ERR_OUT_OF_MEMORY;
-        }
-    }
-
+    int slots_heap = 0;
     PDH_HQUERY query = NULL;
     PDH_HCOUNTER c_active = NULL;
     PDH_HCOUNTER c_read = NULL;
@@ -295,11 +347,50 @@ WT_Result wt_collect_disk_io_ex(unsigned int sample_ms,
     PDH_HCOUNTER c_write_lat = NULL;
     WT_Result result = WT_ERR_PDH;
     size_t vol_added = 0;
+    int cached = 0;
+    int want_total = (total_out != NULL);
+    int cacheable = (volume_count <= WT_DISK_PDH_VOL_MAX);
+    wchar_t letters[WT_DISK_PDH_VOL_MAX];
+    size_t key_count = 0;
 
-    if (PdhOpenQueryW(NULL, 0, &query) != ERROR_SUCCESS) {
-        free(slots);
-        return WT_ERR_PDH;
+    if (volumes == NULL) {
+        volume_count = 0;
     }
+    if (cacheable && volume_count > 0) {
+        wt_disk_fill_letters(volumes, volume_count, letters);
+        key_count = volume_count;
+    }
+
+    if (cacheable && wt_disk_pdh_hit(want_total, letters, key_count)) {
+        query = g_disk_pdh.query;
+        c_active = g_disk_pdh.active;
+        c_read = g_disk_pdh.read;
+        c_write = g_disk_pdh.write;
+        c_queue = g_disk_pdh.queue;
+        c_read_lat = g_disk_pdh.read_lat;
+        c_write_lat = g_disk_pdh.write_lat;
+        vol_added = g_disk_pdh.vol_added;
+        slots = (key_count > 0) ? g_disk_pdh.vols : NULL;
+        cached = 1;
+    } else {
+        if (g_disk_pdh.query != NULL && wt_pdh_cache_active()) {
+            wt_pdh_cache_forget(g_disk_pdh.query);
+            wt_disk_pdh_clear();
+        }
+        if (volumes != NULL && volume_count > 0) {
+            slots = (WT_VolCounters *)calloc(volume_count, sizeof(WT_VolCounters));
+            if (slots == NULL) {
+                return WT_ERR_OUT_OF_MEMORY;
+            }
+            slots_heap = 1;
+        }
+        if (PdhOpenQueryW(NULL, 0, &query) != ERROR_SUCCESS) {
+            free(slots);
+            return WT_ERR_PDH;
+        }
+    }
+
+    if (!cached) {
 
     if (total_out != NULL) {
         (void)PdhAddEnglishCounterW(query,
@@ -364,6 +455,29 @@ WT_Result wt_collect_disk_io_ex(unsigned int sample_ms,
         }
     }
 
+    if (cacheable && wt_pdh_cache_track(query)) {
+        g_disk_pdh.gen = wt_pdh_cache_generation();
+        g_disk_pdh.want_total = want_total;
+        g_disk_pdh.query = query;
+        g_disk_pdh.volume_count = key_count;
+        if (key_count > 0) {
+            memcpy(g_disk_pdh.letters, letters, key_count * sizeof(wchar_t));
+            memcpy(g_disk_pdh.vols, slots, key_count * sizeof(WT_VolCounters));
+            free(slots);
+            slots = g_disk_pdh.vols;
+            slots_heap = 0;
+        }
+        g_disk_pdh.active = c_active;
+        g_disk_pdh.read = c_read;
+        g_disk_pdh.write = c_write;
+        g_disk_pdh.queue = c_queue;
+        g_disk_pdh.read_lat = c_read_lat;
+        g_disk_pdh.write_lat = c_write_lat;
+        g_disk_pdh.vol_added = vol_added;
+        cached = 1;
+    }
+    }
+
     if (c_active == NULL && c_read == NULL && c_write == NULL && vol_added == 0) {
         goto cleanup;
     }
@@ -394,10 +508,20 @@ WT_Result wt_collect_disk_io_ex(unsigned int sample_ms,
     }
 
 cleanup:
-    if (query != NULL) {
+    if (result != WT_OK) {
+        if (g_disk_pdh.query == query) {
+            wt_pdh_cache_forget(query);
+            wt_disk_pdh_clear();
+            slots_heap = 0;
+        } else if (query != NULL) {
+            PdhCloseQuery(query);
+        }
+    } else if (!cached && query != NULL) {
         PdhCloseQuery(query);
     }
-    free(slots);
+    if (slots_heap) {
+        free(slots);
+    }
     return result;
 }
 

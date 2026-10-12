@@ -5,29 +5,193 @@
 #include <pdhmsg.h>
 #include <strsafe.h>
 #include <stdlib.h>
+#include <string.h>
+#include <wchar.h>
 
 #define WT_PDH_PROC_MAX_INSTANCES 256
+#define WT_PDH_CACHE_MAX 8
+#define WT_PDH_SINGLE_MAX 4
+#define WT_PDH_SINGLE_PATH 192
+
+static int g_pdh_depth = 0;
+static unsigned g_pdh_generation = 0;
+static PDH_HQUERY g_pdh_tracked[WT_PDH_CACHE_MAX];
+static int g_pdh_tracked_count = 0;
+
+typedef struct WT_PdhSingleSlot {
+    unsigned gen;
+    wchar_t path[WT_PDH_SINGLE_PATH];
+    PDH_HQUERY query;
+    PDH_HCOUNTER counter;
+} WT_PdhSingleSlot;
+
+static WT_PdhSingleSlot g_pdh_single[WT_PDH_SINGLE_MAX];
+
+void wt_pdh_cache_begin(void)
+{
+    if (g_pdh_depth == 0) {
+        g_pdh_generation++;
+        if (g_pdh_generation == 0) {
+            g_pdh_generation = 1;
+        }
+    }
+    g_pdh_depth++;
+}
+
+void wt_pdh_cache_end(void)
+{
+    int i;
+
+    if (g_pdh_depth == 0) {
+        return;
+    }
+    g_pdh_depth--;
+    if (g_pdh_depth > 0) {
+        return;
+    }
+    for (i = 0; i < g_pdh_tracked_count; ++i) {
+        if (g_pdh_tracked[i] != NULL) {
+            PdhCloseQuery(g_pdh_tracked[i]);
+            g_pdh_tracked[i] = NULL;
+        }
+    }
+    g_pdh_tracked_count = 0;
+    g_pdh_generation++;
+    if (g_pdh_generation == 0) {
+        g_pdh_generation = 1;
+    }
+}
+
+int wt_pdh_cache_active(void)
+{
+    return g_pdh_depth > 0;
+}
+
+unsigned wt_pdh_cache_generation(void)
+{
+    return g_pdh_generation;
+}
+
+int wt_pdh_cache_track(PDH_HQUERY query)
+{
+    if (!wt_pdh_cache_active() || query == NULL ||
+        g_pdh_tracked_count >= WT_PDH_CACHE_MAX) {
+        return 0;
+    }
+    g_pdh_tracked[g_pdh_tracked_count++] = query;
+    return 1;
+}
+
+int wt_pdh_cache_forget(PDH_HQUERY query)
+{
+    int i;
+
+    if (query == NULL) {
+        return 0;
+    }
+    for (i = 0; i < g_pdh_tracked_count; ++i) {
+        if (g_pdh_tracked[i] != query) {
+            continue;
+        }
+        PdhCloseQuery(query);
+        g_pdh_tracked[i] = g_pdh_tracked[g_pdh_tracked_count - 1];
+        g_pdh_tracked[g_pdh_tracked_count - 1] = NULL;
+        g_pdh_tracked_count--;
+        return 1;
+    }
+    return 0;
+}
+
+static void wt_pdh_single_clear(WT_PdhSingleSlot *slot)
+{
+    if (slot == NULL) {
+        return;
+    }
+    slot->gen = 0;
+    slot->path[0] = L'\0';
+    slot->query = NULL;
+    slot->counter = NULL;
+}
+
+static WT_PdhSingleSlot *wt_pdh_single_find(const wchar_t *path)
+{
+    int i;
+    unsigned gen;
+
+    if (!wt_pdh_cache_active() || path == NULL) {
+        return NULL;
+    }
+    gen = wt_pdh_cache_generation();
+    for (i = 0; i < WT_PDH_SINGLE_MAX; ++i) {
+        if (g_pdh_single[i].query != NULL && g_pdh_single[i].gen == gen &&
+            wcscmp(g_pdh_single[i].path, path) == 0) {
+            return &g_pdh_single[i];
+        }
+    }
+    return NULL;
+}
+
+static WT_PdhSingleSlot *wt_pdh_single_reserve(void)
+{
+    int i;
+    unsigned gen;
+
+    if (!wt_pdh_cache_active()) {
+        return NULL;
+    }
+    gen = wt_pdh_cache_generation();
+    for (i = 0; i < WT_PDH_SINGLE_MAX; ++i) {
+        if (g_pdh_single[i].query == NULL || g_pdh_single[i].gen != gen) {
+            return &g_pdh_single[i];
+        }
+    }
+    return NULL;
+}
 
 WT_Result wt_pdh_sample_single(const wchar_t *counter_path,
                                unsigned int interval_ms,
                                double *out_value)
 {
+    WT_PdhSingleSlot *slot;
+    PDH_HQUERY query = NULL;
+    PDH_HCOUNTER counter = NULL;
+    int tracked = 0;
+    WT_Result result = WT_ERR_PDH;
+    PDH_FMT_COUNTERVALUE value;
+    DWORD value_type = 0;
+
     if (counter_path == NULL || out_value == NULL) {
         return WT_ERR_INVALID_ARGUMENT;
     }
     *out_value = 0.0;
 
-    PDH_HQUERY query = NULL;
-    PDH_HCOUNTER counter = NULL;
-    WT_Result result = WT_ERR_PDH;
+    slot = wt_pdh_single_find(counter_path);
+    if (slot != NULL) {
+        query = slot->query;
+        counter = slot->counter;
+        tracked = 1;
+    } else {
+        WT_PdhSingleSlot *fresh;
 
-    if (PdhOpenQueryW(NULL, 0, &query) != ERROR_SUCCESS) {
-        return WT_ERR_PDH;
-    }
-
-    /* English counter path so this works on localized Windows installs. */
-    if (PdhAddEnglishCounterW(query, counter_path, 0, &counter) != ERROR_SUCCESS) {
-        goto cleanup;
+        if (PdhOpenQueryW(NULL, 0, &query) != ERROR_SUCCESS) {
+            return WT_ERR_PDH;
+        }
+        /* English counter path so this works on localized Windows installs. */
+        if (PdhAddEnglishCounterW(query, counter_path, 0, &counter) !=
+            ERROR_SUCCESS) {
+            PdhCloseQuery(query);
+            return WT_ERR_PDH;
+        }
+        fresh = wt_pdh_single_reserve();
+        if (fresh != NULL && wcslen(counter_path) < WT_PDH_SINGLE_PATH &&
+            wt_pdh_cache_track(query)) {
+            fresh->gen = wt_pdh_cache_generation();
+            StringCchCopyW(fresh->path, WT_PDH_SINGLE_PATH, counter_path);
+            fresh->query = query;
+            fresh->counter = counter;
+            tracked = 1;
+            slot = fresh;
+        }
     }
 
     /* Rate counters need a baseline collection, a wait, then a second one. */
@@ -39,10 +203,8 @@ WT_Result wt_pdh_sample_single(const wchar_t *counter_path,
         goto cleanup;
     }
 
-    PDH_FMT_COUNTERVALUE value;
-    DWORD value_type = 0;
-    if (PdhGetFormattedCounterValue(counter, PDH_FMT_DOUBLE, &value_type, &value)
-            != ERROR_SUCCESS) {
+    if (PdhGetFormattedCounterValue(counter, PDH_FMT_DOUBLE, &value_type, &value) !=
+        ERROR_SUCCESS) {
         goto cleanup;
     }
 
@@ -50,7 +212,14 @@ WT_Result wt_pdh_sample_single(const wchar_t *counter_path,
     result = WT_OK;
 
 cleanup:
-    if (query != NULL) {
+    if (result != WT_OK) {
+        if (tracked) {
+            wt_pdh_cache_forget(query);
+            wt_pdh_single_clear(slot);
+        } else if (query != NULL) {
+            PdhCloseQuery(query);
+        }
+    } else if (!tracked && query != NULL) {
         PdhCloseQuery(query);
     }
     return result;

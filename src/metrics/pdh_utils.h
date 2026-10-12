@@ -3,6 +3,9 @@
 
 #include "common/error.h"
 
+#include <windows.h>
+#include <pdh.h>
+
 /* Samples a single PDH counter over a short interval and returns its formatted
  * double value. Two collections are required for rate counters (such as
  * "% Processor Time"), so the call blocks for `interval_ms` between them.
@@ -22,5 +25,19 @@ WT_Result wt_pdh_collect_process_cpu(unsigned int interval_ms,
                                      double *cpu_percent,
                                      size_t capacity,
                                      size_t *out_count);
+
+/* Keeps PDH queries open across the samples of one scan. Calls outside a
+ * scan still open and close their own queries. begin/end may nest. */
+void wt_pdh_cache_begin(void);
+void wt_pdh_cache_end(void);
+int wt_pdh_cache_active(void);
+unsigned wt_pdh_cache_generation(void);
+
+/* Remember `query` until the matching cache end. Returns 0 when the cache
+ * is inactive or full; the caller then owns the query. */
+int wt_pdh_cache_track(PDH_HQUERY query);
+
+/* Close `query` and drop it from the cache. Returns 0 if it was not tracked. */
+int wt_pdh_cache_forget(PDH_HQUERY query);
 
 #endif /* WINTUNE_PDH_UTILS_H */

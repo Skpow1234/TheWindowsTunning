@@ -12,7 +12,10 @@ failures are recorded rather than fatal.
 - Prefer multiple samples over a short interval rather than a single noisy read.
 - Default single-sample window: **500 ms** PDH interval for CPU and disk activity.
 - Multi-sample scans: `wintune scan --samples N --interval MS` averages CPU and
-  disk active time across samples (up to 32). Disk merge also tracks peak
+  disk active time across samples (up to 32). Phase 72 keeps the CPU, memory
+  list, disk, and GPU PDH queries open for that scan and closes them when the
+  scan returns. Each sample still uses its own interval. Commands outside a
+  scan, and the TUI, open and close their own queries. Disk merge also tracks peak
   active % and how many samples were “hot” (>= 90%) so `WT-DISK-001` requires
   sustained pressure, not one spike (Phase 30).
 - Recommendations are never derived from one noisy sample when multi-sample

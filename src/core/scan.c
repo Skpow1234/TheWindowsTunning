@@ -6,6 +6,7 @@
 #include "metrics/process.h"
 #include "metrics/gpu.h"
 #include "metrics/network.h"
+#include "metrics/pdh_utils.h"
 #include "system/audio.h"
 #include "system/search.h"
 #include "system/defender.h"
@@ -607,18 +608,22 @@ WT_Result wt_run_scan(const WT_ScanOptions *opts, WT_ScanReport *report)
     report->scan_sample_count = sample_count;
     report->scan_sample_interval_ms = sample_interval_ms;
 
+    WT_Result result = WT_OK;
     WT_ScanReport sample;
+    wt_pdh_cache_begin();
     for (unsigned int i = 0; i < sample_count; ++i) {
         wt_scan_report_init(&sample);
         WT_Result r = wt_run_scan_once(opts, &sample);
         if (r != WT_OK) {
-            return r;
+            result = r;
+            break;
         }
         wt_scan_merge_sample(report, &sample, i, sample_count);
         if (i + 1 < sample_count) {
             Sleep(sample_interval_ms);
         }
     }
+    wt_pdh_cache_end();
 
-    return WT_OK;
+    return result;
 }

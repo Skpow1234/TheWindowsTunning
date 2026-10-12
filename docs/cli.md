@@ -112,7 +112,8 @@ settings. `short_lived` lists processes that exited during the sample
 window (PID, parent PID, name). The array is empty when none exited.
 WinTune does not end processes. `timing` reports how long each collector
 took, in milliseconds. `total_ms` is the sum. The pause between samples is
-not included.
+not included. A multi-sample scan reuses its PDH queries instead of opening
+them again for every sample. The sample interval is unchanged.
 
 ```bash
 wintune scan

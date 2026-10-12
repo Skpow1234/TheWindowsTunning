@@ -1,6 +1,6 @@
 # WinTune milestones 54–157
 
-Phases 0–71 are done. See [`roadmap.md`](roadmap.md). Phases 72–157 are
+Phases 0–72 are done. See [`roadmap.md`](roadmap.md). Phases 73–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -233,9 +233,15 @@ what the collectors measure.
 
 ### Phase 72 — PDH query reuse
 
-**Status:** Planned
+**Status:** Done
 
-**Deliver:** Cache PDH query handles inside one scan instead of opening them per sample.
+**Deliver:** Cache PDH query handles inside one scan instead of opening them
+per sample. CPU, memory lists, disk, and GPU Engine queries stay open for
+the samples of that scan and close when the scan returns. Each sample still
+waits for its own interval, so a rate is not stretched across the pause
+between samples. `top`, `top --page`, and the TUI keep their own query
+lifetime. There is no recommendation id. WinTune does not change what the
+counters measure.
 
 ### Phase 73 — Counter catalog
 

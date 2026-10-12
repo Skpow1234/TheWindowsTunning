@@ -1,4 +1,5 @@
 #include "metrics/cpu.h"
+#include "metrics/pdh_utils.h"
 
 #include <windows.h>
 #include <evntrace.h>
@@ -51,6 +52,21 @@ static double wt_cpu_clamp(double value)
     return value;
 }
 
+static PDH_HQUERY g_cpu_query = NULL;
+static PDH_HCOUNTER g_cpu_total = NULL;
+static PDH_HCOUNTER g_cpu_dpc = NULL;
+static PDH_HCOUNTER g_cpu_interrupt = NULL;
+static unsigned g_cpu_gen = 0;
+
+static void wt_cpu_pdh_clear(void)
+{
+    g_cpu_query = NULL;
+    g_cpu_total = NULL;
+    g_cpu_dpc = NULL;
+    g_cpu_interrupt = NULL;
+    g_cpu_gen = 0;
+}
+
 static int wt_cpu_read_counter(PDH_HCOUNTER counter, double *out)
 {
     PDH_FMT_COUNTERVALUE value;
@@ -99,30 +115,59 @@ WT_Result wt_collect_cpu_metrics(unsigned int sample_ms, WT_CpuMetrics *out)
     if (sample_ms == 0) {
         sample_ms = WT_CPU_DEFAULT_SAMPLE_MS;
     }
-    if (PdhOpenQueryW(NULL, 0, &query) != ERROR_SUCCESS) {
-        return WT_ERR_PDH;
-    }
-    if (PdhAddEnglishCounterW(query, L"\\Processor(_Total)\\% Processor Time",
-                              0, &total) != ERROR_SUCCESS) {
-        PdhCloseQuery(query);
-        return WT_ERR_PDH;
-    }
-    if (PdhAddEnglishCounterW(query, L"\\Processor(_Total)\\% DPC Time", 0,
-                              &dpc) != ERROR_SUCCESS) {
-        dpc = NULL;
-    }
-    if (PdhAddEnglishCounterW(query, L"\\Processor(_Total)\\% Interrupt Time",
-                              0, &interrupt) != ERROR_SUCCESS) {
-        interrupt = NULL;
+    if (wt_pdh_cache_active() && g_cpu_query != NULL &&
+        g_cpu_gen == wt_pdh_cache_generation() && g_cpu_total != NULL) {
+        query = g_cpu_query;
+        total = g_cpu_total;
+        dpc = g_cpu_dpc;
+        interrupt = g_cpu_interrupt;
+    } else {
+        if (g_cpu_query != NULL && wt_pdh_cache_active()) {
+            wt_pdh_cache_forget(g_cpu_query);
+            wt_cpu_pdh_clear();
+        }
+        if (PdhOpenQueryW(NULL, 0, &query) != ERROR_SUCCESS) {
+            return WT_ERR_PDH;
+        }
+        if (PdhAddEnglishCounterW(query, L"\\Processor(_Total)\\% Processor Time",
+                                  0, &total) != ERROR_SUCCESS) {
+            PdhCloseQuery(query);
+            return WT_ERR_PDH;
+        }
+        if (PdhAddEnglishCounterW(query, L"\\Processor(_Total)\\% DPC Time", 0,
+                                  &dpc) != ERROR_SUCCESS) {
+            dpc = NULL;
+        }
+        if (PdhAddEnglishCounterW(query, L"\\Processor(_Total)\\% Interrupt Time",
+                                  0, &interrupt) != ERROR_SUCCESS) {
+            interrupt = NULL;
+        }
+        if (wt_pdh_cache_track(query)) {
+            g_cpu_query = query;
+            g_cpu_total = total;
+            g_cpu_dpc = dpc;
+            g_cpu_interrupt = interrupt;
+            g_cpu_gen = wt_pdh_cache_generation();
+        }
     }
     if (PdhCollectQueryData(query) != ERROR_SUCCESS) {
-        PdhCloseQuery(query);
+        if (g_cpu_query == query) {
+            wt_pdh_cache_forget(query);
+            wt_cpu_pdh_clear();
+        } else {
+            PdhCloseQuery(query);
+        }
         return WT_ERR_PDH;
     }
     Sleep(sample_ms);
     if (PdhCollectQueryData(query) != ERROR_SUCCESS ||
         !wt_cpu_read_counter(total, &usage)) {
-        PdhCloseQuery(query);
+        if (g_cpu_query == query) {
+            wt_pdh_cache_forget(query);
+            wt_cpu_pdh_clear();
+        } else {
+            PdhCloseQuery(query);
+        }
         return WT_ERR_PDH;
     }
     out->total_usage_percent = usage;
@@ -139,7 +184,9 @@ WT_Result wt_collect_cpu_metrics(unsigned int sample_ms, WT_CpuMetrics *out)
             out->interrupt_percent = irq_pct;
         }
     }
-    PdhCloseQuery(query);
+    if (g_cpu_query != query) {
+        PdhCloseQuery(query);
+    }
     return WT_OK;
 }
 
