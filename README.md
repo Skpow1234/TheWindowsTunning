@@ -442,6 +442,7 @@ end-user release polish.
 | 49 | Memory dump / WER signals | Done |
 | 50 | Pagefile & commit charge depth | Done |
 | 51–53 | Maintenance windows, Authenticode CI, installer/channels | Done |
+| 54–153 | Next milestones: measure, explain, apply, history, TUI, CLI, service, boot, fleet, release | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.
@@ -513,6 +514,7 @@ exit non-zero.
 - [`docs/signing.md`](docs/signing.md) — optional Authenticode guidance
 - [`docs/winget.md`](docs/winget.md) — WinGet package (`WinTune.WinTune`)
 - [`docs/roadmap.md`](docs/roadmap.md) — phased delivery plan
+- [`docs/milestones.md`](docs/milestones.md) — phases 54–153 (planned)
 
 ---
 
