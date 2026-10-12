@@ -572,6 +572,22 @@ static void wt_tui_render_memory(WT_TuiScreen *s, const WT_TuiTheme *t,
         wt_tui_human(mem->available_physical_bytes, avail, sizeof(avail));
         wt_tui_screen_line(s, "Total: %-12s  Used: %-12s  Available: %-12s  (%.1f%% used)",
                            total, used, avail, mem->used_percent);
+        if (mem->standby_ok || mem->modified_ok || mem->compression_ok) {
+            char standby[32] = "n/a";
+            char modified[32] = "n/a";
+            char compressed[32] = "n/a";
+            if (mem->standby_ok) {
+                wt_tui_human(mem->standby_bytes, standby, sizeof(standby));
+            }
+            if (mem->modified_ok) {
+                wt_tui_human(mem->modified_bytes, modified, sizeof(modified));
+            }
+            if (mem->compression_ok) {
+                wt_tui_human(mem->compression_bytes, compressed, sizeof(compressed));
+            }
+            wt_tui_screen_line(s, "Standby: %-10s  Modified: %-10s  Compression: %-10s",
+                               standby, modified, compressed);
+        }
     } else {
         wt_tui_empty_line(s, t, "(memory metrics unavailable)");
     }

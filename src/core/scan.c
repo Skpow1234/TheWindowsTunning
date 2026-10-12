@@ -132,6 +132,12 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
             acc->memory.hard_faults_per_sec = sample->memory.hard_faults_per_sec;
             acc->memory.page_faults_ok = sample->memory.page_faults_ok;
             acc->memory.page_faults_per_sec = sample->memory.page_faults_per_sec;
+            acc->memory.standby_ok = sample->memory.standby_ok;
+            acc->memory.standby_bytes = sample->memory.standby_bytes;
+            acc->memory.modified_ok = sample->memory.modified_ok;
+            acc->memory.modified_bytes = sample->memory.modified_bytes;
+            acc->memory.compression_ok = sample->memory.compression_ok;
+            acc->memory.compression_bytes = sample->memory.compression_bytes;
         } else {
             acc->memory = sample->memory;
             acc->memory_ok = 1;

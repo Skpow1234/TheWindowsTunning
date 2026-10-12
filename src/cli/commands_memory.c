@@ -41,6 +41,26 @@ static void wt_print_memory_text(const WT_MemoryMetrics *m)
         printf("  (unavailable)\n");
     }
 
+    printf("\nMemory lists\n");
+    if (m->standby_ok) {
+        wt_format_bytes(m->standby_bytes, buf, 32);
+        fwprintf(stdout, L"  Standby:     %ls\n", buf);
+    } else {
+        printf("  Standby:     (not reported)\n");
+    }
+    if (m->modified_ok) {
+        wt_format_bytes(m->modified_bytes, buf, 32);
+        fwprintf(stdout, L"  Modified:    %ls\n", buf);
+    } else {
+        printf("  Modified:    (not reported)\n");
+    }
+    if (m->compression_ok) {
+        wt_format_bytes(m->compression_bytes, buf, 32);
+        fwprintf(stdout, L"  Compression: %ls (store working set)\n", buf);
+    } else {
+        printf("  Compression: (not reported)\n");
+    }
+
     printf("\nPaging / hard faults\n");
     if (m->hard_faults_ok && m->hard_faults_per_sec >= 0.0) {
         printf("  Hard faults (Pages Input/sec): %.1f\n",

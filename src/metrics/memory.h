@@ -25,6 +25,14 @@ typedef struct WT_MemoryMetrics {
     double hard_faults_per_sec; /* \\Memory\\Pages Input/sec; -1 if n/a */
     int page_faults_ok;
     double page_faults_per_sec; /* \\Memory\\Page Faults/sec; -1 if n/a */
+
+    /* Phase 62: memory lists. Null in JSON when the matching *_ok flag is 0. */
+    int standby_ok;
+    unsigned long long standby_bytes; /* reserve + normal + core cache */
+    int modified_ok;
+    unsigned long long modified_bytes;
+    int compression_ok;
+    unsigned long long compression_bytes; /* Memory Compression working set */
 } WT_MemoryMetrics;
 
 /* Collects physical + commit metrics (no blocking PDH sample). */

@@ -164,6 +164,24 @@ void wt_print_performance_report_text(FILE *out,
         wt_format_bytes(report->memory.total_physical_bytes, total, 32);
         fwprintf(out, L"  Memory:  %ls / %ls (%.1f%% used)\n",
                  used, total, report->memory.used_percent);
+        if (report->memory.standby_ok || report->memory.modified_ok ||
+            report->memory.compression_ok) {
+            wchar_t list_buf[32];
+            fputs("  Lists:  ", out);
+            if (report->memory.standby_ok) {
+                wt_format_bytes(report->memory.standby_bytes, list_buf, 32);
+                fwprintf(out, L"standby %ls", list_buf);
+            }
+            if (report->memory.modified_ok) {
+                wt_format_bytes(report->memory.modified_bytes, list_buf, 32);
+                fwprintf(out, L"  modified %ls", list_buf);
+            }
+            if (report->memory.compression_ok) {
+                wt_format_bytes(report->memory.compression_bytes, list_buf, 32);
+                fwprintf(out, L"  compression %ls", list_buf);
+            }
+            fputc('\n', out);
+        }
     } else {
         fputs("  Memory:  unavailable\n", out);
     }

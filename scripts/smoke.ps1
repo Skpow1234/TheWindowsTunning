@@ -464,7 +464,7 @@ Test-JsonOk "reliability --json" @("reliability", "--json") -MustContain @("reli
     -AllowAccessDenied
 
 Test-ExpectOk "memory" @("memory") -StdoutRegex @("Memory|Commit|RAM|Physical")
-Test-JsonOk "memory --json" @("memory", "--json") -MustContain @("memory")
+Test-JsonOk "memory --json" @("memory", "--json") -MustContain @("memory", "standby_bytes", "modified_bytes", "compression_bytes")
 
 Test-ExpectOk "maintenance" @("maintenance", "--samples", "1", "--interval", "200") `
     -TimeoutSec $scanTimeout -StdoutContains @("Maintenance", "Defender")

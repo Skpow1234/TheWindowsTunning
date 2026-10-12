@@ -731,6 +731,24 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
         } else {
             wt_json_null(&w);
         }
+        wt_json_key(&w, "standby_bytes");
+        if (report->memory.standby_ok) {
+            wt_json_uint64(&w, report->memory.standby_bytes);
+        } else {
+            wt_json_null(&w);
+        }
+        wt_json_key(&w, "modified_bytes");
+        if (report->memory.modified_ok) {
+            wt_json_uint64(&w, report->memory.modified_bytes);
+        } else {
+            wt_json_null(&w);
+        }
+        wt_json_key(&w, "compression_bytes");
+        if (report->memory.compression_ok) {
+            wt_json_uint64(&w, report->memory.compression_bytes);
+        } else {
+            wt_json_null(&w);
+        }
     }
     wt_json_end_object(&w);
 
@@ -1576,6 +1594,24 @@ void wt_print_memory_json(const WT_MemoryMetrics *m, FILE *out)
         wt_json_key(&w, "page_faults_per_sec");
         if (m->page_faults_ok && m->page_faults_per_sec >= 0.0) {
             wt_json_double(&w, m->page_faults_per_sec);
+        } else {
+            wt_json_null(&w);
+        }
+        wt_json_key(&w, "standby_bytes");
+        if (m->standby_ok) {
+            wt_json_uint64(&w, m->standby_bytes);
+        } else {
+            wt_json_null(&w);
+        }
+        wt_json_key(&w, "modified_bytes");
+        if (m->modified_ok) {
+            wt_json_uint64(&w, m->modified_bytes);
+        } else {
+            wt_json_null(&w);
+        }
+        wt_json_key(&w, "compression_bytes");
+        if (m->compression_ok) {
+            wt_json_uint64(&w, m->compression_bytes);
         } else {
             wt_json_null(&w);
         }

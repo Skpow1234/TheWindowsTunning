@@ -1,6 +1,6 @@
 # WinTune milestones 54–157
 
-Phases 0–61 are done. See [`roadmap.md`](roadmap.md). Phases 62–157 are
+Phases 0–62 are done. See [`roadmap.md`](roadmap.md). Phases 63–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -113,9 +113,14 @@ changes only an existing power plan. The power mode is not written.
 
 ### Phase 62 — Memory lists
 
-**Status:** Planned
+**Status:** Done
 
 **Deliver:** Expose memory compression, standby, and modified-page sizes.
+Standby is the sum of the three public cache counters (reserve, normal
+priority, and core). Modified is `\Memory\Modified Page List Bytes`.
+Compression is `\Process(Memory Compression)\Working Set`, the compressed
+store’s physical size. A missing counter leaves that JSON field null.
+Read-only. WinTune does not empty working sets.
 
 ### Phase 63 — Handle and GDI counts
 

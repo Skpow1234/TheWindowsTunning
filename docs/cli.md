@@ -27,7 +27,7 @@ wintune updates      # Windows Update and reboot readiness
 wintune blockers     # apps/files blocking restart or updates
 wintune storage      # storage reliability / failure-prediction (read-only)
 wintune reliability  # recent crashes / unexpected shutdowns (WER signals)
-wintune memory       # physical RAM, commit charge, hard-fault rate
+wintune memory       # physical RAM, commit charge, memory lists, hard-fault rate
 wintune maintenance  # Defender/WU/optimize overlap with high load
 wintune apps         # uninstall advisor (read-only; never uninstalls)
 wintune boot        # boot/login performance analysis (Phase 10)
@@ -351,8 +351,10 @@ wintune reliability --json
 
 ## `wintune memory`
 
-Physical RAM, **commit charge** (limit / peak), and hard-fault rate
-(Phase 50). Explains memory pressure without a RAM cleaner.
+Physical RAM, **commit charge** (limit / peak), standby / modified /
+compression list sizes (Phase 62), and hard-fault rate (Phase 50). Explains
+memory pressure without a RAM cleaner. Compression is the Memory Compression
+process working set. Standby is the sum of the three standby-cache counters.
 
 ```bash
 wintune memory

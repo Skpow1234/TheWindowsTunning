@@ -71,6 +71,10 @@ GetPerformanceInfo          /* CommitTotal / Limit / Peak */
 GetProcessMemoryInfo
 PDH \\Memory\\Pages Input/sec   /* hard faults (optional sample) */
 PDH \\Memory\\Page Faults/sec   /* soft+hard (optional) */
+PDH \\Memory\\Standby Cache Reserve Bytes
+PDH \\Memory\\Standby Cache Normal Priority Bytes
+PDH \\Memory\\Standby Cache Core Bytes
+PDH \\Memory\\Modified Page List Bytes
 ```
 
 **Collect:**
@@ -79,6 +83,11 @@ PDH \\Memory\\Page Faults/sec   /* soft+hard (optional) */
 - Commit headroom (`ullAvailPageFile`).
 - Optional hard-fault rate via PDH (`wintune memory` / recommend sample).
 - Per-process working set / private bytes (process module).
+- Phase 62 memory lists: `standby_bytes` (sum of the three standby cache
+  counters), `modified_bytes`, and `compression_bytes`
+  (`\Process(Memory Compression)\Working Set`, the compressed store’s
+  physical size). Each is JSON null when that read fails. A value larger
+  than installed physical RAM is rejected.
 
 Command: `wintune memory` / `--json`.
 
