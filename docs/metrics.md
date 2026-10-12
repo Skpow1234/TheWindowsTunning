@@ -313,12 +313,12 @@ CloseHandle
 ```
 
 **Collect:**
-- PID and executable name.
+- PID, parent PID (ToolHelp; the parent PID can be reused), and executable name.
 - CPU estimate.
 - Memory working set; private bytes if possible.
 - I/O counters.
-- Session ID.
-- Is-elevated / is-system if possible.
+- Session ID, when `ProcessIdToSessionId` succeeds.
+- Integrity level from the process token (`unknown` when the token cannot be opened).
 - For top-process lists: publisher (`CompanyName`), product (`ProductName`),
   Authenticode status, origin cue, install-location class, and
   `unusual_location` (calm review only) via `src/system/file_identity.c`.
@@ -330,6 +330,10 @@ can be enabled behind `--include-command-line`, with a warning.
 ```c
 typedef struct WT_ProcessInfo {
     unsigned long pid;
+    unsigned long parent_pid;
+    unsigned long session_id;
+    int session_ok;
+    WT_IntegrityLevel integrity;
     wchar_t name[260];
     unsigned long long working_set_bytes;
     unsigned long long private_bytes;

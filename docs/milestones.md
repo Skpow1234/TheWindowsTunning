@@ -1,6 +1,6 @@
 # WinTune milestones 54–153
 
-Phases 0–54 are done. See [`roadmap.md`](roadmap.md). Phases 55–153 are
+Phases 0–55 are done. See [`roadmap.md`](roadmap.md). Phases 56–153 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -29,9 +29,12 @@ to 32 and cannot exceed 32. `scan` still stores at most 32 processes.
 
 ### Phase 55 — Process identity
 
-**Status:** Planned
+**Status:** Done
 
 **Deliver:** Show parent PID, session, and integrity level on each process row.
+`parent_pid` comes from ToolHelp. `session_id` is null when Windows will not
+report the session. `integrity` is `unknown` when the process token cannot be
+opened. Nothing here changes a token or a process.
 
 ### Phase 56 — Hung processes
 

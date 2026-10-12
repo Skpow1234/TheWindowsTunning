@@ -363,7 +363,7 @@ if (-not $scanJson.TimedOut -and $scanJson.ExitCode -eq 0) {
     Write-CaseResult "scan --json volume activity" "FAIL" "scan --json failed or timed out"
 }
 
-Test-ExpectOk "top" @("top", "--limit", "5") -StdoutRegex @("PID|Process")
+Test-ExpectOk "top" @("top", "--limit", "5") -StdoutRegex @("PID", "PPID", "Integrity")
 Test-ExpectOk "top --sort cpu" @("top", "--sort", "cpu", "--limit", "5")
 Test-ExpectOk "top --sort memory" @("top", "--sort", "memory", "--limit", "5")
 Test-ExpectOk "top --sort disk" @("top", "--sort", "disk", "--limit", "5")
@@ -379,7 +379,7 @@ Test-ExpectExit "top --page past end" @("top", "--page", "999999", "--page-size"
     -ExitCodes @(12) -StdoutOrErrRegex "page"
 Test-JsonArrayItemFields "top --json provenance" @("top", "--json", "--limit", "5") `
     -ArrayKey "processes" `
-    -ItemFields @("publisher", "product_name", "location", "unusual_location", "image_path", "origin", "signature")
+    -ItemFields @("publisher", "product_name", "location", "unusual_location", "image_path", "origin", "signature", "parent_pid", "session_id", "integrity")
 
 Test-ExpectOk "doctor" @("doctor", "--samples", "1", "--interval", "200") `
     -StdoutContains @("WinTune") -TimeoutSec $scanTimeout

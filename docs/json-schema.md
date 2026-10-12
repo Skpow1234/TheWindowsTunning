@@ -83,6 +83,10 @@ on sub-objects rather than invalid JSON.
 `top --page` adds `page`, `page_size`, `page_count`, `total`, and `truncated`
 beside the `processes` array. A top-K `top --json` snapshot omits those keys.
 
+Each process object includes `parent_pid`, `session_id` (null when unread), and
+`integrity` (`unknown`, `untrusted`, `low`, `medium`, `medium_plus`, `high`,
+`system`, or `protected`).
+
 ## Error documents (`--json-errors`)
 
 ```json

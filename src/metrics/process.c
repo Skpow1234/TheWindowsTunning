@@ -117,12 +117,93 @@ static void wt_process_init_metrics(WT_ProcessInfo *p)
     p->net_send_bytes_per_sec = -1.0;
 }
 
+const char *wt_integrity_level_name(WT_IntegrityLevel level)
+{
+    switch (level) {
+    case WT_INTEGRITY_UNTRUSTED:    return "untrusted";
+    case WT_INTEGRITY_LOW:          return "low";
+    case WT_INTEGRITY_MEDIUM:       return "medium";
+    case WT_INTEGRITY_MEDIUM_PLUS:  return "medium_plus";
+    case WT_INTEGRITY_HIGH:         return "high";
+    case WT_INTEGRITY_SYSTEM:       return "system";
+    case WT_INTEGRITY_PROTECTED:    return "protected";
+    case WT_INTEGRITY_UNKNOWN:
+    default:                        return "unknown";
+    }
+}
+
+static WT_IntegrityLevel wt_integrity_from_rid(DWORD rid)
+{
+    if (rid >= SECURITY_MANDATORY_PROTECTED_PROCESS_RID) {
+        return WT_INTEGRITY_PROTECTED;
+    }
+    if (rid >= SECURITY_MANDATORY_SYSTEM_RID) {
+        return WT_INTEGRITY_SYSTEM;
+    }
+    if (rid >= SECURITY_MANDATORY_HIGH_RID) {
+        return WT_INTEGRITY_HIGH;
+    }
+    if (rid >= SECURITY_MANDATORY_MEDIUM_PLUS_RID) {
+        return WT_INTEGRITY_MEDIUM_PLUS;
+    }
+    if (rid >= SECURITY_MANDATORY_MEDIUM_RID) {
+        return WT_INTEGRITY_MEDIUM;
+    }
+    if (rid >= SECURITY_MANDATORY_LOW_RID) {
+        return WT_INTEGRITY_LOW;
+    }
+    return WT_INTEGRITY_UNTRUSTED;
+}
+
+static void wt_process_fill_integrity(WT_ProcessInfo *p, HANDLE proc)
+{
+    HANDLE token = NULL;
+    if (!OpenProcessToken(proc, TOKEN_QUERY, &token)) {
+        return;
+    }
+
+    BYTE buffer[256];
+    DWORD len = 0;
+    if (!GetTokenInformation(token, TokenIntegrityLevel, buffer, sizeof(buffer),
+                             &len)) {
+        CloseHandle(token);
+        return;
+    }
+
+    TOKEN_MANDATORY_LABEL *label = (TOKEN_MANDATORY_LABEL *)buffer;
+    PSID sid = label->Label.Sid;
+    if (sid == NULL || !IsValidSid(sid)) {
+        CloseHandle(token);
+        return;
+    }
+    PUCHAR count = GetSidSubAuthorityCount(sid);
+    if (count == NULL || *count == 0) {
+        CloseHandle(token);
+        return;
+    }
+    PDWORD rid = GetSidSubAuthority(sid, (DWORD)(*count - 1));
+    if (rid == NULL) {
+        CloseHandle(token);
+        return;
+    }
+    p->integrity = wt_integrity_from_rid(*rid);
+    CloseHandle(token);
+}
+
 static void wt_process_fill(WT_ProcessInfo *p, const PROCESSENTRY32W *entry)
 {
     ZeroMemory(p, sizeof(*p));
     wt_process_init_metrics(p);
     p->pid = entry->th32ProcessID;
+    p->parent_pid = entry->th32ParentProcessID;
+    p->integrity = WT_INTEGRITY_UNKNOWN;
     StringCchCopyW(p->name, ARRAYSIZE(p->name), entry->szExeFile);
+
+    DWORD session = 0;
+    if (ProcessIdToSessionId(entry->th32ProcessID, &session)) {
+        p->session_id = session;
+        p->session_ok = 1;
+    }
 
     HANDLE proc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
                               entry->th32ProcessID);
@@ -143,6 +224,7 @@ static void wt_process_fill(WT_ProcessInfo *p, const PROCESSENTRY32W *entry)
             p->write_bytes = io.WriteTransferCount;
         }
 
+        wt_process_fill_integrity(p, proc);
         CloseHandle(proc);
     }
 }

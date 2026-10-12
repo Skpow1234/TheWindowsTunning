@@ -239,6 +239,30 @@ static void wt_tui_set_status(WT_TuiState *st, const char *msg, unsigned hold_ms
     st->status_until_ms = GetTickCount64() + hold_ms;
 }
 
+static const char *wt_tui_il(WT_IntegrityLevel level)
+{
+    switch (level) {
+    case WT_INTEGRITY_UNTRUSTED:   return "untr";
+    case WT_INTEGRITY_LOW:         return "low";
+    case WT_INTEGRITY_MEDIUM:      return "med";
+    case WT_INTEGRITY_MEDIUM_PLUS: return "med+";
+    case WT_INTEGRITY_HIGH:        return "high";
+    case WT_INTEGRITY_SYSTEM:      return "sys";
+    case WT_INTEGRITY_PROTECTED:   return "prot";
+    case WT_INTEGRITY_UNKNOWN:
+    default:                       return "-";
+    }
+}
+
+static void wt_tui_session(const WT_ProcessInfo *p, char *out, size_t cap)
+{
+    if (p != NULL && p->session_ok) {
+        snprintf(out, cap, "%lu", p->session_id);
+    } else if (out != NULL && cap > 0) {
+        snprintf(out, cap, "-");
+    }
+}
+
 static const char *wt_tui_sort_name(WT_ProcessSort sort)
 {
     switch (sort) {
@@ -384,8 +408,8 @@ static void wt_tui_render_processes(WT_TuiScreen *s, const WT_TuiTheme *t,
 
     if (show_cpu && show_net) {
         wt_tui_screen_line(
-            s, "%s%-6s %-16s %6s %9s %8s %8s%s", wt_tui_dim(t),
-            t->a11y_labels ? "PID" : "PID",
+            s, "%s%-6s %-6s %-4s %-4s %-12s %6s %8s %7s %7s%s", wt_tui_dim(t),
+            "PID", "PPID", "Sess", "IL",
             t->a11y_labels ? "Process name" : "Process",
             t->a11y_labels ? "CPU%" : "CPU%",
             t->a11y_labels ? "Memory" : "Memory",
@@ -393,12 +417,14 @@ static void wt_tui_render_processes(WT_TuiScreen *s, const WT_TuiTheme *t,
             t->a11y_labels ? "Net/s" : "Net", wt_tui_reset(t));
     } else if (show_cpu) {
         wt_tui_screen_line(
-            s, "%s%-6s %-20s %6s %10s %10s%s", wt_tui_dim(t), "PID",
+            s, "%s%-6s %-6s %-4s %-4s %-14s %6s %8s %8s%s", wt_tui_dim(t),
+            "PID", "PPID", "Sess", "IL",
             t->a11y_labels ? "Process name" : "Process", "CPU%", "Memory",
             t->a11y_labels ? "Disk I/O" : "Disk", wt_tui_reset(t));
     } else {
         wt_tui_screen_line(
-            s, "%s%-6s %-26s %12s %12s%s", wt_tui_dim(t), "PID",
+            s, "%s%-6s %-6s %-4s %-4s %-16s %10s %10s%s", wt_tui_dim(t),
+            "PID", "PPID", "Sess", "IL",
             t->a11y_labels ? "Process name" : "Process", "Memory",
             t->a11y_labels ? "Private bytes" : "Private", wt_tui_reset(t));
     }
@@ -412,9 +438,11 @@ static void wt_tui_render_processes(WT_TuiScreen *s, const WT_TuiTheme *t,
         char name[64];
         WideCharToMultiByte(CP_UTF8, 0, procs[i].name, -1, name, sizeof(name),
                             NULL, NULL);
-        char ws[32], pv[32];
+        char ws[32], pv[32], sess[8];
         wt_tui_human(procs[i].working_set_bytes, ws, sizeof(ws));
         wt_tui_human(procs[i].private_bytes, pv, sizeof(pv));
+        wt_tui_session(&procs[i], sess, sizeof(sess));
+        const char *il = wt_tui_il(procs[i].integrity);
 
         if (show_cpu && show_net) {
             double disk_rate = 0.0;
@@ -435,12 +463,15 @@ static void wt_tui_render_processes(WT_TuiScreen *s, const WT_TuiTheme *t,
             wt_tui_rate(disk_rate, disk, sizeof(disk));
             wt_tui_rate(net_rate, net, sizeof(net));
             if (procs[i].cpu_percent >= 0.0) {
-                wt_tui_screen_line(s, "%-6lu %-16.16s %5.1f%% %9s %8s %8s",
-                                   procs[i].pid, name, procs[i].cpu_percent, ws,
-                                   disk, net);
+                wt_tui_screen_line(
+                    s, "%-6lu %-6lu %-4s %-4s %-12.12s %5.1f%% %8s %7s %7s",
+                    procs[i].pid, procs[i].parent_pid, sess, il, name,
+                    procs[i].cpu_percent, ws, disk, net);
             } else {
-                wt_tui_screen_line(s, "%-6lu %-16.16s %6s %9s %8s %8s",
-                                   procs[i].pid, name, "-", ws, disk, net);
+                wt_tui_screen_line(
+                    s, "%-6lu %-6lu %-4s %-4s %-12.12s %6s %8s %7s %7s",
+                    procs[i].pid, procs[i].parent_pid, sess, il, name, "-", ws,
+                    disk, net);
             }
         } else if (show_cpu) {
             double disk_rate = 0.0;
@@ -453,16 +484,20 @@ static void wt_tui_render_processes(WT_TuiScreen *s, const WT_TuiTheme *t,
             char disk[32];
             wt_tui_rate(disk_rate, disk, sizeof(disk));
             if (procs[i].cpu_percent >= 0.0) {
-                wt_tui_screen_line(s, "%-6lu %-20.20s %5.1f%% %10s %10s",
-                                   procs[i].pid, name, procs[i].cpu_percent, ws,
-                                   disk);
+                wt_tui_screen_line(
+                    s, "%-6lu %-6lu %-4s %-4s %-14.14s %5.1f%% %8s %8s",
+                    procs[i].pid, procs[i].parent_pid, sess, il, name,
+                    procs[i].cpu_percent, ws, disk);
             } else {
-                wt_tui_screen_line(s, "%-6lu %-20.20s %6s %10s %10s",
-                                   procs[i].pid, name, "-", ws, disk);
+                wt_tui_screen_line(
+                    s, "%-6lu %-6lu %-4s %-4s %-14.14s %6s %8s %8s",
+                    procs[i].pid, procs[i].parent_pid, sess, il, name, "-", ws,
+                    disk);
             }
         } else {
-            wt_tui_screen_line(s, "%-6lu %-26.26s %12s %12s",
-                               procs[i].pid, name, ws, pv);
+            wt_tui_screen_line(
+                s, "%-6lu %-6lu %-4s %-4s %-16.16s %10s %10s",
+                procs[i].pid, procs[i].parent_pid, sess, il, name, ws, pv);
         }
     }
 
@@ -931,7 +966,7 @@ static int wt_tui_export_snapshot(const WT_TuiState *st,
                     mem_h[i], disk_h[i], rx_h[i], tx_h[i]);
         }
     }
-    fprintf(f, "\nPID      Process                   CPU%%     Memory      Disk\n");
+    fprintf(f, "\nPID      PPID     Sess IL   Process              CPU%%     Memory      Disk\n");
     for (size_t i = 0; i < proc_count; ++i) {
         char name[64];
         WideCharToMultiByte(CP_UTF8, 0, procs[i].name, -1, name, sizeof(name),
@@ -946,13 +981,18 @@ static int wt_tui_export_snapshot(const WT_TuiState *st,
             disk_rate += procs[i].disk_write_bytes_per_sec;
         }
         char dr[32];
+        char sess[8];
         wt_tui_rate(disk_rate, dr, sizeof(dr));
+        wt_tui_session(&procs[i], sess, sizeof(sess));
         if (procs[i].cpu_percent >= 0.0) {
-            fprintf(f, "%-8lu %-24.24s %6.1f  %-10s %-10s\n",
-                    procs[i].pid, name, procs[i].cpu_percent, ws, dr);
+            fprintf(f, "%-8lu %-8lu %-4s %-4s %-16.16s %6.1f  %-10s %-10s\n",
+                    procs[i].pid, procs[i].parent_pid, sess,
+                    wt_tui_il(procs[i].integrity), name, procs[i].cpu_percent,
+                    ws, dr);
         } else {
-            fprintf(f, "%-8lu %-24.24s %6s  %-10s %-10s\n",
-                    procs[i].pid, name, "-", ws, dr);
+            fprintf(f, "%-8lu %-8lu %-4s %-4s %-16.16s %6s  %-10s %-10s\n",
+                    procs[i].pid, procs[i].parent_pid, sess,
+                    wt_tui_il(procs[i].integrity), name, "-", ws, dr);
         }
     }
     fclose(f);

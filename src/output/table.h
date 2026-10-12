@@ -5,7 +5,7 @@
 
 #include "metrics/process.h"
 
-/* Prints an aligned process table (PID, Process, Memory, Private) to stdout. */
+/* Prints an aligned process table (PID, PPID, session, integrity, memory) to stdout. */
 void wt_print_process_table(const WT_ProcessInfo *items, size_t count);
 
 #endif /* WINTUNE_TABLE_H */

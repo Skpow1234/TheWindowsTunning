@@ -6,7 +6,7 @@ WinTune ships in phases. Each phase builds on a stable core scanner. **v1**
 metrics, update/reboot helpers, fleet automation, and optional local UI.
 **v3** (Phases 22–53) deepens attribution, metrics, boot analysis, apply UX,
 and distribution — without Electron, cloud telemetry, or “PC cleaner” behavior.
-**v4** (Phases 54–153) starts with a paged process list (phase 54, done). The rest is planned: deeper measurement, clearer explanations,
+**v4** (Phases 54–153) has a paged process list and process identity (phases 54–55, done). The rest is planned: deeper measurement, clearer explanations,
 a few more reversible apply paths, local history, and release automation.
 The full list is [`milestones.md`](milestones.md).
 
@@ -75,7 +75,8 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 52 | Authenticode CI + release signing | Done |
 | 53 | Installer & channel maturity | Done |
 | 54 | Full process list (`top --page`) | Done |
-| 55–73 | Measurement depth | Planned |
+| 55 | Process identity (parent, session, integrity) | Done |
+| 56–73 | Measurement depth | Planned |
 | 74–83 | Clearer explanations | Planned |
 | 84–97 | Safe apply completion | Planned |
 | 98–105, 114 | Local history and baselines | Planned |
@@ -1286,10 +1287,10 @@ allow-list. Memory, disk, CPU, boot, update, and uninstall findings stay
 advisory. Nothing in this range disables Defender, Windows Update, or the
 firewall, and nothing uploads a report.
 
-The phase-by-phase list is [`milestones.md`](milestones.md). Phase 54 is done;
-the rest of this range is still planned.
+The phase-by-phase list is [`milestones.md`](milestones.md). Phases 54 and 55
+are done; the rest of this range is still planned.
 
-Phase 54 is done (`wintune top --page`). Suggested order inside v4: measurement (55–73), explanations (74–83), apply
+Phases 54 and 55 are done (`wintune top --page`, process parent/session/integrity). Suggested order inside v4: measurement (56–73), explanations (74–83), apply
 (84–97), history (98–105), TUI (106–115), CLI (116–124), service (125–132),
 boot (133–140), fleet (141–148), release (149–153).
 

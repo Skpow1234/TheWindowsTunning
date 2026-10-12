@@ -16,8 +16,23 @@ typedef enum WT_ProcessSort {
     WT_PROCESS_SORT_NETWORK
 } WT_ProcessSort;
 
+typedef enum WT_IntegrityLevel {
+    WT_INTEGRITY_UNKNOWN = 0,
+    WT_INTEGRITY_UNTRUSTED,
+    WT_INTEGRITY_LOW,
+    WT_INTEGRITY_MEDIUM,
+    WT_INTEGRITY_MEDIUM_PLUS,
+    WT_INTEGRITY_HIGH,
+    WT_INTEGRITY_SYSTEM,
+    WT_INTEGRITY_PROTECTED
+} WT_IntegrityLevel;
+
 typedef struct WT_ProcessInfo {
     unsigned long pid;
+    unsigned long parent_pid;           /* ToolHelp parent; may be reused */
+    unsigned long session_id;
+    int session_ok;                      /* 0 when the session could not be read */
+    WT_IntegrityLevel integrity;         /* UNKNOWN when the token cannot be read */
     wchar_t name[WT_PROCESS_NAME_MAX];
     unsigned long long working_set_bytes;
     unsigned long long private_bytes;
@@ -51,6 +66,8 @@ WT_Result wt_process_page_bounds(size_t total,
                                  size_t *out_offset,
                                  size_t *out_count,
                                  size_t *out_page_count);
+
+const char *wt_integrity_level_name(WT_IntegrityLevel level);
 
 /* Best-effort publisher/signature fill for an existing process list. */
 void wt_enrich_process_identity(WT_ProcessInfo *items, size_t count);

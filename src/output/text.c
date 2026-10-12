@@ -295,11 +295,13 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
             }
         }
         if (show_cpu) {
-            fprintf(out, "  %-6s  %-20s  %-11s  %-8s  %8s  %s\n", "PID",
-                    "Process", "Origin", "Loc", "CPU%", "Memory");
+            fprintf(out, "  %-6s  %-6s  %-5s  %-12s  %-16s  %-11s  %-8s  %8s  %s\n",
+                    "PID", "PPID", "Sess", "Integrity", "Process", "Origin",
+                    "Loc", "CPU%", "Memory");
         } else {
-            fprintf(out, "  %-6s  %-24s  %-11s  %-8s  %s\n", "PID", "Process",
-                    "Origin", "Loc", "Memory");
+            fprintf(out, "  %-6s  %-6s  %-5s  %-12s  %-20s  %-11s  %-8s  %s\n",
+                    "PID", "PPID", "Sess", "Integrity", "Process", "Origin",
+                    "Loc", "Memory");
         }
         for (size_t i = 0; i < report->top_process_count; ++i) {
             const WT_ProcessInfo *p = &report->top_processes[i];
@@ -307,6 +309,13 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
             wt_format_bytes(p->working_set_bytes, mem, 32);
             const char *origin = wt_publisher_origin_name(p->identity.origin);
             const char *loc = wt_install_location_name(p->identity.location);
+            const char *integrity = wt_integrity_level_name(p->integrity);
+            char session[8];
+            if (p->session_ok) {
+                snprintf(session, sizeof(session), "%lu", p->session_id);
+            } else {
+                snprintf(session, sizeof(session), "-");
+            }
             char loc_mark[16];
             if (p->identity.unusual_location) {
                 snprintf(loc_mark, sizeof(loc_mark), "%s!", loc);
@@ -314,11 +323,16 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
                 snprintf(loc_mark, sizeof(loc_mark), "%s", loc);
             }
             if (show_cpu && p->cpu_percent >= 0.0) {
-                fprintf(out, "  %6lu  %-20.20ls  %-11s  %-8s  %7.1f%%  %ls\n",
-                        p->pid, p->name, origin, loc_mark, p->cpu_percent, mem);
+                fprintf(out,
+                        "  %6lu  %6lu  %-5s  %-12s  %-16.16ls  %-11s  %-8s  "
+                        "%7.1f%%  %ls\n",
+                        p->pid, p->parent_pid, session, integrity, p->name,
+                        origin, loc_mark, p->cpu_percent, mem);
             } else {
-                fprintf(out, "  %6lu  %-24.24ls  %-11s  %-8s  %ls\n",
-                        p->pid, p->name, origin, loc_mark, mem);
+                fprintf(out,
+                        "  %6lu  %6lu  %-5s  %-12s  %-20.20ls  %-11s  %-8s  %ls\n",
+                        p->pid, p->parent_pid, session, integrity, p->name,
+                        origin, loc_mark, mem);
             }
             if (p->identity.product_name[0] != L'\0' ||
                 p->identity.unusual_location) {

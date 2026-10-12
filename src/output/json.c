@@ -309,6 +309,15 @@ static void wt_json_emit_process(WT_JsonWriter *w, const WT_ProcessInfo *p)
 {
     wt_json_begin_object(w);
     wt_json_key(w, "pid");                wt_json_uint64(w, p->pid);
+    wt_json_key(w, "parent_pid");         wt_json_uint64(w, p->parent_pid);
+    wt_json_key(w, "session_id");
+    if (p->session_ok) {
+        wt_json_uint64(w, p->session_id);
+    } else {
+        wt_json_null(w);
+    }
+    wt_json_key(w, "integrity");
+    wt_json_string(w, wt_integrity_level_name(p->integrity));
     wt_json_key(w, "name");               wt_json_wstring(w, p->name);
     wt_json_key(w, "working_set_bytes");  wt_json_uint64(w, p->working_set_bytes);
     wt_json_key(w, "private_bytes");      wt_json_uint64(w, p->private_bytes);
