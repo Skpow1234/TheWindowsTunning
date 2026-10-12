@@ -7,7 +7,7 @@ An optional Inno Setup installer may accompany releases when CI can build it.
 
 | Channel | How selected | `CHANNEL.txt` | Typical consumers |
 | ------- | ------------ | ------------- | ----------------- |
-| **stable** | Tag `vX.Y.Z` (no `-beta`) | `stable` | End users, winget later |
+| **stable** | Tag `vX.Y.Z` (no `-beta`) | `stable` | End users, WinGet (`WinTune.WinTune`) |
 | **beta** | Tag contains `-beta` (e.g. `v0.3.0-beta.1`) | `beta` | Testers, early adopters |
 
 `scripts/package.ps1 -Channel` and the Release workflow set `CHANNEL.txt` in the

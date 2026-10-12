@@ -41,8 +41,8 @@ wintune scan --json --schema-version 1
 ```
 
 - Branch on major: accept `1.x` and `2.x` if you only use 1.0 core fields.
-- Do **not** require exact `"1.0.0"` going forward; the pin may be removed in a
-  later release once the deprecation window closes.
+- Do **not** require exact `"1.0.0"` going forward. Phase 156 removes the
+  `--schema-version 1` pin once this deprecation window closes.
 - Ignore unknown keys.
 
 ---

@@ -334,7 +334,7 @@ $scanTimeout = if ($SkipSlow) { 30 } else { 120 }
 Test-ExpectOk "scan" @("scan", "--samples", "1", "--interval", "200") `
     -StdoutContains @("WinTune System Scan", "CPU:", "Memory:") -TimeoutSec $scanTimeout
 Test-JsonOk "scan --json" @("scan", "--json", "--samples", "1", "--interval", "200") `
-    -MustContain @("schema_version", "cpu", "memory", "disk", "read_bytes_per_sec", "write_bytes_per_sec", "throughput_available", "gpu") -TimeoutSec $scanTimeout
+    -MustContain @("schema_version", "cpu", "memory", "disk", "read_bytes_per_sec", "write_bytes_per_sec", "throughput_available", "read_latency_ms_p50", "read_latency_ms_p95", "write_latency_ms_p50", "write_latency_ms_p95", "gpu") -TimeoutSec $scanTimeout
 # Per-volume LogicalDisk activity (Phase 26); soft-pass if host has no volumes.
 $scanJson = Invoke-Wt -WtArgs @("scan", "--json", "--samples", "1", "--interval", "200") -TimeoutSec $scanTimeout
 if (-not $scanJson.TimedOut -and $scanJson.ExitCode -eq 0) {
@@ -345,7 +345,7 @@ if (-not $scanJson.TimedOut -and $scanJson.ExitCode -eq 0) {
             Write-CaseResult "scan --json volume activity" "SOFT" "no volumes on this host"
         } else {
             $v0 = $vols[0]
-            $need = @("active_available", "active_percent", "throughput_available", "read_bytes_per_sec", "write_bytes_per_sec", "avg_queue_length")
+            $need = @("active_available", "active_percent", "throughput_available", "read_bytes_per_sec", "write_bytes_per_sec", "avg_queue_length", "read_latency_ms_p50", "read_latency_ms_p95", "write_latency_ms_p50", "write_latency_ms_p95")
             $missing = @()
             foreach ($f in $need) {
                 if ($null -eq ($v0.PSObject.Properties[$f])) { $missing += $f }

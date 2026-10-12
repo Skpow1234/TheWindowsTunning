@@ -43,6 +43,8 @@ winget validate .\packaging\winget\
 ```
 
 5. Open a PR under `manifests/w/WinTune/WinTune/<version>/` in `winget-pkgs`.
+   Phase 155 turns this step into a post-release submission. It does not run
+   on pull requests.
 
 ## Notes
 

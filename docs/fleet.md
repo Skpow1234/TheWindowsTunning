@@ -6,7 +6,7 @@ output for homelab and small IT teams running diagnostics over SSH.
 
 **JSON schema:** default **`2.0.0`** (Phase 47) with `schema_compat_min` /
 `document` envelope fields. Pin legacy envelopes with
-`--schema-version 1` during the deprecation window. See
+`--schema-version 1` during the deprecation window (removed in Phase 156). See
 [`json-schema.md`](json-schema.md) and [`json-changelog.md`](json-changelog.md).
 
 See also: [`ssh.md`](ssh.md).

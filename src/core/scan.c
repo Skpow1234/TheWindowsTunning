@@ -216,8 +216,39 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
                      s->avg_queue_length) /
                     (double)(sample_index + 1);
             }
+            if (s->read_latency_count > 0) {
+                wt_disk_latency_push(a->read_latency_samples,
+                                     &a->read_latency_count, WT_DISK_LATENCY_CAP,
+                                     s->read_latency_samples[0],
+                                     &a->read_latency_ms_p50,
+                                     &a->read_latency_ms_p95);
+            }
+            if (s->write_latency_count > 0) {
+                wt_disk_latency_push(a->write_latency_samples,
+                                     &a->write_latency_count, WT_DISK_LATENCY_CAP,
+                                     s->write_latency_samples[0],
+                                     &a->write_latency_ms_p50,
+                                     &a->write_latency_ms_p95);
+            }
         }
     }
+
+    if (sample->disk_read_latency_count > 0) {
+        wt_disk_latency_push(acc->disk_read_latency_ms,
+                             &acc->disk_read_latency_count, WT_DISK_LATENCY_CAP,
+                             sample->disk_read_latency_ms[0],
+                             &acc->disk_read_latency_ms_p50,
+                             &acc->disk_read_latency_ms_p95);
+    }
+    if (sample->disk_write_latency_count > 0) {
+        wt_disk_latency_push(acc->disk_write_latency_ms,
+                             &acc->disk_write_latency_count, WT_DISK_LATENCY_CAP,
+                             sample->disk_write_latency_ms[0],
+                             &acc->disk_write_latency_ms_p50,
+                             &acc->disk_write_latency_ms_p95);
+    }
+    acc->disk_latency_ok = (acc->disk_read_latency_count > 0 ||
+                            acc->disk_write_latency_count > 0) ? 1 : 0;
 
     (void)sample_total;
 }
@@ -286,6 +317,24 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
         report->disk_queue_ok = disk_io.queue_ok;
         report->disk_avg_queue_length =
             disk_io.queue_ok ? disk_io.avg_queue_length : -1.0;
+        if (disk_io.read_latency_ms >= 0.0) {
+            wt_disk_latency_push(report->disk_read_latency_ms,
+                                 &report->disk_read_latency_count,
+                                 WT_DISK_LATENCY_CAP, disk_io.read_latency_ms,
+                                 &report->disk_read_latency_ms_p50,
+                                 &report->disk_read_latency_ms_p95);
+        }
+        if (disk_io.write_latency_ms >= 0.0) {
+            wt_disk_latency_push(report->disk_write_latency_ms,
+                                 &report->disk_write_latency_count,
+                                 WT_DISK_LATENCY_CAP, disk_io.write_latency_ms,
+                                 &report->disk_write_latency_ms_p50,
+                                 &report->disk_write_latency_ms_p95);
+        }
+        report->disk_latency_ok = (report->disk_read_latency_count > 0 ||
+                                   report->disk_write_latency_count > 0)
+                                      ? 1
+                                      : 0;
     } else {
         report->disk_active_ok =
             (wt_collect_disk_activity(sample_ms, &report->disk_active_percent) ==
@@ -302,6 +351,11 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
         report->disk_read_bytes_per_sec = -1.0;
         report->disk_write_bytes_per_sec = -1.0;
         report->disk_avg_queue_length = -1.0;
+        report->disk_latency_ok = 0;
+        report->disk_read_latency_ms_p50 = -1.0;
+        report->disk_read_latency_ms_p95 = -1.0;
+        report->disk_write_latency_ms_p50 = -1.0;
+        report->disk_write_latency_ms_p95 = -1.0;
     }
     report->power_ok = (wt_collect_power_info(&report->power) == WT_OK);
 

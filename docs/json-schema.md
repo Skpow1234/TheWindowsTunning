@@ -182,6 +182,13 @@ explicitly copy them.
 1. Prefer `schema_version` **major** checks over exact equality.
 2. Ignore unknown keys (forward compatible).
 3. Treat missing optional sections as unavailable (same as `"available": false`).
-4. Use `--schema-version 1` only while migrating exact-match parsers.
+4. Use `--schema-version 1` only while migrating exact-match parsers. Phase
+   156 removes that pin.
 5. Fleet pack ZIP `manifest.json` uses its **own** pack `schema_version`
    (`1.0`) — independent of the CLI JSON API schema. See [`fleet.md`](fleet.md).
+
+Scan `disk` adds `latency_available`, `latency_samples`, and
+`read_latency_ms_p50`, `read_latency_ms_p95`, `write_latency_ms_p50`,
+`write_latency_ms_p95` for `PhysicalDisk(_Total)`. Each volume has the same
+four percentile fields. They are null when that counter was not read. p50 and
+p95 are nearest-rank percentiles of the sample windows, in milliseconds.

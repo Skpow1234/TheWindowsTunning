@@ -776,6 +776,30 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
             } else {
                 wt_json_null(&w);
             }
+            wt_json_key(&w, "read_latency_ms_p50");
+            if (v->read_latency_count > 0 && v->read_latency_ms_p50 >= 0.0) {
+                wt_json_double(&w, v->read_latency_ms_p50);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "read_latency_ms_p95");
+            if (v->read_latency_count > 0 && v->read_latency_ms_p95 >= 0.0) {
+                wt_json_double(&w, v->read_latency_ms_p95);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "write_latency_ms_p50");
+            if (v->write_latency_count > 0 && v->write_latency_ms_p50 >= 0.0) {
+                wt_json_double(&w, v->write_latency_ms_p50);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "write_latency_ms_p95");
+            if (v->write_latency_count > 0 && v->write_latency_ms_p95 >= 0.0) {
+                wt_json_double(&w, v->write_latency_ms_p95);
+            } else {
+                wt_json_null(&w);
+            }
             wt_json_end_object(&w);
         }
     }
@@ -817,6 +841,41 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     } else {
         wt_json_null(&w);
     }
+    wt_json_key(&w, "latency_available");
+    wt_json_bool(&w, report->disk_latency_ok);
+    wt_json_key(&w, "read_latency_ms_p50");
+    if (report->disk_read_latency_count > 0 &&
+        report->disk_read_latency_ms_p50 >= 0.0) {
+        wt_json_double(&w, report->disk_read_latency_ms_p50);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "read_latency_ms_p95");
+    if (report->disk_read_latency_count > 0 &&
+        report->disk_read_latency_ms_p95 >= 0.0) {
+        wt_json_double(&w, report->disk_read_latency_ms_p95);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "write_latency_ms_p50");
+    if (report->disk_write_latency_count > 0 &&
+        report->disk_write_latency_ms_p50 >= 0.0) {
+        wt_json_double(&w, report->disk_write_latency_ms_p50);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "write_latency_ms_p95");
+    if (report->disk_write_latency_count > 0 &&
+        report->disk_write_latency_ms_p95 >= 0.0) {
+        wt_json_double(&w, report->disk_write_latency_ms_p95);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "latency_samples");
+    wt_json_uint64(&w, (unsigned long long)(report->disk_read_latency_count >
+                                                     report->disk_write_latency_count
+                                                 ? report->disk_read_latency_count
+                                                 : report->disk_write_latency_count));
     wt_json_end_object(&w);
 
     /* gpu / display (Phase 28) */

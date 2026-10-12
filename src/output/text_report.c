@@ -189,6 +189,14 @@ void wt_print_performance_report_text(FILE *out,
             if (v->queue_ok) {
                 fprintf(out, " | queue %.2f", v->avg_queue_length);
             }
+            if (v->read_latency_count > 0) {
+                fprintf(out, " | read p50 %.1f ms p95 %.1f ms",
+                        v->read_latency_ms_p50, v->read_latency_ms_p95);
+            }
+            if (v->write_latency_count > 0) {
+                fprintf(out, " | write p50 %.1f ms p95 %.1f ms",
+                        v->write_latency_ms_p50, v->write_latency_ms_p95);
+            }
             fprintf(out, "\n");
         }
     }
@@ -217,6 +225,19 @@ void wt_print_performance_report_text(FILE *out,
     if (report->disk_queue_ok) {
         fprintf(out, "  Disk total avg. queue length: %.2f\n",
                 report->disk_avg_queue_length);
+    }
+    if (report->disk_read_latency_count > 0) {
+        fprintf(out,
+                "  Disk total read latency: p50 %.1f ms, p95 %.1f ms (%u samples)\n",
+                report->disk_read_latency_ms_p50, report->disk_read_latency_ms_p95,
+                report->disk_read_latency_count);
+    }
+    if (report->disk_write_latency_count > 0) {
+        fprintf(out,
+                "  Disk total write latency: p50 %.1f ms, p95 %.1f ms (%u samples)\n",
+                report->disk_write_latency_ms_p50,
+                report->disk_write_latency_ms_p95,
+                report->disk_write_latency_count);
     }
     if (report->gpu_ok && report->gpu.adapters_ok) {
         for (size_t i = 0; i < report->gpu.adapter_count; ++i) {

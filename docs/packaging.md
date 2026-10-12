@@ -139,7 +139,7 @@ Append diagnostic logs to a file (mirrored to stderr when logging is enabled):
 
 ```powershell
 wintune scan --verbose --log-file C:\ProgramData\WinTune\logs\scan.log
-wintune service run   # future: service may default log path under ProgramData
+wintune service run   # Phase 132 adds a default log under ProgramData
 ```
 
 Parent directories are created when possible. Combine with `--verbose` or

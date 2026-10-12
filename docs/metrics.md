@@ -140,10 +140,14 @@ GetProcessIoCounters
 \PhysicalDisk(_Total)\Disk Read Bytes/sec
 \PhysicalDisk(_Total)\Disk Write Bytes/sec
 \PhysicalDisk(_Total)\Avg. Disk Queue Length
+\PhysicalDisk(_Total)\Avg. Disk sec/Read
+\PhysicalDisk(_Total)\Avg. Disk sec/Write
 \LogicalDisk(C:)\% Disk Time
 \LogicalDisk(C:)\Disk Read Bytes/sec
 \LogicalDisk(C:)\Disk Write Bytes/sec
 \LogicalDisk(C:)\Avg. Disk Queue Length
+\LogicalDisk(C:)\Avg. Disk sec/Read
+\LogicalDisk(C:)\Avg. Disk sec/Write
 ```
 
 **Collect:**
@@ -152,6 +156,11 @@ GetProcessIoCounters
 - Disk read/write bytes per second (`PhysicalDisk(_Total)` and per-volume
   `LogicalDisk`, Phases 25–26).
 - Avg. disk queue length when available (total and per volume).
+- Read and write latency percentiles (Phase 59). PDH `Avg. Disk sec/Read` and
+  `Avg. Disk sec/Write` are converted to milliseconds. p50 and p95 are
+  nearest-rank over the scan's sample windows. Each window is already an
+  average, so this is not a per-I/O histogram. One sample makes p50 and p95
+  equal. A missing counter stays unavailable.
 - Top disk-heavy processes where practical (per-process I/O deltas).
 
 One PDH sample window (`wt_collect_disk_io_ex`) gathers PhysicalDisk(_Total)
@@ -174,6 +183,10 @@ typedef struct WT_DiskVolumeMetrics {
     int activity_ok;
     int throughput_ok;
     int queue_ok;
+    double read_latency_ms_p50;  /* -1 if that side was not sampled */
+    double read_latency_ms_p95;
+    double write_latency_ms_p50;
+    double write_latency_ms_p95;
 } WT_DiskVolumeMetrics;
 
 typedef struct WT_DiskIoMetrics {
@@ -181,16 +194,22 @@ typedef struct WT_DiskIoMetrics {
     double read_bytes_per_sec;
     double write_bytes_per_sec;
     double avg_queue_length; /* -1 if unavailable */
+    double read_latency_ms;  /* one sample window; -1 if unavailable */
+    double write_latency_ms;
     int active_ok;
     int throughput_ok;
     int queue_ok;
+    int latency_ok;
 } WT_DiskIoMetrics;
 ```
 
 Scan JSON `disk` object includes system totals (`read_bytes_per_sec`,
 `write_bytes_per_sec`, `avg_queue_length`, `*_available` /
 `throughput_available`) and each volume may include the same activity fields
-(`active_percent`, throughput, queue) when LogicalDisk counters succeed.
+(`active_percent`, throughput, queue, `read_latency_ms_p50` / `p95`,
+`write_latency_ms_p50` / `p95`) when LogicalDisk counters succeed. The disk
+object adds `latency_available` and the same four percentile fields for
+`PhysicalDisk(_Total)`, plus `latency_samples`.
 
 Multi-sample scans (Phase 30) also expose:
 - `active_percent` — average across successful samples
@@ -369,7 +388,7 @@ typedef struct WT_ProcessInfo {
   - `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup`
   - `%PROGRAMDATA%\Microsoft\Windows\Start Menu\Programs\Startup`
 - Auto-start services.
-- Scheduled tasks (later phases).
+- Scheduled tasks (`wintune tasks`, Phase 12).
 
 **Per item:** id, name, source, command/path, product name, publisher,
 signature status, origin, install location, unusual-location review flag,

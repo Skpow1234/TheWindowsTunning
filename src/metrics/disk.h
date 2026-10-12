@@ -19,6 +19,17 @@ typedef struct WT_DiskVolumeMetrics {
     int activity_ok;
     int throughput_ok;
     int queue_ok;
+    /* Phase 59: Avg. Disk sec/Read and sec/Write, in milliseconds.
+     * Percentiles are over scan sample windows (each window is already an
+     * average), not over individual I/Os. -1 when that side was not read. */
+    double read_latency_ms_p50;
+    double read_latency_ms_p95;
+    double write_latency_ms_p50;
+    double write_latency_ms_p95;
+    double read_latency_samples[32];
+    double write_latency_samples[32];
+    unsigned int read_latency_count;
+    unsigned int write_latency_count;
 } WT_DiskVolumeMetrics;
 
 /* System-wide PhysicalDisk(_Total) sample (Phase 25). Rates are bytes/sec.
@@ -28,10 +39,24 @@ typedef struct WT_DiskIoMetrics {
     double read_bytes_per_sec;
     double write_bytes_per_sec;
     double avg_queue_length;
+    double read_latency_ms;  /* -1 when Avg. Disk sec/Read is unavailable */
+    double write_latency_ms; /* -1 when Avg. Disk sec/Write is unavailable */
     int active_ok;
     int throughput_ok;
     int queue_ok;
+    int latency_ok;
 } WT_DiskIoMetrics;
+
+#define WT_DISK_LATENCY_CAP 32
+
+/* Appends one sample-window latency (milliseconds) and refreshes nearest-rank
+ * p50/p95. Ignores negative samples. Stops storing once `cap` is reached. */
+void wt_disk_latency_push(double *samples,
+                          unsigned int *count,
+                          unsigned int cap,
+                          double latency_ms,
+                          double *p50,
+                          double *p95);
 
 /* Enumerates fixed (DRIVE_FIXED) volumes and their free/total space.
  * Writes up to `capacity` entries and reports the count via `out_count`.

@@ -6,13 +6,16 @@ WinTune ships in phases. Each phase builds on a stable core scanner. **v1**
 metrics, update/reboot helpers, fleet automation, and optional local UI.
 **v3** (Phases 22–53) deepens attribution, metrics, boot analysis, apply UX,
 and distribution — without Electron, cloud telemetry, or “PC cleaner” behavior.
-**v4** (Phases 54–153) has paging, process identity, hang detection, and per-process GPU time (phases 54–57, done). The rest is planned: deeper measurement, clearer explanations,
-a few more reversible apply paths, local history, and release automation.
+**v4** (Phases 54–157) has paging, process identity, hang detection,
+per-process GPU time, UDP byte rates, and disk latency percentiles (phases
+54–59, done). The rest is planned: deeper measurement, clearer explanations,
+a few more reversible apply paths, local history, release automation, and
+the doc follow-ups in phases 154–157.
 The full list is [`milestones.md`](milestones.md).
 
 Initial version: **0.1.0**. Current release: **0.3.0**.
 
-For the full feature catalog see [`DESIGN.md`](DESIGN.md).
+The feature catalog is this roadmap plus [`milestones.md`](milestones.md).
 
 ---
 
@@ -79,7 +82,8 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 56 | Hung processes (wait chain, read-only) | Done |
 | 57 | Per-process GPU engine time | Done |
 | 58 | UDP byte rates beside TCP EStats | Done |
-| 59–73 | Measurement depth | Planned |
+| 59 | Disk latency percentiles | Done |
+| 60–73 | Measurement depth | Planned |
 | 74–83 | Clearer explanations | Planned |
 | 84–97 | Safe apply completion | Planned |
 | 98–105, 114 | Local history and baselines | Planned |
@@ -89,6 +93,10 @@ For the full feature catalog see [`DESIGN.md`](DESIGN.md).
 | 133–140 | Boot analysis depth | Planned |
 | 141–148 | Fleet packs, still local | Planned |
 | 149–153 | Release and WinGet automation | Planned |
+| 154 | Azure Trusted Signing (OIDC) | Planned |
+| 155 | Winget manifest publish | Planned |
+| 156 | Retire `--schema-version 1` | Planned |
+| 157 | Opt-in update check | Planned |
 
 Each planned phase is written out in [`milestones.md`](milestones.md).
 
@@ -255,8 +263,9 @@ Phases 10–21 are **Done**. They extended WinTune from “on-demand doctor” t
 “measured boot analysis, background monitoring, and richer automation” while
 keeping the same safety model.
 
-Winget package submission (`WinTune.WinTune`) and Authenticode-in-CI remain
-optional distribution work (see Phases 52–53).
+WinGet `WinTune.WinTune` is published. Optional PFX signing shipped in Phase
+52. Azure Trusted Signing over OIDC is Phase 154. Automatic winget-pkgs
+submission is Phase 155.
 
 ### Phase 10 — ETW Boot / Login Analysis
 
@@ -582,7 +591,8 @@ Phase 21 is the **consumer** release: a shippable product artifact.
 - Signing guidance: [`signing.md`](signing.md).
 - CI build/lint + GitHub Releases ZIPs + SHA-256 (`scripts/release.ps1`).
 
-**Optional / deferred:** winget; Authenticode signing in CI.
+**Shipped since this phase:** WinGet `WinTune.WinTune`, and optional PFX
+signing in CI (Phase 52). Azure Trusted Signing is Phase 154.
 
 **Example user flow:**
 
@@ -1283,19 +1293,20 @@ wintune fleet pack --input reports/ --output fleet-pack.zip
 
 ---
 
-## v4 (Phases 54–153) — Planned
+## v4 (Phases 54–157) — Planned
 
 v4 does not change the safety rules. New apply paths stay on the existing
 allow-list. Memory, disk, CPU, boot, update, and uninstall findings stay
 advisory. Nothing in this range disables Defender, Windows Update, or the
-firewall, and nothing uploads a report.
+firewall, and nothing uploads a report. Phase 157 is the only opt-in network
+call, and it sends no machine data.
 
-The phase-by-phase list is [`milestones.md`](milestones.md). Phases 54–58
+The phase-by-phase list is [`milestones.md`](milestones.md). Phases 54–59
 are done; the rest of this range is still planned.
 
-Phases 54–58 are done (`wintune top --page`, process identity, read-only wait chain, per-process GPU time, UDP byte rates). Suggested order inside v4: measurement (59–73), explanations (74–83), apply
+Phases 54–59 are done (`wintune top --page`, process identity, read-only wait chain, per-process GPU time, UDP byte rates, disk latency percentiles). Suggested order inside v4: measurement (60–73), explanations (74–83), apply
 (84–97), history (98–105), TUI (106–115), CLI (116–124), service (125–132),
-boot (133–140), fleet (141–148), release (149–153).
+boot (133–140), fleet (141–148), release (149–157).
 
 ---
 

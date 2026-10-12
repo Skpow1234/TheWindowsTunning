@@ -5,6 +5,7 @@
 #include <pdh.h>
 #include <strsafe.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define WT_DISK_DEFAULT_SAMPLE_MS 500
 
@@ -55,6 +56,10 @@ WT_Result wt_collect_disk_volumes(WT_DiskVolumeMetrics *out,
         v->read_bytes_per_sec = -1.0;
         v->write_bytes_per_sec = -1.0;
         v->avg_queue_length = -1.0;
+        v->read_latency_ms_p50 = -1.0;
+        v->read_latency_ms_p95 = -1.0;
+        v->write_latency_ms_p50 = -1.0;
+        v->write_latency_ms_p95 = -1.0;
         (*out_count)++;
     }
 
@@ -99,19 +104,93 @@ typedef struct WT_VolCounters {
     PDH_HCOUNTER read;
     PDH_HCOUNTER write;
     PDH_HCOUNTER queue;
+    PDH_HCOUNTER read_latency;
+    PDH_HCOUNTER write_latency;
 } WT_VolCounters;
+
+static int wt_cmp_double(const void *a, const void *b)
+{
+    double da = *(const double *)a;
+    double db = *(const double *)b;
+    if (da < db) {
+        return -1;
+    }
+    if (da > db) {
+        return 1;
+    }
+    return 0;
+}
+
+static double wt_disk_nearest_rank(const double *sorted, unsigned int n, double p)
+{
+    double scaled = p * (double)n;
+    unsigned int rank = (unsigned int)scaled;
+    if ((double)rank != scaled) {
+        rank++;
+    }
+    if (rank < 1u) {
+        rank = 1u;
+    }
+    if (rank > n) {
+        rank = n;
+    }
+    return sorted[rank - 1u];
+}
+
+void wt_disk_latency_push(double *samples, unsigned int *count, unsigned int cap,
+                          double latency_ms, double *p50, double *p95)
+{
+    if (samples == NULL || count == NULL || cap == 0 || latency_ms < 0.0) {
+        return;
+    }
+    if (cap > WT_DISK_LATENCY_CAP) {
+        cap = WT_DISK_LATENCY_CAP;
+    }
+    if (*count < cap) {
+        samples[*count] = latency_ms;
+        (*count)++;
+    }
+    if (p50 == NULL || p95 == NULL || *count == 0) {
+        return;
+    }
+    double tmp[WT_DISK_LATENCY_CAP];
+    unsigned int n = *count;
+    memcpy(tmp, samples, n * sizeof(double));
+    qsort(tmp, n, sizeof(double), wt_cmp_double);
+    *p50 = wt_disk_nearest_rank(tmp, n, 0.50);
+    *p95 = wt_disk_nearest_rank(tmp, n, 0.95);
+}
+
+/* PDH reports seconds. Reject negative and multi-minute glitches. */
+static int wt_disk_latency_ms(double seconds, double *ms_out)
+{
+    if (ms_out == NULL || seconds < 0.0) {
+        return 0;
+    }
+    double ms = seconds * 1000.0;
+    if (ms > 60000.0) {
+        return 0;
+    }
+    *ms_out = ms;
+    return 1;
+}
 
 static void wt_disk_apply_total(WT_DiskIoMetrics *out,
                                 PDH_HCOUNTER c_active,
                                 PDH_HCOUNTER c_read,
                                 PDH_HCOUNTER c_write,
-                                PDH_HCOUNTER c_queue)
+                                PDH_HCOUNTER c_queue,
+                                PDH_HCOUNTER c_read_lat,
+                                PDH_HCOUNTER c_write_lat)
 {
     int ok_active = 0, ok_read = 0, ok_write = 0, ok_queue = 0;
+    int ok_rl = 0, ok_wl = 0;
     double active = wt_pdh_read_double(c_active, &ok_active);
     double read_bps = wt_pdh_read_double(c_read, &ok_read);
     double write_bps = wt_pdh_read_double(c_write, &ok_write);
     double queue = wt_pdh_read_double(c_queue, &ok_queue);
+    double read_sec = wt_pdh_read_double(c_read_lat, &ok_rl);
+    double write_sec = wt_pdh_read_double(c_write_lat, &ok_wl);
 
     if (ok_active) {
         out->active_percent = active < 0.0 ? 0.0 : active;
@@ -127,15 +206,25 @@ static void wt_disk_apply_total(WT_DiskIoMetrics *out,
         out->avg_queue_length = queue < 0.0 ? 0.0 : queue;
         out->queue_ok = 1;
     }
+    out->read_latency_ms = -1.0;
+    out->write_latency_ms = -1.0;
+    if (ok_rl && wt_disk_latency_ms(read_sec, &out->read_latency_ms)) {
+        out->latency_ok = 1;
+    }
+    if (ok_wl && wt_disk_latency_ms(write_sec, &out->write_latency_ms)) {
+        out->latency_ok = 1;
+    }
 }
 
 static void wt_disk_apply_volume(WT_DiskVolumeMetrics *v, const WT_VolCounters *s)
 {
-    int ok_a = 0, ok_r = 0, ok_w = 0, ok_q = 0;
+    int ok_a = 0, ok_r = 0, ok_w = 0, ok_q = 0, ok_rl = 0, ok_wl = 0;
     double a = wt_pdh_read_double(s->active, &ok_a);
     double r = wt_pdh_read_double(s->read, &ok_r);
     double w = wt_pdh_read_double(s->write, &ok_w);
     double q = wt_pdh_read_double(s->queue, &ok_q);
+    double read_sec = wt_pdh_read_double(s->read_latency, &ok_rl);
+    double write_sec = wt_pdh_read_double(s->write_latency, &ok_wl);
 
     if (ok_a) {
         v->active_percent = a < 0.0 ? 0.0 : a;
@@ -149,6 +238,23 @@ static void wt_disk_apply_volume(WT_DiskVolumeMetrics *v, const WT_VolCounters *
     if (ok_q) {
         v->avg_queue_length = q < 0.0 ? 0.0 : q;
         v->queue_ok = 1;
+    }
+    if (ok_rl) {
+        double ms = 0.0;
+        if (wt_disk_latency_ms(read_sec, &ms)) {
+            wt_disk_latency_push(v->read_latency_samples, &v->read_latency_count,
+                                 WT_DISK_LATENCY_CAP, ms, &v->read_latency_ms_p50,
+                                 &v->read_latency_ms_p95);
+        }
+    }
+    if (ok_wl) {
+        double ms = 0.0;
+        if (wt_disk_latency_ms(write_sec, &ms)) {
+            wt_disk_latency_push(v->write_latency_samples, &v->write_latency_count,
+                                 WT_DISK_LATENCY_CAP, ms,
+                                 &v->write_latency_ms_p50,
+                                 &v->write_latency_ms_p95);
+        }
     }
 }
 
@@ -164,6 +270,8 @@ WT_Result wt_collect_disk_io_ex(unsigned int sample_ms,
     if (total_out != NULL) {
         ZeroMemory(total_out, sizeof(*total_out));
         total_out->avg_queue_length = -1.0;
+        total_out->read_latency_ms = -1.0;
+        total_out->write_latency_ms = -1.0;
     }
 
     if (sample_ms == 0) {
@@ -183,6 +291,8 @@ WT_Result wt_collect_disk_io_ex(unsigned int sample_ms,
     PDH_HCOUNTER c_read = NULL;
     PDH_HCOUNTER c_write = NULL;
     PDH_HCOUNTER c_queue = NULL;
+    PDH_HCOUNTER c_read_lat = NULL;
+    PDH_HCOUNTER c_write_lat = NULL;
     WT_Result result = WT_ERR_PDH;
     size_t vol_added = 0;
 
@@ -202,6 +312,11 @@ WT_Result wt_collect_disk_io_ex(unsigned int sample_ms,
         (void)PdhAddEnglishCounterW(
             query, L"\\PhysicalDisk(_Total)\\Avg. Disk Queue Length", 0,
             &c_queue);
+        (void)PdhAddEnglishCounterW(
+            query, L"\\PhysicalDisk(_Total)\\Avg. Disk sec/Read", 0, &c_read_lat);
+        (void)PdhAddEnglishCounterW(
+            query, L"\\PhysicalDisk(_Total)\\Avg. Disk sec/Write", 0,
+            &c_write_lat);
     }
 
     if (slots != NULL) {
@@ -231,6 +346,17 @@ WT_Result wt_collect_disk_io_ex(unsigned int sample_ms,
                     L"\\LogicalDisk(%c:)\\Avg. Disk Queue Length", letter))) {
                 (void)PdhAddEnglishCounterW(query, path, 0, &slots[i].queue);
             }
+            if (SUCCEEDED(StringCchPrintfW(
+                    path, ARRAYSIZE(path),
+                    L"\\LogicalDisk(%c:)\\Avg. Disk sec/Read", letter))) {
+                (void)PdhAddEnglishCounterW(query, path, 0, &slots[i].read_latency);
+            }
+            if (SUCCEEDED(StringCchPrintfW(
+                    path, ARRAYSIZE(path),
+                    L"\\LogicalDisk(%c:)\\Avg. Disk sec/Write", letter))) {
+                (void)PdhAddEnglishCounterW(query, path, 0,
+                                            &slots[i].write_latency);
+            }
             if (slots[i].active != NULL || slots[i].read != NULL ||
                 slots[i].write != NULL) {
                 vol_added++;
@@ -251,7 +377,8 @@ WT_Result wt_collect_disk_io_ex(unsigned int sample_ms,
     }
 
     if (total_out != NULL) {
-        wt_disk_apply_total(total_out, c_active, c_read, c_write, c_queue);
+        wt_disk_apply_total(total_out, c_active, c_read, c_write, c_queue,
+                            c_read_lat, c_write_lat);
     }
     if (slots != NULL) {
         for (size_t i = 0; i < volume_count; ++i) {
@@ -261,7 +388,7 @@ WT_Result wt_collect_disk_io_ex(unsigned int sample_ms,
 
     if ((total_out != NULL &&
          (total_out->active_ok || total_out->throughput_ok ||
-          total_out->queue_ok)) ||
+          total_out->queue_ok || total_out->latency_ok)) ||
         vol_added > 0) {
         result = WT_OK;
     }

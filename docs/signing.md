@@ -59,8 +59,9 @@ PFX), the binary is signed before ZIP and verify must succeed.
 
 ### Azure Trusted Signing / OIDC
 
-Preferred for production: use Azure Trusted Signing with OIDC federation
-instead of a long-lived PFX in GitHub secrets. Typical pattern:
+Preferred for production, and tracked as Phase 154. Use Azure Trusted Signing
+with OIDC federation instead of a long-lived PFX in GitHub secrets. Until
+that phase lands, releases keep the optional PFX path above. Typical pattern:
 
 1. Register an Azure Trusted Signing account and certificate profile.
 2. Federate the GitHub repo via Azure AD app + OIDC.

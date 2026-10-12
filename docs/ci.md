@@ -157,7 +157,8 @@ Default CI remains unsigned. Release / dry-run packaging always runs
 `scripts/sign.ps1` verify (soft-pass when unsigned) and writes `SIGNING.txt`.
 Optional PFX signing via secrets is documented in [`signing.md`](signing.md).
 
-Not in default PR CI yet:
+Not in pull-request CI (Phase 155 submits winget-pkgs only after a stable
+release):
 
 - Publishing the draft winget manifests under `packaging/winget/` to winget-pkgs
 

@@ -35,6 +35,14 @@ typedef struct WT_ScanReport {
     double disk_read_bytes_per_sec;   /* PhysicalDisk(_Total); -1 if n/a */
     double disk_write_bytes_per_sec;
     double disk_avg_queue_length;     /* -1 if n/a */
+    double disk_read_latency_ms[32];  /* Phase 59 sample windows, milliseconds */
+    double disk_write_latency_ms[32];
+    unsigned int disk_read_latency_count;
+    unsigned int disk_write_latency_count;
+    double disk_read_latency_ms_p50;  /* -1 if n/a */
+    double disk_read_latency_ms_p95;
+    double disk_write_latency_ms_p50;
+    double disk_write_latency_ms_p95;
 
     /* Phase 35: multi-sample CPU / memory confidence inputs */
     double cpu_max_percent;           /* -1 if n/a */
@@ -65,6 +73,7 @@ typedef struct WT_ScanReport {
     int disk_active_ok;
     int disk_throughput_ok;
     int disk_queue_ok;
+    int disk_latency_ok;
     int processes_ok;
     int power_ok;
     int boot_ok;

@@ -187,6 +187,14 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
             if (v->queue_ok) {
                 fprintf(out, " | queue %.2f", v->avg_queue_length);
             }
+            if (v->read_latency_count > 0) {
+                fprintf(out, " | read p50 %.1f ms p95 %.1f ms",
+                        v->read_latency_ms_p50, v->read_latency_ms_p95);
+            }
+            if (v->write_latency_count > 0) {
+                fprintf(out, " | write p50 %.1f ms p95 %.1f ms",
+                        v->write_latency_ms_p50, v->write_latency_ms_p95);
+            }
             fprintf(out, "\n");
         }
     } else {
@@ -217,6 +225,17 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
     if (report->disk_queue_ok) {
         fprintf(out, "  Total avg. queue length: %.2f\n",
                 report->disk_avg_queue_length);
+    }
+    if (report->disk_read_latency_count > 0) {
+        fprintf(out, "  Total read latency: p50 %.1f ms, p95 %.1f ms (%u samples)\n",
+                report->disk_read_latency_ms_p50, report->disk_read_latency_ms_p95,
+                report->disk_read_latency_count);
+    }
+    if (report->disk_write_latency_count > 0) {
+        fprintf(out, "  Total write latency: p50 %.1f ms, p95 %.1f ms (%u samples)\n",
+                report->disk_write_latency_ms_p50,
+                report->disk_write_latency_ms_p95,
+                report->disk_write_latency_count);
     }
     fprintf(out, "\n");
 

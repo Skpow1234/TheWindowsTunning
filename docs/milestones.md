@@ -1,6 +1,6 @@
-# WinTune milestones 54–153
+# WinTune milestones 54–157
 
-Phases 0–58 are done. See [`roadmap.md`](roadmap.md). Phases 59–153 are
+Phases 0–59 are done. See [`roadmap.md`](roadmap.md). Phases 60–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -11,7 +11,9 @@ advisory. The Windows service stays local.
 
 - Disable Microsoft Defender, Windows Update, the firewall, UAC, or BitLocker.
 - Delete user files, clean the registry, or uninstall software automatically.
-- Upload a report, add telemetry, or phone home.
+- Upload a report, add telemetry, or phone home. Phase 157 is the only
+  exception, and it is off by default: an opt-in version check that sends no
+  machine data.
 - Apply a change from the TUI. The dashboard stays read-only.
 - Add a kernel driver, inject into a process, or hook APIs.
 
@@ -70,9 +72,16 @@ window is 0, not null.
 
 ### Phase 59 — Disk latency
 
-**Status:** Planned
+**Status:** Done
 
-**Deliver:** Report disk latency percentiles, not only active percent and queue length.
+**Deliver:** Report disk latency percentiles beside active percent and queue
+length. The same PDH window reads `\PhysicalDisk(_Total)\Avg. Disk sec/Read`
+and `Avg. Disk sec/Write`, and the matching `LogicalDisk` counters per fixed
+volume. Values are milliseconds. `read_latency_ms_p50` / `p95` and
+`write_latency_ms_p50` / `p95` are nearest-rank percentiles of those sample
+windows. Each window is already an average, so this is not a per-I/O
+histogram. One sample makes p50 and p95 the same number. A missing counter
+is JSON null. Read-only.
 
 ### Phase 60 — Storage sensors
 
@@ -673,3 +682,42 @@ window is 0, not null.
 **Status:** Planned
 
 **Deliver:** Make `Add-To-Path` refuse a duplicate PATH entry.
+
+---
+
+## Follow-ups from the docs (154–157)
+
+These were described in the docs and had no phase.
+
+### Phase 154 — Azure Trusted Signing
+
+**Status:** Planned
+
+**Deliver:** Sign release binaries with Azure Trusted Signing over GitHub
+OIDC, before the zip. Do not store a long-lived certificate or client secret
+in the repo. Keep the existing PFX path as a fallback. `signtool verify /pa`
+stays the release gate. Tenant-specific names stay out of the public
+workflow.
+
+### Phase 155 — Winget manifest publish
+
+**Status:** Planned
+
+**Deliver:** After a stable release, submit `packaging/winget/` to
+winget-pkgs. Phase 149 fills the hashes. This phase performs the submission.
+It does not run on pull requests.
+
+### Phase 156 — Retire schema 1
+
+**Status:** Planned
+
+**Deliver:** Remove the `--schema-version 1` pin after the deprecation window
+documented in `json-changelog.md`. Default output stays schema 2.
+
+### Phase 157 — Opt-in update check
+
+**Status:** Planned
+
+**Deliver:** Add an opt-in check for a newer GitHub release. Off by default.
+It sends no machine data, scan, or report. `scan`, `doctor`, and the service
+do not call it. This is the only network exception in this file.

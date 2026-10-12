@@ -148,7 +148,9 @@ Run PowerShell as Administrator and try again.
 ## Privacy
 
 Default mode is local-only. No cloud, no telemetry, no account, no background
-upload, no network calls (until an opt-in update check is added later).
+upload, no network calls. Phase 157 is the only planned exception: an
+opt-in version check that sends no machine data and stays off until the user
+asks.
 
 WinTune does **not** collect: files, documents, browser history, credentials,
 environment variables (by default), full command lines (by default), Wi-Fi
@@ -166,7 +168,7 @@ Mutating actions write rollback metadata where practical:
 - User-only: `%LOCALAPPDATA%\WinTune\rollback\`
 
 Each record captures the action, previous value, new value, and the command to
-undo it. See `DESIGN.md` for the record schema.
+undo it. See [`apply.md`](apply.md) for which actions write a record.
 
 ---
 
