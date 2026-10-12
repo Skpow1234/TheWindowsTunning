@@ -99,7 +99,10 @@ Otherwise it is null. Naming the driver requires an administrator. WinTune
 does not install a driver. Active audio endpoints are listed with `exclusive`
 and `exclusive_only`. Those are null when the shared-mode probe does not
 answer. An exclusive endpoint is a latency hint (`WT-AUDIO-001`). WinTune
-does not change the device or its exclusive-mode setting.
+does not change the device or its exclusive-mode setting. The Windows Search
+catalog reports `status`, `items_indexed`, and `backlog_items`. Those are
+null when the catalog could not be read. A large backlog or a full crawl
+is advisory `WT-SEARCH-001`. WinTune does not disable Search.
 
 ```bash
 wintune scan

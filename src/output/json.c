@@ -1086,6 +1086,68 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     }
     wt_json_end_object(&w);
 
+    /* Windows Search catalog (phase 67). Read-only; Search is not disabled. */
+    wt_json_key(&w, "search");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "available");
+    wt_json_bool(&w, report->search_ok && report->search.available);
+    wt_json_key(&w, "service_running");
+    if (report->search_ok && report->search.service_running >= 0) {
+        wt_json_bool(&w, report->search.service_running);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "status");
+    if (report->search_ok && report->search.status_ok) {
+        wt_json_string(&w, wt_search_status_token(report->search.status));
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "paused_reason");
+    if (report->search_ok && report->search.paused_reason >= 0) {
+        wt_json_string(&w, wt_search_pause_token(report->search.paused_reason));
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "items_indexed");
+    if (report->search_ok && report->search.items_ok &&
+        report->search.items_indexed >= 0) {
+        wt_json_uint64(&w, (unsigned long long)report->search.items_indexed);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "backlog_items");
+    if (report->search_ok && report->search.backlog_ok &&
+        report->search.backlog_items >= 0) {
+        wt_json_uint64(&w, (unsigned long long)report->search.backlog_items);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "incremental_count");
+    if (report->search_ok && report->search.backlog_ok &&
+        report->search.incremental_count >= 0) {
+        wt_json_uint64(&w, (unsigned long long)report->search.incremental_count);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "notification_count");
+    if (report->search_ok && report->search.backlog_ok &&
+        report->search.notification_count >= 0) {
+        wt_json_uint64(&w,
+                       (unsigned long long)report->search.notification_count);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "high_priority_count");
+    if (report->search_ok && report->search.backlog_ok &&
+        report->search.high_priority_count >= 0) {
+        wt_json_uint64(&w,
+                       (unsigned long long)report->search.high_priority_count);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_end_object(&w);
+
     /* power */
     wt_json_key(&w, "power");
     wt_json_begin_object(&w);

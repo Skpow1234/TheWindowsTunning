@@ -6,6 +6,7 @@
 #include "metrics/process.h"
 #include "metrics/gpu.h"
 #include "system/audio.h"
+#include "system/search.h"
 #include "system/os_info.h"
 #include "system/power.h"
 #include "system/boot.h"
@@ -295,6 +296,10 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
         acc->audio = sample->audio;
         acc->audio_ok = 1;
     }
+    if (sample_index > 0 && sample->search_ok) {
+        acc->search = sample->search;
+        acc->search_ok = 1;
+    }
 
     (void)sample_total;
 }
@@ -407,6 +412,7 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
 
     report->gpu_ok = (wt_collect_gpu_metrics(sample_ms, &report->gpu) == WT_OK);
     report->audio_ok = (wt_collect_audio(&report->audio) == WT_OK);
+    report->search_ok = (wt_collect_search(&report->search) == WT_OK);
 
     WT_Result boot_r = wt_collect_boot_report(&report->boot, NULL);
     report->boot_ok = (boot_r == WT_OK);

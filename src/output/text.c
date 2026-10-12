@@ -369,6 +369,42 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
     }
     fprintf(out, "\n");
 
+    fprintf(out, "Search indexer:\n");
+    if (!report->search_ok) {
+        fprintf(out, "  (unavailable)\n");
+    } else {
+        if (report->search.service_running == 0) {
+            fprintf(out, "  Windows Search service is stopped\n");
+        } else if (report->search.service_running < 0) {
+            fprintf(out, "  Windows Search service (not reported)\n");
+        }
+        if (report->search.status_ok) {
+            fprintf(out, "  Status: %s",
+                    wt_search_status_token(report->search.status));
+            if (report->search.paused_reason >= 0) {
+                fprintf(out, " (%s)",
+                        wt_search_pause_token(report->search.paused_reason));
+            }
+            fprintf(out, "\n");
+        }
+        if (report->search.items_ok) {
+            fprintf(out, "  Indexed: %ld\n", report->search.items_indexed);
+        }
+        if (report->search.backlog_ok) {
+            fprintf(out,
+                    "  Backlog: %ld  (incremental %ld, notifications %ld, "
+                    "high priority %ld)\n",
+                    report->search.backlog_items,
+                    report->search.incremental_count,
+                    report->search.notification_count,
+                    report->search.high_priority_count);
+        }
+        if (!report->search.available) {
+            fprintf(out, "  (catalog unavailable)\n");
+        }
+    }
+    fprintf(out, "\n");
+
     if (report->boot_ok && report->boot.boot_duration_ms > 0) {
         wchar_t boot_dur[32];
         wt_format_duration_ms(report->boot.boot_duration_ms, boot_dur, 32);

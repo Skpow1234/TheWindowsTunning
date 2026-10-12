@@ -353,6 +353,25 @@ void wt_print_performance_report_text(FILE *out,
         }
     }
 
+    if (report->search_ok && report->search.available) {
+        fprintf(out, "Search indexer:\n");
+        if (report->search.status_ok) {
+            fprintf(out, "  Status: %s",
+                    wt_search_status_token(report->search.status));
+            if (report->search.paused_reason >= 0) {
+                fprintf(out, " (%s)",
+                        wt_search_pause_token(report->search.paused_reason));
+            }
+            fprintf(out, "\n");
+        }
+        if (report->search.items_ok) {
+            fprintf(out, "  Indexed: %ld\n", report->search.items_indexed);
+        }
+        if (report->search.backlog_ok) {
+            fprintf(out, "  Backlog: %ld\n", report->search.backlog_items);
+        }
+    }
+
     if (report->boot_ok && report->boot.boot_duration_ms > 0) {
         wchar_t boot_dur[32];
         wt_format_duration_ms(report->boot.boot_duration_ms, boot_dur, 32);

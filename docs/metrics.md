@@ -383,6 +383,32 @@ IAudioClient::Initialize       /* shared mode, never Start */
 Read-only. WinTune does not change the endpoint, its format, or the
 exclusive-mode checkbox.
 
+## Search indexer (Phase 67)
+
+**APIs:**
+
+```c
+OpenServiceW(L"WSearch") / QueryServiceStatus
+ISearchManager::GetCatalog(L"SystemIndex")
+ISearchCatalogManager::GetCatalogStatus
+ISearchCatalogManager::NumberOfItems
+ISearchCatalogManager::NumberOfItemsToIndex
+```
+
+**Collect:**
+- Whether the Windows Search service is running. JSON `service_running` is
+  null when the service could not be queried.
+- Catalog status (`idle`, `paused`, `recovering`, `full_crawl`,
+  `incremental_crawl`, `processing_notifications`, `shutting_down`) and, when
+  paused, the pause reason.
+- Indexed item count, plus the incremental, notification, and high-priority
+  queues. `backlog_items` is their sum. A missing count is JSON null.
+- Advisory `WT-SEARCH-001` when the catalog is recovering, running a full
+  crawl, or the backlog is at least 100 items. It is not an apply action.
+
+Read-only. WinTune does not reset the catalog, start a reindex, or disable
+Windows Search.
+
 ---
 
 ## Processes

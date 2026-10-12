@@ -1,6 +1,6 @@
 # WinTune milestones 54–157
 
-Phases 0–66 are done. See [`roadmap.md`](roadmap.md). Phases 67–157 are
+Phases 0–67 are done. See [`roadmap.md`](roadmap.md). Phases 68–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -173,9 +173,15 @@ change the device, its format, or its exclusive-mode policy.
 
 ### Phase 67 — Search indexer
 
-**Status:** Planned
+**Status:** Done
 
 **Deliver:** Report Search indexer backlog without offering to disable Search.
+The SystemIndex catalog is read through `ISearchCatalogManager`: catalog
+status, indexed item count, and the three `NumberOfItemsToIndex` queues.
+`backlog_items` is their sum. A missing value is JSON null. Advisory
+`WT-SEARCH-001` fires for a full crawl, catalog recovery, or a backlog of
+at least 100 items. The action is to wait or narrow indexed locations.
+WinTune does not reset the catalog, reindex, or disable the WSearch service.
 
 ### Phase 68 — Defender status
 

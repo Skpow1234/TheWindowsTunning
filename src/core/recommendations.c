@@ -1538,6 +1538,50 @@ static void wt_check_audio(const WT_ScanReport *rep, WT_RecommendationList *out)
     wt_rec_set_confidence(r, rep, WT_CONF_SNAPSHOT, 70);
 }
 
+static void wt_check_search(const WT_ScanReport *rep, WT_RecommendationList *out)
+{
+    WT_Recommendation *r;
+
+    if (!rep->search_ok || !wt_search_backlog_notable(&rep->search)) {
+        return;
+    }
+    r = wt_rec_add(out);
+    if (r == NULL) {
+        return;
+    }
+    wt_str_set(r->id, sizeof(r->id), "WT-SEARCH-001");
+    wt_str_set(r->title, sizeof(r->title), "Search indexer has a backlog");
+    if (rep->search.backlog_ok && rep->search.status_ok) {
+        snprintf(r->reason, sizeof(r->reason),
+                 "Windows Search catalog is %s with %ld item(s) still to index "
+                 "(%ld incremental, %ld notifications, %ld high priority). "
+                 "A large backlog can use disk and CPU until it finishes. "
+                 "WinTune does not disable Search.",
+                 wt_search_status_token(rep->search.status),
+                 rep->search.backlog_items, rep->search.incremental_count,
+                 rep->search.notification_count,
+                 rep->search.high_priority_count);
+    } else if (rep->search.backlog_ok) {
+        snprintf(r->reason, sizeof(r->reason),
+                 "Windows Search still has %ld item(s) to index. A large "
+                 "backlog can use disk and CPU until it finishes. WinTune "
+                 "does not disable Search.",
+                 rep->search.backlog_items);
+    } else {
+        snprintf(r->reason, sizeof(r->reason),
+                 "Windows Search catalog is %s. A full crawl or catalog "
+                 "recovery can use disk and CPU until it finishes. WinTune "
+                 "does not disable Search.",
+                 wt_search_status_token(rep->search.status));
+    }
+    wt_str_set(r->action, sizeof(r->action),
+               "Wait for indexing to finish, or narrow indexed locations in "
+               "Windows Search settings. WinTune does not disable Search.");
+    r->severity = WT_SEVERITY_INFO;
+    r->risk = WT_RISK_NONE;
+    wt_rec_set_confidence(r, rep, WT_CONF_SNAPSHOT, 70);
+}
+
 WT_Result wt_generate_recommendations(const WT_ScanReport *report,
                                       WT_RecommendationList *out)
 {
@@ -1557,6 +1601,7 @@ WT_Result wt_generate_recommendations(const WT_ScanReport *report,
     wt_check_cpu(report, out);
     wt_check_gpu(report, out);
     wt_check_audio(report, out);
+    wt_check_search(report, out);
     wt_check_boot(report, out);
     wt_check_updates(report, out);
     wt_check_blockers(report, out);
