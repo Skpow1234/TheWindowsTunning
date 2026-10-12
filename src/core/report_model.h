@@ -13,6 +13,7 @@
 #include "system/power.h"
 #include "system/boot.h"
 #include "system/updates.h"
+#include "system/audio.h"
 
 #define WT_MAX_VOLUMES 32
 #define WT_MAX_TOP_PROCESSES 32
@@ -63,6 +64,8 @@ typedef struct WT_ScanReport {
 
     WT_GpuMetrics gpu;
 
+    WT_AudioReport audio;
+
     unsigned int scan_sample_count;
     unsigned int scan_sample_interval_ms;
 
@@ -79,6 +82,7 @@ typedef struct WT_ScanReport {
     int boot_ok;
     int updates_ok;
     int gpu_ok;
+    int audio_ok;
 } WT_ScanReport;
 
 /* Zero-initializes a report and clears all availability flags. */

@@ -5,6 +5,7 @@
 #include "metrics/disk.h"
 #include "metrics/process.h"
 #include "metrics/gpu.h"
+#include "system/audio.h"
 #include "system/os_info.h"
 #include "system/power.h"
 #include "system/boot.h"
@@ -290,6 +291,11 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
     acc->disk_latency_ok = (acc->disk_read_latency_count > 0 ||
                             acc->disk_write_latency_count > 0) ? 1 : 0;
 
+    if (sample_index > 0 && sample->audio_ok) {
+        acc->audio = sample->audio;
+        acc->audio_ok = 1;
+    }
+
     (void)sample_total;
 }
 
@@ -400,6 +406,7 @@ static WT_Result wt_run_scan_once(const WT_ScanOptions *opts,
     report->power_ok = (wt_collect_power_info(&report->power) == WT_OK);
 
     report->gpu_ok = (wt_collect_gpu_metrics(sample_ms, &report->gpu) == WT_OK);
+    report->audio_ok = (wt_collect_audio(&report->audio) == WT_OK);
 
     WT_Result boot_r = wt_collect_boot_report(&report->boot, NULL);
     report->boot_ok = (boot_r == WT_OK);

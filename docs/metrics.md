@@ -359,6 +359,30 @@ QueryDisplayConfig / DisplayConfigGetDeviceInfo /* refresh + advanced color / HD
 Read-only only. WinTune never installs drivers, overclocks, undervolts, or
 claims FPS “boosts.” Advisory `WT-GPU-001` may note very high engine busy.
 
+## Audio endpoints (Phase 66)
+
+**APIs:**
+
+```c
+IMMDeviceEnumerator            /* active render and capture endpoints */
+IAudioClient::GetMixFormat
+IAudioClient::Initialize       /* shared mode, never Start */
+```
+
+**Collect:**
+- Up to 8 active endpoints: friendly name, render or capture, and whether
+  the endpoint is the console default.
+- A shared-mode initialize that is released without `Start`. Success means
+  the endpoint is not held exclusively (`exclusive` false).
+  `AUDCLNT_E_DEVICE_IN_USE` means another client holds exclusive mode.
+  `AUDCLNT_E_EXCLUSIVE_MODE_ONLY` means the endpoint is exclusive-only.
+  Any other failure leaves `exclusive` and `exclusive_only` JSON null.
+- `any_exclusive` is true when at least one probed endpoint is exclusive.
+  That can emit advisory `WT-AUDIO-001`. It is not an apply action.
+
+Read-only. WinTune does not change the endpoint, its format, or the
+exclusive-mode checkbox.
+
 ---
 
 ## Processes

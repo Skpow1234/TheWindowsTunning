@@ -326,6 +326,33 @@ void wt_print_performance_report_text(FILE *out,
         }
     }
 
+    if (report->audio_ok && report->audio.available &&
+        report->audio.endpoint_count > 0) {
+        fprintf(out, "Audio:\n");
+        for (unsigned int ai = 0; ai < report->audio.endpoint_count; ++ai) {
+            const WT_AudioEndpoint *ep = &report->audio.endpoints[ai];
+            fwprintf(out, L"  %ls  %hs%s",
+                     ep->name[0] != L'\0' ? ep->name : L"(endpoint)",
+                     ep->render ? "render" : "capture",
+                     ep->default_device ? L"  default" : L"");
+            if (!ep->probed) {
+                fprintf(out, "  (not measured)");
+            } else if (ep->exclusive_only) {
+                fprintf(out, "  exclusive-only");
+            } else if (ep->exclusive) {
+                fprintf(out, "  exclusive");
+            } else {
+                fprintf(out, "  shared");
+            }
+            fprintf(out, "\n");
+        }
+        if (report->audio.any_exclusive) {
+            fprintf(out,
+                    "  Exclusive mode is a latency hint. WinTune does not "
+                    "change audio devices.\n");
+        }
+    }
+
     if (report->boot_ok && report->boot.boot_duration_ms > 0) {
         wchar_t boot_dur[32];
         wt_format_duration_ms(report->boot.boot_duration_ms, boot_dur, 32);

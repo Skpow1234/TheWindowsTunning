@@ -1,6 +1,6 @@
 # WinTune milestones 54–157
 
-Phases 0–65 are done. See [`roadmap.md`](roadmap.md). Phases 66–157 are
+Phases 0–66 are done. See [`roadmap.md`](roadmap.md). Phases 67–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -160,9 +160,16 @@ Read-only. WinTune does not change the display mode or HDR.
 
 ### Phase 66 — Audio endpoints
 
-**Status:** Planned
+**Status:** Done
 
-**Deliver:** Flag exclusive-mode audio endpoints as a latency hint.
+**Deliver:** Flag exclusive-mode audio endpoints as a latency hint. Active
+render and capture endpoints are listed from the MMDevice enumerator. Each
+one is probed with a shared-mode `IAudioClient::Initialize` that is never
+started. `AUDCLNT_E_DEVICE_IN_USE` means another client holds the endpoint
+in exclusive mode. `AUDCLNT_E_EXCLUSIVE_MODE_ONLY` means the endpoint is
+exclusive-only. Either case sets `exclusive` and can emit advisory
+`WT-AUDIO-001`. A probe that does not answer is JSON null. WinTune does not
+change the device, its format, or its exclusive-mode policy.
 
 ### Phase 67 — Search indexer
 

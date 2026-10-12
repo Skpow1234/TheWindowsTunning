@@ -58,6 +58,7 @@ add_executable(wintune
     src/metrics/integrity.c
     src/metrics/network.c
     src/metrics/gpu.c
+    src/system/audio.c
 
     # system
     src/system/os_info.c

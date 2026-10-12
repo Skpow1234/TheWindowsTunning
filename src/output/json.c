@@ -1043,6 +1043,49 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     wt_json_end_object(&w);
     wt_json_end_object(&w);
 
+    /* audio endpoints (phase 66) */
+    wt_json_key(&w, "audio");
+    wt_json_begin_object(&w);
+    wt_json_key(&w, "available");
+    wt_json_bool(&w, report->audio_ok && report->audio.available);
+    wt_json_key(&w, "any_exclusive");
+    if (report->audio_ok && report->audio.available) {
+        wt_json_bool(&w, report->audio.any_exclusive);
+        wt_json_key(&w, "endpoints");
+        wt_json_begin_array(&w);
+        for (unsigned int ai = 0; ai < report->audio.endpoint_count; ++ai) {
+            const WT_AudioEndpoint *ep = &report->audio.endpoints[ai];
+            wt_json_begin_object(&w);
+            wt_json_key(&w, "name");
+            if (ep->name[0] != L'\0') {
+                wt_json_wstring(&w, ep->name);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "flow");
+            wt_json_string(&w, ep->render ? "render" : "capture");
+            wt_json_key(&w, "default");
+            wt_json_bool(&w, ep->default_device);
+            wt_json_key(&w, "exclusive");
+            if (ep->probed) {
+                wt_json_bool(&w, ep->exclusive);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_key(&w, "exclusive_only");
+            if (ep->probed) {
+                wt_json_bool(&w, ep->exclusive_only);
+            } else {
+                wt_json_null(&w);
+            }
+            wt_json_end_object(&w);
+        }
+        wt_json_end_array(&w);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_end_object(&w);
+
     /* power */
     wt_json_key(&w, "power");
     wt_json_begin_object(&w);

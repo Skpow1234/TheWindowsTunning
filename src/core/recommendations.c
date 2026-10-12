@@ -1491,6 +1491,53 @@ static void wt_check_gpu(const WT_ScanReport *rep, WT_RecommendationList *out)
     wt_rec_set_confidence(r, rep, WT_CONF_GPU, 70);
 }
 
+static void wt_check_audio(const WT_ScanReport *rep, WT_RecommendationList *out)
+{
+    const WT_AudioEndpoint *hit = NULL;
+    char name_utf8[160];
+    WT_Recommendation *r;
+
+    if (!rep->audio_ok || !rep->audio.available || !rep->audio.any_exclusive) {
+        return;
+    }
+    for (unsigned int i = 0; i < rep->audio.endpoint_count; ++i) {
+        if (rep->audio.endpoints[i].probed &&
+            rep->audio.endpoints[i].exclusive) {
+            hit = &rep->audio.endpoints[i];
+            break;
+        }
+    }
+    if (hit == NULL) {
+        return;
+    }
+    r = wt_rec_add(out);
+    if (r == NULL) {
+        return;
+    }
+    name_utf8[0] = '\0';
+    if (hit->name[0] != L'\0') {
+        WideCharToMultiByte(CP_UTF8, 0, hit->name, -1, name_utf8,
+                            sizeof(name_utf8), NULL, NULL);
+    }
+    wt_str_set(r->id, sizeof(r->id), "WT-AUDIO-001");
+    wt_str_set(r->title, sizeof(r->title),
+               "An audio endpoint is in exclusive mode");
+    snprintf(r->reason, sizeof(r->reason),
+             "\"%s\" (%s) %s. Exclusive mode bypasses the shared audio engine "
+             "and can add latency or silence other apps. This is a hint only. "
+             "WinTune does not change audio devices or exclusive-mode settings.",
+             name_utf8[0] != '\0' ? name_utf8 : "Audio endpoint",
+             hit->render ? "render" : "capture",
+             hit->exclusive_only ? "is exclusive-only"
+                                 : "is currently held in exclusive mode");
+    wt_str_set(r->action, sizeof(r->action),
+               "Close the app that took exclusive control, or clear exclusive "
+               "mode in the device properties.");
+    r->severity = WT_SEVERITY_INFO;
+    r->risk = WT_RISK_NONE;
+    wt_rec_set_confidence(r, rep, WT_CONF_SNAPSHOT, 70);
+}
+
 WT_Result wt_generate_recommendations(const WT_ScanReport *report,
                                       WT_RecommendationList *out)
 {
@@ -1509,6 +1556,7 @@ WT_Result wt_generate_recommendations(const WT_ScanReport *report,
     wt_check_maintenance(report, out);
     wt_check_cpu(report, out);
     wt_check_gpu(report, out);
+    wt_check_audio(report, out);
     wt_check_boot(report, out);
     wt_check_updates(report, out);
     wt_check_blockers(report, out);

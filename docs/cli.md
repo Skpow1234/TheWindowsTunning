@@ -96,7 +96,10 @@ JSON `dpc_percent` and `interrupt_percent` are null when those counters are
 missing. `kernel_source` is a driver file name only when CPU is high, DPC
 or interrupt time is a real share of that CPU, and user processes are quiet.
 Otherwise it is null. Naming the driver requires an administrator. WinTune
-does not install a driver.
+does not install a driver. Active audio endpoints are listed with `exclusive`
+and `exclusive_only`. Those are null when the shared-mode probe does not
+answer. An exclusive endpoint is a latency hint (`WT-AUDIO-001`). WinTune
+does not change the device or its exclusive-mode setting.
 
 ```bash
 wintune scan
