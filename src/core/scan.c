@@ -12,6 +12,7 @@
 #include "common/error.h"
 #include "common/log.h"
 
+#include <string.h>
 #include <windows.h>
 
 #define WT_SCAN_DEFAULT_SAMPLE_MS 500
@@ -28,11 +29,17 @@ static void wt_scan_collect_top_processes(WT_ScanReport *report, size_t top_limi
     }
 
     size_t count = 0;
+    double user_cpu_max = -1.0;
+    double user_cpu_sum = -1.0;
     if (wt_collect_top_processes(report->top_processes, top_limit,
                                  WT_PROCESS_SORT_MEMORY, sample_ms, 0,
-                                 &count) == WT_OK) {
+                                 &count, &user_cpu_max, &user_cpu_sum) == WT_OK) {
         report->top_process_count = count;
         report->processes_ok = 1;
+        if (report->cpu_ok && report->cpu.available) {
+            wt_cpu_attribute_kernel_source(&report->cpu, user_cpu_max,
+                                           user_cpu_sum);
+        }
     }
 }
 
@@ -93,8 +100,35 @@ static void wt_scan_merge_sample(WT_ScanReport *acc, const WT_ScanReport *sample
                 ((acc->cpu.total_usage_percent * (double)acc->cpu_ok_samples) +
                  sample->cpu.total_usage_percent) /
                 (double)(acc->cpu_ok_samples + 1);
+            if (sample->cpu.dpc_percent >= 0.0) {
+                if (acc->cpu.dpc_percent >= 0.0) {
+                    acc->cpu.dpc_percent =
+                        ((acc->cpu.dpc_percent * (double)acc->cpu_ok_samples) +
+                         sample->cpu.dpc_percent) /
+                        (double)(acc->cpu_ok_samples + 1);
+                } else {
+                    acc->cpu.dpc_percent = sample->cpu.dpc_percent;
+                }
+            }
+            if (sample->cpu.interrupt_percent >= 0.0) {
+                if (acc->cpu.interrupt_percent >= 0.0) {
+                    acc->cpu.interrupt_percent =
+                        ((acc->cpu.interrupt_percent *
+                          (double)acc->cpu_ok_samples) +
+                         sample->cpu.interrupt_percent) /
+                        (double)(acc->cpu_ok_samples + 1);
+                } else {
+                    acc->cpu.interrupt_percent = sample->cpu.interrupt_percent;
+                }
+            }
+            if (sample->cpu.kernel_source_ok) {
+                acc->cpu.kernel_source_ok = 1;
+                acc->cpu.kernel_source_is_dpc = sample->cpu.kernel_source_is_dpc;
+                memcpy(acc->cpu.kernel_source, sample->cpu.kernel_source,
+                       sizeof(acc->cpu.kernel_source));
+            }
         } else {
-            acc->cpu.total_usage_percent = sample->cpu.total_usage_percent;
+            acc->cpu = sample->cpu;
             acc->cpu_ok = 1;
             acc->cpu.available = 1;
         }

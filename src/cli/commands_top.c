@@ -53,7 +53,7 @@ static WT_Result wt_top_snapshot(WT_ProcessInfo *buffer, size_t limit,
     size_t count = 0;
     WT_Result r =
         wt_collect_top_processes(buffer, limit, sort, sample_ms,
-                                 include_network, &count);
+                                 include_network, &count, NULL, NULL);
     if (r != WT_OK) {
         return r;
     }

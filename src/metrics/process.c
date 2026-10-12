@@ -961,17 +961,51 @@ void wt_enrich_process_identity(WT_ProcessInfo *items, size_t count)
     }
 }
 
+static int wt_process_kernel_pseudo(unsigned long pid, const wchar_t *name)
+{
+    if (pid <= 4) {
+        return 1;
+    }
+    if (name == NULL) {
+        return 1;
+    }
+    return _wcsicmp(name, L"Idle") == 0 ||
+           _wcsicmp(name, L"System") == 0 ||
+           _wcsicmp(name, L"System Idle Process") == 0 ||
+           _wcsicmp(name, L"Registry") == 0 ||
+           _wcsicmp(name, L"Memory Compression") == 0 ||
+           _wcsicmp(name, L"Secure System") == 0;
+}
+
 WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
                                    size_t limit,
                                    WT_ProcessSort sort,
                                    unsigned int sample_ms,
                                    int include_network,
-                                   size_t *out_count)
+                                   size_t *out_count,
+                                   double *out_user_cpu_max,
+                                   double *out_user_cpu_sum)
 {
+    double user_max = -1.0;
+    double user_sum = 0.0;
+    int user_seen = 0;
+    SYSTEM_INFO sysinfo;
+    double nproc;
+
+    if (out_user_cpu_max != NULL) {
+        *out_user_cpu_max = -1.0;
+    }
+    if (out_user_cpu_sum != NULL) {
+        *out_user_cpu_sum = -1.0;
+    }
     if (out == NULL || out_count == NULL || limit == 0) {
         return WT_ERR_INVALID_ARGUMENT;
     }
     *out_count = 0;
+    GetSystemInfo(&sysinfo);
+    nproc = (sysinfo.dwNumberOfProcessors > 0)
+                ? (double)sysinfo.dwNumberOfProcessors
+                : 1.0;
 
     if (sort == WT_PROCESS_SORT_NETWORK) {
         include_network = 1;
@@ -1146,6 +1180,19 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
                 wt_apply_one_net_rate(&info, nr, net_session.udp_measured);
             }
 
+            if (!wt_process_kernel_pseudo(info.pid, info.name) &&
+                info.cpu_percent >= 0.0) {
+                double machine = info.cpu_percent / nproc;
+                if (machine < 0.0) {
+                    machine = 0.0;
+                }
+                user_sum += machine;
+                if (!user_seen || machine > user_max) {
+                    user_max = machine;
+                }
+                user_seen = 1;
+            }
+
             wt_topk_insert(out, out_count, limit, &info, sort);
         } while (Process32NextW(snapshot, &entry));
     } else {
@@ -1162,6 +1209,14 @@ WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
         wt_sort_processes(out, *out_count, sort);
         wt_enrich_process_identity(out, *out_count);
         wt_enrich_process_wait_chain(out, *out_count);
+        if (user_seen) {
+            if (out_user_cpu_max != NULL) {
+                *out_user_cpu_max = user_max;
+            }
+            if (out_user_cpu_sum != NULL) {
+                *out_user_cpu_sum = user_sum;
+            }
+        }
     }
     return result;
 }
@@ -1171,7 +1226,7 @@ WT_Result wt_collect_top_processes_by_memory(WT_ProcessInfo *out,
                                              size_t *out_count)
 {
     return wt_collect_top_processes(out, limit, WT_PROCESS_SORT_MEMORY, 0, 0,
-                                    out_count);
+                                    out_count, NULL, NULL);
 }
 
 void wt_sort_processes_by_memory(WT_ProcessInfo *items, size_t count)

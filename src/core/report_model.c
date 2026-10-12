@@ -17,6 +17,9 @@ WT_Result wt_scan_report_init(WT_ScanReport *report)
     report->disk_write_latency_ms_p95 = -1.0;
     report->disk_active_max_percent = -1.0;
     report->cpu_max_percent = -1.0;
+    report->cpu.total_usage_percent = -1.0;
+    report->cpu.dpc_percent = -1.0;
+    report->cpu.interrupt_percent = -1.0;
     report->memory_max_used_percent = -1.0;
     report->gpu.max_utilization_percent = -1.0;
     return WT_OK;

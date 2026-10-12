@@ -102,12 +102,17 @@ void wt_sort_processes(WT_ProcessInfo *items, size_t count, WT_ProcessSort sort)
  * `sample_ms` > 0, enriches entries with PDH CPU and disk I/O rates.
  * When `include_network` is non-zero, also samples TCP Extended Stats
  * (opt-in; higher overhead; no payload capture). */
+/* `out_user_cpu_max` and `out_user_cpu_sum` receive machine-wide CPU percent
+ * for user processes (kernel pseudo-processes excluded), or -1 when CPU was
+ * not sampled. Either pointer may be NULL. */
 WT_Result wt_collect_top_processes(WT_ProcessInfo *out,
                                    size_t limit,
                                    WT_ProcessSort sort,
                                    unsigned int sample_ms,
                                    int include_network,
-                                   size_t *out_count);
+                                   size_t *out_count,
+                                   double *out_user_cpu_max,
+                                   double *out_user_cpu_sum);
 
 /* Backward-compatible wrapper: top processes by memory without CPU/disk rates. */
 WT_Result wt_collect_top_processes_by_memory(WT_ProcessInfo *out,

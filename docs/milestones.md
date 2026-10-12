@@ -1,6 +1,6 @@
 # WinTune milestones 54–157
 
-Phases 0–63 are done. See [`roadmap.md`](roadmap.md). Phases 64–157 are
+Phases 0–64 are done. See [`roadmap.md`](roadmap.md). Phases 65–157 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -134,9 +134,17 @@ handles or GDI objects.
 
 ### Phase 64 — DPC and interrupts
 
-**Status:** Planned
+**Status:** Done
 
-**Deliver:** Name the loudest DPC or interrupt source when CPU is high and user processes are quiet.
+**Deliver:** Name the loudest DPC or interrupt source when CPU is high and
+user processes are quiet. DPC time and interrupt time come from the same
+PDH window as total CPU. A short real-time kernel trace
+(`EVENT_TRACE_FLAG_DPC`, `EVENT_TRACE_FLAG_INTERRUPT`, and image load) runs
+only when total CPU is at least 50%, DPC plus interrupt time is at least
+10%, and user processes stay under 15% each and 25% combined. The result is
+a file name such as `ndis.sys`, plus `dpc` or `interrupt`. JSON
+`kernel_source` is null otherwise, including when the trace needs an
+administrator. Read-only. No driver is installed.
 
 ### Phase 65 — Displays
 

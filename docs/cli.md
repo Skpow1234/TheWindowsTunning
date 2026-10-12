@@ -87,10 +87,16 @@ JSON schema, exit codes, and fleet patterns: [`json-schema.md`](json-schema.md),
 
 ## `wintune scan`
 
-Runs a full local scan: OS version, architecture, uptime, CPU, memory, disk
+Runs a full local scan: OS version, architecture, uptime, CPU (including
+DPC and interrupt time), memory, disk
 (usage + active time + per-volume LogicalDisk activity), GPU/display readiness,
 network status, top CPU/memory/disk processes, current
 power plan, startup entries, auto-start services, and basic recommendations.
+JSON `dpc_percent` and `interrupt_percent` are null when those counters are
+missing. `kernel_source` is a driver file name only when CPU is high, DPC
+or interrupt time is a real share of that CPU, and user processes are quiet.
+Otherwise it is null. Naming the driver requires an administrator. WinTune
+does not install a driver.
 
 ```bash
 wintune scan

@@ -49,15 +49,24 @@ Per-process metrics in `top`, `scan`, and TUI:
 
 ```text
 \Processor(_Total)\% Processor Time
+\Processor(_Total)\% DPC Time
+\Processor(_Total)\% Interrupt Time
 \Process(*)\% Processor Time
 ```
 
 **Collect:**
 - Total CPU percentage.
+- DPC time and interrupt time, from the same sample window (Phase 64).
 - Per-process CPU estimate (normalized by logical processor count where needed).
 - Number of logical processors.
 - Processor name if easily available.
 - Load trend over the sampling window.
+- Phase 64 names the loudest DPC or interrupt image only when total CPU is
+  at least 50%, DPC plus interrupt time is at least 10%, and user processes
+  stay under 15% each and 25% combined (machine-wide). The name is a file
+  such as `ndis.sys`. JSON `kernel_source` is null when that condition is
+  not met, the trace cannot start, or no image clears five events. The
+  trace is a short real-time kernel session. It does not install a driver.
 
 ---
 

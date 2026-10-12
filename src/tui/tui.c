@@ -1338,7 +1338,7 @@ WT_Result wt_tui_run(const WT_CliOptions *opts)
                 if (wt_collect_top_processes(procs, WT_TUI_TOP_PROC, state.sort,
                                              WT_TUI_PROC_SAMPLE_MS,
                                              state.include_network,
-                                             &proc_count) == WT_OK) {
+                                             &proc_count, NULL, NULL) == WT_OK) {
                     procs_ok = 1;
                     wt_tui_clamp_scroll(&state.proc_scroll, proc_count, 1);
                 } else {

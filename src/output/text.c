@@ -143,6 +143,28 @@ void wt_print_scan_report_text_to(FILE *out, const WT_ScanReport *report,
             fprintf(out, " (avg of %u samples)", report->scan_sample_count);
         }
         fprintf(out, "\n");
+        if (report->cpu.dpc_percent >= 0.0 ||
+            report->cpu.interrupt_percent >= 0.0) {
+            fprintf(out, "  DPC: ");
+            if (report->cpu.dpc_percent >= 0.0) {
+                fprintf(out, "%.1f%%", report->cpu.dpc_percent);
+            } else {
+                fprintf(out, "n/a");
+            }
+            fprintf(out, "   Interrupts: ");
+            if (report->cpu.interrupt_percent >= 0.0) {
+                fprintf(out, "%.1f%%", report->cpu.interrupt_percent);
+            } else {
+                fprintf(out, "n/a");
+            }
+            fprintf(out, "\n");
+        }
+        if (report->cpu.kernel_source_ok &&
+            report->cpu.kernel_source[0] != '\0') {
+            fprintf(out, "  Loudest kernel source: %s (%s)\n",
+                    report->cpu.kernel_source,
+                    report->cpu.kernel_source_is_dpc ? "DPC" : "interrupt");
+        }
     } else {
         fprintf(out, "  Usage: (unavailable)\n");
     }

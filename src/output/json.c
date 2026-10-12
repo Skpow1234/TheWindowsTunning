@@ -702,6 +702,32 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
     } else {
         wt_json_null(&w);
     }
+    wt_json_key(&w, "dpc_percent");
+    if (report->cpu_ok && report->cpu.dpc_percent >= 0.0) {
+        wt_json_double(&w, report->cpu.dpc_percent);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "interrupt_percent");
+    if (report->cpu_ok && report->cpu.interrupt_percent >= 0.0) {
+        wt_json_double(&w, report->cpu.interrupt_percent);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "kernel_source");
+    if (report->cpu_ok && report->cpu.kernel_source_ok &&
+        report->cpu.kernel_source[0] != '\0') {
+        wt_json_string(&w, report->cpu.kernel_source);
+    } else {
+        wt_json_null(&w);
+    }
+    wt_json_key(&w, "kernel_source_kind");
+    if (report->cpu_ok && report->cpu.kernel_source_ok) {
+        wt_json_string(&w, report->cpu.kernel_source_is_dpc ? "dpc"
+                                                           : "interrupt");
+    } else {
+        wt_json_null(&w);
+    }
     wt_json_end_object(&w);
 
     /* memory */

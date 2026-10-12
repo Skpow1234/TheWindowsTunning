@@ -155,6 +155,24 @@ void wt_print_performance_report_text(FILE *out,
         fprintf(out, "  CPU:     %.1f%% (%u logical processors)\n",
                 report->cpu.total_usage_percent,
                 report->cpu.logical_processor_count);
+        if (report->cpu.dpc_percent >= 0.0 ||
+            report->cpu.interrupt_percent >= 0.0) {
+            fprintf(out, "  DPC/IRQ: ");
+            if (report->cpu.dpc_percent >= 0.0) {
+                fprintf(out, "DPC %.1f%%", report->cpu.dpc_percent);
+            }
+            if (report->cpu.interrupt_percent >= 0.0) {
+                fprintf(out, "%sIRQ %.1f%%",
+                        report->cpu.dpc_percent >= 0.0 ? "  " : "",
+                        report->cpu.interrupt_percent);
+            }
+            fprintf(out, "\n");
+        }
+        if (report->cpu.kernel_source_ok &&
+            report->cpu.kernel_source[0] != '\0') {
+            fprintf(out, "  Kernel:  %s (%s)\n", report->cpu.kernel_source,
+                    report->cpu.kernel_source_is_dpc ? "DPC" : "interrupt");
+        }
     } else {
         fprintf(out, "  CPU:     unavailable\n");
     }
