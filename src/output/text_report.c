@@ -228,6 +228,19 @@ void wt_print_performance_report_text(FILE *out,
                 fprintf(out, "  | busy %.0f%%", a->utilization_percent);
             }
             fprintf(out, "\n");
+            for (size_t p = 0; p < a->process_count; ++p) {
+                const WT_GpuProcessUse *use = &a->processes[p];
+                if (use->engine_percent < 0.5) {
+                    continue;
+                }
+                if (use->name[0] != L'\0') {
+                    fwprintf(out, L"    engine  %lu  %ls  %.0f%%\n", use->pid,
+                             use->name, use->engine_percent);
+                } else {
+                    fwprintf(out, L"    engine  %lu  %.0f%%\n", use->pid,
+                             use->engine_percent);
+                }
+            }
         }
     }
     if (report->gpu_ok && report->gpu.display.available) {

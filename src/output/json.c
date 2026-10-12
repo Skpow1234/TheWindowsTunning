@@ -841,6 +841,24 @@ void wt_print_scan_report_json(const WT_ScanReport *report,
             } else {
                 wt_json_null(&w);
             }
+            wt_json_key(&w, "processes");
+            wt_json_begin_array(&w);
+            for (size_t p = 0; p < a->process_count; ++p) {
+                const WT_GpuProcessUse *use = &a->processes[p];
+                wt_json_begin_object(&w);
+                wt_json_key(&w, "pid");
+                wt_json_uint64(&w, use->pid);
+                wt_json_key(&w, "name");
+                if (use->name[0] != L'\0') {
+                    wt_json_wstring(&w, use->name);
+                } else {
+                    wt_json_null(&w);
+                }
+                wt_json_key(&w, "engine_percent");
+                wt_json_double(&w, use->engine_percent);
+                wt_json_end_object(&w);
+            }
+            wt_json_end_array(&w);
             wt_json_end_object(&w);
         }
     }

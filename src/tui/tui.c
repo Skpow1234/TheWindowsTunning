@@ -628,9 +628,28 @@ static void wt_tui_render_gpu(WT_TuiScreen *s, const WT_TuiTheme *t)
         } else {
             wt_tui_screen_line(s, "%-36.36s %10s %8s", name, ded, "n/a");
         }
+        size_t shown = 0;
+        for (size_t p = 0; p < gpu.adapters[i].process_count && shown < 4; ++p) {
+            const WT_GpuProcessUse *use = &gpu.adapters[i].processes[p];
+            if (use->engine_percent < 0.5) {
+                continue;
+            }
+            char pname[64];
+            if (use->name[0] != L'\0') {
+                WideCharToMultiByte(CP_UTF8, 0, use->name, -1, pname,
+                                    sizeof(pname), NULL, NULL);
+            } else {
+                snprintf(pname, sizeof(pname), "pid %lu", use->pid);
+            }
+            wt_tui_screen_line(s, "  %sengine%s %-22.22s %6.0f%%",
+                               wt_tui_dim(t), wt_tui_reset(t), pname,
+                               use->engine_percent);
+            shown++;
+        }
     }
     wt_tui_screen_line(s, "");
     wt_tui_empty_line(s, t, "Busy = max GPU Engine utilization (PDH). Read-only.");
+    wt_tui_empty_line(s, t, "Engine lines are per-process GPU time on that adapter.");
     wt_tui_empty_line(s, t, "WinTune never changes drivers, clocks, or FPS settings.");
 }
 

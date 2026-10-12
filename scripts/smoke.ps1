@@ -356,6 +356,28 @@ if (-not $scanJson.TimedOut -and $scanJson.ExitCode -eq 0) {
                 Write-CaseResult "scan --json volume activity" "PASS" "$($vols.Count) volume(s)"
             }
         }
+        $adapters = @($scanObj.gpu.adapters)
+        if ($adapters.Count -eq 0) {
+            Write-CaseResult "scan --json gpu processes" "SOFT" "no hardware GPU adapters"
+        } else {
+            $procs = @($adapters[0].processes)
+            if ($null -eq ($adapters[0].PSObject.Properties["processes"])) {
+                Write-CaseResult "scan --json gpu processes" "FAIL" "adapter missing processes"
+            } elseif ($procs.Count -eq 0) {
+                Write-CaseResult "scan --json gpu processes" "SOFT" "no per-process GPU engine time"
+            } else {
+                $needGpu = @("pid", "engine_percent")
+                $missingGpu = @()
+                foreach ($f in $needGpu) {
+                    if ($null -eq ($procs[0].PSObject.Properties[$f])) { $missingGpu += $f }
+                }
+                if ($missingGpu.Count -gt 0) {
+                    Write-CaseResult "scan --json gpu processes" "FAIL" ("missing: " + ($missingGpu -join ", "))
+                } else {
+                    Write-CaseResult "scan --json gpu processes" "PASS" "$($procs.Count) process(es) on $($adapters[0].name)"
+                }
+            }
+        }
     } catch {
         Write-CaseResult "scan --json volume activity" "FAIL" $_.Exception.Message
     }

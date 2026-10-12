@@ -7,7 +7,7 @@
 [![Build: CMake](https://img.shields.io/badge/Build-CMake-064F8C?logo=cmake&logoColor=white)](#build)
 [![Compiler: MSVC](https://img.shields.io/badge/Compiler-MSVC-5C2D91?logo=visualstudio&logoColor=white)](#build)
 [![Version: 0.3.0](https://img.shields.io/badge/Version-0.3.0-blue.svg)](docs/roadmap.md)
-[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9356%20Done-brightgreen.svg)](#project-status)
+[![Status: Done](https://img.shields.io/badge/Status-Phases%200%E2%80%9357%20Done-brightgreen.svg)](#project-status)
 
 **Native Windows performance diagnostics. Measure bottlenecks. Explain impact. Apply safe fixes.**
 
@@ -447,7 +447,8 @@ end-user release polish.
 | 54 | Full process list (`top --page`) | Done |
 | 55 | Process identity (parent, session, integrity) | Done |
 | 56 | Hung processes (wait chain, read-only) | Done |
-| 57–153 | Next milestones: measure, explain, apply, history, TUI, CLI, service, boot, fleet, release | Planned |
+| 57 | Per-process GPU engine time | Done |
+| 58–153 | Next milestones: measure, explain, apply, history, TUI, CLI, service, boot, fleet, release | Planned |
 
 Commands that are recognized but not yet implemented print a clear notice and
 exit non-zero.

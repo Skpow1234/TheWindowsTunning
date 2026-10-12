@@ -284,13 +284,16 @@ DNS, proxy, firewall, routing, or adapter settings in v1.
 ```c
 CreateDXGIFactory1 / IDXGIAdapter1::GetDesc1   /* hardware adapters */
 EnumDisplayDevicesW / GetSystemMetrics         /* display count + primary size */
-\GPU Engine(*)\Utilization Percentage          /* PDH; aggregate by LUID */
+\GPU Engine(*)\Utilization Percentage          /* PDH; aggregate by LUID and by PID */
 ```
 
 **Collect:**
 - Hardware GPU name, dedicated and shared video memory (software/WARP skipped).
 - Per-adapter engine busy % (max across engine types for that LUID, clamped
   0–100%). Soft-fails when the counter set is missing (some VMs).
+- Up to 8 processes per adapter: the sum of that process's GPU engine
+  instances on that adapter during the sample, clamped to 0–100%
+  (`engine_percent`). This is engine time, not a driver or clock change.
 - Active desktop display count and primary resolution.
 
 Read-only only. WinTune never installs drivers, overclocks, undervolts, or

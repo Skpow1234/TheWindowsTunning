@@ -6,12 +6,14 @@
 #include <pdh.h>
 #include <pdhmsg.h>
 #include <dxgi.h>
+#include <tlhelp32.h>
 #include <strsafe.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define WT_GPU_DEFAULT_SAMPLE_MS 500
 #define WT_GPU_MAX_ENGINE_KEYS   256
+#define WT_GPU_MAX_PID_KEYS      1024
 
 #ifndef DXGI_ADAPTER_FLAG_SOFTWARE
 #define DXGI_ADAPTER_FLAG_SOFTWARE 2
@@ -23,6 +25,13 @@ typedef struct WT_GpuEngKey {
     wchar_t engtype[64];
     double sum;
 } WT_GpuEngKey;
+
+typedef struct WT_GpuPidKey {
+    unsigned long luid_high;
+    unsigned long luid_low;
+    unsigned long pid;
+    double sum;
+} WT_GpuPidKey;
 
 static int wt_gpu_parse_luid(const wchar_t *instance,
                              unsigned long *high,
@@ -62,6 +71,117 @@ static int wt_gpu_parse_luid(const wchar_t *instance,
         }
     }
     return 1;
+}
+
+static int wt_gpu_parse_pid(const wchar_t *instance, unsigned long *pid)
+{
+    if (instance == NULL || pid == NULL) {
+        return 0;
+    }
+    const wchar_t *p = wcsstr(instance, L"pid_");
+    if (p == NULL) {
+        return 0;
+    }
+    p += 4;
+    wchar_t *end = NULL;
+    unsigned long value = wcstoul(p, &end, 10);
+    if (end == p) {
+        return 0;
+    }
+    *pid = value;
+    return 1;
+}
+
+static void wt_gpu_pid_add(WT_GpuPidKey *keys, size_t *count, size_t capacity,
+                           unsigned long high, unsigned long low,
+                           unsigned long pid, double value)
+{
+    if (keys == NULL || count == NULL || value < 0.0 || pid == 0) {
+        return;
+    }
+    for (size_t i = 0; i < *count; ++i) {
+        if (keys[i].luid_high == high && keys[i].luid_low == low &&
+            keys[i].pid == pid) {
+            keys[i].sum += value;
+            return;
+        }
+    }
+    if (*count >= capacity) {
+        return;
+    }
+    keys[*count].luid_high = high;
+    keys[*count].luid_low = low;
+    keys[*count].pid = pid;
+    keys[*count].sum = value;
+    (*count)++;
+}
+
+static void wt_gpu_keep_process(WT_GpuProcessUse *slots, size_t *count,
+                                size_t capacity, unsigned long pid, double sum)
+{
+    if (slots == NULL || count == NULL || capacity == 0 || sum <= 0.0) {
+        return;
+    }
+    if (sum > 100.0) {
+        sum = 100.0;
+    }
+    for (size_t i = 0; i < *count; ++i) {
+        if (slots[i].pid == pid) {
+            if (sum > slots[i].engine_percent) {
+                slots[i].engine_percent = sum;
+            }
+            return;
+        }
+    }
+
+    size_t index = *count;
+    if (*count < capacity) {
+        (*count)++;
+    } else if (sum <= slots[capacity - 1].engine_percent) {
+        return;
+    } else {
+        index = capacity - 1;
+    }
+
+    slots[index].pid = pid;
+    slots[index].engine_percent = sum;
+    slots[index].name[0] = L'\0';
+    for (size_t i = index; i > 0 &&
+         slots[i].engine_percent > slots[i - 1].engine_percent; --i) {
+        WT_GpuProcessUse tmp = slots[i - 1];
+        slots[i - 1] = slots[i];
+        slots[i] = tmp;
+    }
+}
+
+static void wt_gpu_resolve_names(WT_GpuMetrics *out)
+{
+    if (out == NULL) {
+        return;
+    }
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snapshot == INVALID_HANDLE_VALUE) {
+        return;
+    }
+
+    PROCESSENTRY32W entry;
+    entry.dwSize = sizeof(entry);
+    if (Process32FirstW(snapshot, &entry)) {
+        do {
+            for (size_t a = 0; a < out->adapter_count; ++a) {
+                WT_GpuAdapter *adapter = &out->adapters[a];
+                for (size_t p = 0; p < adapter->process_count; ++p) {
+                    if (adapter->processes[p].pid == entry.th32ProcessID &&
+                        adapter->processes[p].name[0] == L'\0') {
+                        StringCchCopyW(adapter->processes[p].name,
+                                       ARRAYSIZE(adapter->processes[p].name),
+                                       entry.szExeFile);
+                    }
+                }
+            }
+        } while (Process32NextW(snapshot, &entry));
+    }
+    CloseHandle(snapshot);
 }
 
 static void wt_gpu_eng_add(WT_GpuEngKey *keys, size_t *count, size_t capacity,
@@ -254,12 +374,17 @@ static WT_Result wt_gpu_sample_utilization(WT_GpuMetrics *out,
 
     WT_GpuEngKey *keys =
         (WT_GpuEngKey *)calloc(WT_GPU_MAX_ENGINE_KEYS, sizeof(WT_GpuEngKey));
-    if (keys == NULL) {
+    WT_GpuPidKey *pids =
+        (WT_GpuPidKey *)calloc(WT_GPU_MAX_PID_KEYS, sizeof(WT_GpuPidKey));
+    if (keys == NULL || pids == NULL) {
+        free(keys);
+        free(pids);
         free(buf);
         result = WT_ERR_OUT_OF_MEMORY;
         goto cleanup;
     }
     size_t key_count = 0;
+    size_t pid_count = 0;
 
     for (DWORD i = 0; i < item_count; ++i) {
         if (items[i].szName == NULL) {
@@ -277,6 +402,10 @@ static WT_Result wt_gpu_sample_utilization(WT_GpuMetrics *out,
         }
         wt_gpu_eng_add(keys, &key_count, WT_GPU_MAX_ENGINE_KEYS, hi, lo,
                        engtype, v);
+        unsigned long pid = 0;
+        if (wt_gpu_parse_pid(items[i].szName, &pid)) {
+            wt_gpu_pid_add(pids, &pid_count, WT_GPU_MAX_PID_KEYS, hi, lo, pid, v);
+        }
     }
 
     out->max_utilization_percent = -1.0;
@@ -293,8 +422,21 @@ static WT_Result wt_gpu_sample_utilization(WT_GpuMetrics *out,
                 out->max_utilization_percent = u;
             }
         }
+        out->adapters[a].process_count = 0;
+        for (size_t p = 0; p < pid_count; ++p) {
+            if (pids[p].luid_high != out->adapters[a].luid_high ||
+                pids[p].luid_low != out->adapters[a].luid_low) {
+                continue;
+            }
+            wt_gpu_keep_process(out->adapters[a].processes,
+                                &out->adapters[a].process_count,
+                                WT_GPU_PROCS_PER_ADAPTER, pids[p].pid,
+                                pids[p].sum);
+        }
     }
+    wt_gpu_resolve_names(out);
 
+    free(pids);
     free(keys);
     free(buf);
     result = out->utilization_ok ? WT_OK : WT_ERR_NOT_FOUND;

@@ -1,6 +1,6 @@
 # WinTune milestones 54–153
 
-Phases 0–56 are done. See [`roadmap.md`](roadmap.md). Phases 57–153 are
+Phases 0–57 are done. See [`roadmap.md`](roadmap.md). Phases 58–153 are
 **Planned**.
 
 `scan` and unpaged `top` keep a top-K process cap of 32. `top --page` walks
@@ -47,9 +47,12 @@ hangs. WinTune does not end the process.
 
 ### Phase 57 — Per-process GPU
 
-**Status:** Planned
+**Status:** Done
 
 **Deliver:** Add per-process GPU engine time next to the existing adapter inventory.
+Each hardware adapter lists up to 8 processes. `engine_percent` is the sum of
+that process's `\GPU Engine(*)\Utilization Percentage` instances on that
+adapter during the sample, clamped to 100. Read-only.
 
 ### Phase 58 — UDP rates
 
