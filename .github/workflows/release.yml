@@ -98,7 +98,7 @@ jobs:
             -SignIfConfigured -SkipIfMissingInno
 
       - name: Upload x64 artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wintune-x64
           path: |
@@ -107,7 +107,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload x64 installer (optional)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wintune-x64-setup
           path: |
@@ -172,7 +172,7 @@ jobs:
             -SignIfConfigured -SkipIfMissingInno
 
       - name: Upload ARM64 artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wintune-arm64
           path: |
@@ -181,7 +181,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload ARM64 installer (optional)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wintune-arm64-setup
           path: |
